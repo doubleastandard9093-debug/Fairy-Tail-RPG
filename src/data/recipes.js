@@ -1,0 +1,21 @@
+// Crafting recipes. station: forge (Smithing) or workbench (Crafting).
+// in/out are { itemId: qty }. Add a recipe here and it appears at its station automatically.
+export const RECIPES = [];
+const add = (r) => RECIPES.push(r);
+const lv = [0, 1, 10, 20], xpm = [0, 1, 2, 3.5];
+for (let t = 1; t <= 3; t++) {
+  // Refining (Albion-style): raw -> refined
+  add({ id: `ref_bar_${t}`, station: 'forge', skill: 'smithing', level: lv[t], xp: 14 * xpm[t], in: { [`ore_t${t}`]: 2 }, out: { [`bar_t${t}`]: 1 }, group: 'Refine' });
+  add({ id: `ref_plank_${t}`, station: 'workbench', skill: 'crafting', level: lv[t], xp: 12 * xpm[t], in: { [`wood_t${t}`]: 2 }, out: { [`plank_t${t}`]: 1 }, group: 'Refine' });
+  add({ id: `ref_cloth_${t}`, station: 'workbench', skill: 'crafting', level: lv[t], xp: 12 * xpm[t], in: { [`fibre_t${t}`]: 2 }, out: { [`cloth_t${t}`]: 1 }, group: 'Refine' });
+  add({ id: `ref_leather_${t}`, station: 'workbench', skill: 'crafting', level: lv[t], xp: 12 * xpm[t], in: { [`hide_t${t}`]: 2 }, out: { [`leather_t${t}`]: 1 }, group: 'Refine' });
+  // Gear
+  add({ id: `sw1_${t}`, station: 'forge', skill: 'smithing', level: lv[t] + 1, xp: 40 * xpm[t], in: { [`bar_t${t}`]: 3 }, out: { [`sword1h_t${t}`]: 1 }, group: 'Weapons' });
+  add({ id: `sw2_${t}`, station: 'forge', skill: 'smithing', level: lv[t] + 3, xp: 62 * xpm[t], in: { [`bar_t${t}`]: 5 }, out: { [`sword2h_t${t}`]: 1 }, group: 'Weapons' });
+  add({ id: `plate_${t}`, station: 'forge', skill: 'smithing', level: lv[t] + 4, xp: 70 * xpm[t], in: { [`bar_t${t}`]: 6 }, out: { [`plate_t${t}`]: 1 }, group: 'Armor' });
+  add({ id: `bow_${t}`, station: 'workbench', skill: 'crafting', level: lv[t] + 1, xp: 45 * xpm[t], in: { [`plank_t${t}`]: 4 }, out: { [`bow_t${t}`]: 1 }, group: 'Weapons' });
+  add({ id: `staff_${t}`, station: 'workbench', skill: 'crafting', level: lv[t] + 1, xp: 45 * xpm[t], in: { [`plank_t${t}`]: 3, [`cloth_t${t}`]: 1 }, out: { [`staff_t${t}`]: 1 }, group: 'Weapons' });
+  add({ id: `knuck_${t}`, station: 'workbench', skill: 'crafting', level: lv[t] + 2, xp: 45 * xpm[t], in: { [`leather_t${t}`]: 3 }, out: { [`knuckles_t${t}`]: 1 }, group: 'Weapons' });
+  add({ id: `robe_${t}`, station: 'workbench', skill: 'crafting', level: lv[t] + 3, xp: 60 * xpm[t], in: { [`cloth_t${t}`]: 5 }, out: { [`robe_t${t}`]: 1 }, group: 'Armor' });
+  add({ id: `jacket_${t}`, station: 'workbench', skill: 'crafting', level: lv[t] + 3, xp: 60 * xpm[t], in: { [`leather_t${t}`]: 5 }, out: { [`jacket_t${t}`]: 1 }, group: 'Armor' });
+}
