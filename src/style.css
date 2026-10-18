@@ -1,0 +1,23 @@
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  background: #0b0f14;
+  color: #ecf5ff;
+}
+
+html, body, #app {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: linear-gradient(#0d1620, #101820);
+}
+
+#renderCanvas {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  touch-action: none;
+}
