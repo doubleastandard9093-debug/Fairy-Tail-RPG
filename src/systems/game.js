@@ -1,0 +1,721 @@
+import * as THREE from 'three';
+import { ITEMS, WEAPON_TYPES } from '../data/items.js';
+import { ABILITIES, WEAPON_ABILITIES, ARMOR_ABILITY } from '../data/abilities.js';
+import { SCHOOLS } from '../data/schools.js';
+import { MOBS, ALLIES, SPAWNS, BOSS_ARENA } from '../data/mobs.js';
+import { NODE_TYPES, NODE_TIERS, NODE_RESPAWN } from '../data/nodes.js';
+import { POIS } from '../data/npcs.js';
+import { derived, countItem, addItem, skillLevel, classRank, canAdd, saveGame } from '../core/state.js';
+import { buildCharacter, buildMob, animateCharacter, animateMob, equipVisual } from '../world/models.js';
+import { buildWorld, groundAt, BOUNDS, HALL, zoneAt, rng } from '../world/world.js';
+import { glow, GFX } from '../world/toon.js';
+import * as P from './progress.js';
+
+const TMP = new THREE.Vector3();
+const ang = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+const dist2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+
+export class Game {
+  constructor(renderer, G, S, ui) {
+    this.renderer = renderer; this.G = G; this.S = S; this.ui = ui;
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
+    this.cam = { yaw: Math.PI, pitch: 0.55, dist: 11, tx: 0, ty: 0, tz: 0 };
+    this.world = buildWorld(this.scene);
+    this.t = 0; this.entities = []; this.projectiles = []; this.teles = []; this.traps = []; this.fx = [];
+    this.input = { x: 0, z: 0 }; this.autoAttack = S.autoAttack !== false;
+    this.rand = rng(Date.now() & 0xffff);
+    this.spawnPlayer();
+    this.spawnMobs();
+    this.saveT = 0;
+  }
+
+  // ------------------------------------------------------------------ player
+  spawnPlayer() {
+    const G = this.G;
+    if (this.player) this.scene.remove(this.player.char.group);
+    const char = buildCharacter(G.look);
+    this.scene.add(char.group);
+    this.player = { char, pos: new THREE.Vector3(G.pos[0], 0, G.pos[1]), rot: G.rot, moveTo: null, follow: null, target: null, gathering: null,
+      atk: -1, atkKind: 'slash', cast: 0, buffs: [], cds: {}, iframes: 0, dead: 0, dash: null, combatT: 0, moving: 0 };
+    this.player.pos.y = groundAt(this.player.pos.x, this.player.pos.z);
+    this.refreshGear();
+  }
+  refreshGear() {
+    const G = this.G; const w = G.equip.weapon ? ITEMS[G.equip.weapon] : null; const lac = G.equip.lacrima ? ITEMS[G.equip.lacrima] : null;
+    equipVisual(this.player.char, w ? w.weaponType : null, w ? w.tier : 1, lac ? SCHOOLS[lac.school].color : '#ffffff');
+    const d = derived(G); G.hp = Math.min(G.hp, d.maxHp); G.mp = Math.min(G.mp, d.maxMp);
+  }
+  /** The 8 abilities on the bar, decided by what you wear: weapon (1-3), lacrima school (4-7), armor (8). */
+  loadout() {
+    const G = this.G; const w = G.equip.weapon ? ITEMS[G.equip.weapon].weaponType : 'none';
+    const a = G.equip.armor ? ITEMS[G.equip.armor].armorType : null; const sch = G.equip.lacrima ? ITEMS[G.equip.lacrima].school : null;
+    const list = [...WEAPON_ABILITIES[w]]; while (list.length < 3) list.push(null);
+    const sa = sch ? SCHOOLS[sch].abilities : [];
+    for (let i = 0; i < 4; i++) list.push(sa[i] || null);
+    list.push(a ? ARMOR_ABILITY[a] : null);
+    return list;
+  }
+  abilitySource(id) {
+    for (const [k, s] of Object.entries(SCHOOLS)) if (s.abilities.includes(id)) return { kind: 'school', key: k };
+    for (const [k, l] of Object.entries(WEAPON_ABILITIES)) if (l.includes(id)) return { kind: 'weapon', key: k };
+    return { kind: 'armor', key: null };
+  }
+  abilityLocked(id) {
+    const ab = ABILITIES[id]; if (!ab || !ab.rank) return false;
+    const src = this.abilitySource(id); return classRank(this.G, src.key) < ab.rank;
+  }
+  buff(k) { let v = 0; for (const b of this.player.buffs) if (b[k]) v += b[k]; return v; }
+
+  useAbility(slot) {
+    const id = this.loadout()[slot]; if (!id) return;
+    const ab = ABILITIES[id]; const G = this.G; const pl = this.player; const d = derived(G);
+    if (pl.dead) return;
+    if (this.abilityLocked(id)) { this.ui.toast(`${ab.name} unlocks at class rank ${ab.rank}.`); return; }
+    if ((pl.cds[id] || 0) > 0) return;
+    const cost = ab.cost || {};
+    if (cost.mp && G.mp < cost.mp) { this.ui.toast('Not enough mana!'); return; }
+    if (cost.adr && G.adr < cost.adr) { this.ui.toast(`Needs ${cost.adr}% adrenaline.`); return; }
+    if (ab.needs && countItem(G, ab.needs) < 1) { this.ui.toast(`You need the ${ITEMS[ab.needs].name}.`); return; }
+    if (ab.type === 'requip' && !G.equip.weapon2) { this.ui.toast('No reserve weapon! Equip one as Reserve in your bag.'); return; }
+    G.mp -= cost.mp || 0; G.adr -= cost.adr || 0; G.adr = Math.min(100, G.adr + (ab.gain || 0));
+    pl.cds[id] = ab.cd * (1 - d.cdr);
+    pl.gathering = null; pl.combatT = 6;
+    const src = this.abilitySource(id);
+    P.grantRankXp(G, src.key === 'none' ? 'knuckles' : src.key, 2);
+    let tgt = this.validTarget();
+    if (!tgt && ab.type !== 'buff' && ab.type !== 'summon') { tgt = this.nearestMob(pl.pos, 16, true); if (tgt) this.setTarget(tgt); }
+    if (tgt && ab.type !== 'buff' && ab.type !== 'dash') pl.rot = Math.atan2(tgt.pos.x - pl.pos.x, tgt.pos.z - pl.pos.z);
+    const wItem = G.equip.weapon ? ITEMS[G.equip.weapon] : null;
+    const power = src.kind === 'weapon' ? (wItem ? wItem.power : 0.8) : src.kind === 'school' ? 1 + 0.12 * (classRank(G, src.key) - 1) + (wItem ? (wItem.power - 1) * 0.5 : 0) : 1;
+    const base = (14 + d.level * 3) * power * (ab.mult || 0) * (1 + (G.stats[ab.stat] || 0) * 0.035) * (1 + this.buff('dmgUp'));
+    const fwd = new THREE.Vector3(Math.sin(pl.rot), 0, Math.cos(pl.rot));
+    const color = ab.color || '#ffffff';
+    const wt = wItem ? wItem.weaponType : 'knuckles';
+    if (src.kind === 'school') pl.cast = 0.6; else { pl.atk = 0; pl.atkKind = wt === 'bow' ? 'bow' : wt === 'knuckles' ? 'punch' : 'slash'; }
+    if (id.startsWith('fl_fist') || id.startsWith('kn_')) { pl.atk = 0; pl.atkKind = 'punch'; pl.cast = 0; }
+    const hit = (m, mult = 1) => this.damageMob(m, base * mult, ab);
+    switch (ab.type) {
+      case 'melee': {
+        for (const m of this.mobsNear(pl.pos, ab.range + 0.8)) {
+          const a = Math.atan2(m.pos.x - pl.pos.x, m.pos.z - pl.pos.z);
+          if (Math.abs(ang(a - pl.rot)) < ab.arc / 2 + 0.25 || dist2(m.pos, pl.pos) < 1.2 + m.radius) hit(m);
+        }
+        this.fxArc(pl.pos, pl.rot, ab.range, ab.arc, color); break;
+      }
+      case 'proj': this.fireProj(pl.pos, tgt, fwd, ab, base, 'player', color); break;
+      case 'beam': {
+        for (const m of this.mobsNear(pl.pos, ab.length + 2)) if (this.inRect(m.pos, pl.pos, pl.rot, ab.length, ab.width + m.radius)) hit(m);
+        this.fxBeam(pl.pos, pl.rot, ab.length, ab.width, color); break;
+      }
+      case 'aoe_self': { for (const m of this.mobsNear(pl.pos, ab.radius + 0.5)) hit(m); this.fxRing(pl.pos, ab.radius, color); break; }
+      case 'aoe_target': {
+        const at = tgt && dist2(tgt.pos, pl.pos) < ab.dist * 1.8 ? tgt.pos.clone() : pl.pos.clone().addScaledVector(fwd, ab.dist);
+        at.y = groundAt(at.x, at.z);
+        this.addTele({ shape: 'circle', x: at.x, z: at.z, radius: ab.radius, windup: ab.delay, friendly: true, color, onHit: () => { for (const m of this.mobsNear(at, ab.radius + 0.5)) hit(m); this.fxRing(at, ab.radius, color, true); } });
+        break;
+      }
+      case 'dash': {
+        const dir = ab.id === 'ar_roll' && this.input.x === 0 && this.input.z === 0 ? fwd.clone().negate() : (tgt && ab.mult ? TMP.set(tgt.pos.x - pl.pos.x, 0, tgt.pos.z - pl.pos.z).normalize().clone() : fwd.clone());
+        if (this.input.x || this.input.z) dir.set(this.input.x, 0, this.input.z).normalize();
+        pl.rot = Math.atan2(dir.x, dir.z);
+        pl.dash = { dir, left: ab.dist, speed: ab.dist / 0.22, hitSet: new Set(), ab, base, width: ab.width };
+        pl.iframes = ab.iframes || 0.25; this.fxRing(pl.pos, 1.2, color); break;
+      }
+      case 'buff': {
+        const b = { ...ab.buff, until: this.t + ab.buff.dur, name: ab.name, icon: ab.icon };
+        if (b.mpRestore) { G.mp = Math.min(d.maxMp, G.mp + b.mpRestore); }
+        pl.buffs = pl.buffs.filter((x) => x.name !== ab.name); pl.buffs.push(b);
+        if (b.shield) b.shieldLeft = b.shield * (1 + G.stats.INT * 0.02);
+        this.fxRing(pl.pos, 1.8, color); this.ui.log(`${ab.name}!`, 'ability'); break;
+      }
+      case 'summon': this.summon(ab.ally, ab.dur, 1 + this.buff('allyUp') + G.stats.INT * 0.03 + (classRank(G, 'celestial') - 1) * 0.1); break;
+      case 'trap': {
+        const at = pl.pos.clone().addScaledVector(fwd, ab.dist); this.addTrap(at, ab, base, color); break;
+      }
+      case 'requip': {
+        const a = G.equip.weapon; G.equip.weapon = G.equip.weapon2; G.equip.weapon2 = a; this.refreshGear();
+        for (const m of this.mobsNear(pl.pos, ab.radius + 0.5)) hit(m);
+        this.fxRing(pl.pos, ab.radius, color); this.ui.log(`Requip! Now wielding ${ITEMS[G.equip.weapon].name}.`, 'ability'); this.ui.refresh(); break;
+      }
+    }
+    this.ui.abilityFired(slot);
+  }
+  validTarget() { const t = this.player.target; return t && !t.dead && t.kind === 'mob' ? t : null; }
+  setTarget(m) { this.player.target = m; this.ui.setTarget(m); }
+
+  // ------------------------------------------------------------------ mobs
+  spawnMobs() {
+    const R = this.rand;
+    for (const sp of SPAWNS) for (let i = 0; i < (sp.count || 1); i++) {
+      const x = sp.at ? sp.at[0] : sp.x[0] + R() * (sp.x[1] - sp.x[0]); const z = sp.at ? sp.at[1] : sp.z[0] + R() * (sp.z[1] - sp.z[0]);
+      this.makeMob(sp.mob, x, z);
+    }
+  }
+  makeMob(id, x, z) {
+    const tpl = MOBS[id]; const m = buildMob(tpl.model);
+    const e = { kind: 'mob', id, tpl, obj: m.group, model: m, pos: new THREE.Vector3(x, groundAt(x, z), z), home: new THREE.Vector3(x, 0, z), rot: this.rand() * 6,
+      hp: tpl.hp, maxHp: tpl.hp, aggro: false, atkCd: 1, atk: -1, stun: 0, slow: 0, slowT: 0, burn: null, dead: false, respawn: 0, wander: null, radius: tpl.boss ? 2.2 : 0.7,
+      teleCds: {}, castLock: 0, chargeCd: 3, charge: null, bark: 4 + this.rand() * 10 };
+    m.group.userData.entity = e; m.group.traverse((o) => { o.userData.entity = e; });
+    this.scene.add(m.group); this.entities.push(e); return e;
+  }
+  mobsNear(p, r) { return this.entities.filter((e) => e.kind === 'mob' && !e.dead && dist2(e.pos, p) < r + e.radius); }
+  nearestMob(p, r, front = false) {
+    let best = null, bd = 1e9;
+    for (const e of this.entities) {
+      if (e.kind !== 'mob' || e.dead) continue; let d = dist2(e.pos, p); if (d > r) continue;
+      if (front) { const a = Math.atan2(e.pos.x - p.x, e.pos.z - p.z); d += Math.abs(ang(a - this.player.rot)) * 3; }
+      if (d < bd) { bd = d; best = e; }
+    }
+    return best;
+  }
+  damageMob(m, amt, ab, from = 'player') {
+    if (m.dead) return;
+    const d = derived(this.G); const crit = from === 'player' && this.rand() < d.crit;
+    let dmg = Math.max(1, Math.round(amt * (0.9 + this.rand() * 0.2) * (crit ? 1.6 : 1)));
+    m.hp -= dmg; m.aggro = true; if (from === 'player') this.player.combatT = 6;
+    this.ui.floatText(m.pos, m.tpl.boss ? 4.8 : 1.8, (crit ? '✦' : '') + dmg, crit ? 'crit' : from === 'ally' ? 'ally' : 'dmg');
+    const ef = ab && ab.effect;
+    if (ef) {
+      if (ef.burn) m.burn = { dps: ef.burn.dps * (1 + this.G.stats.INT * 0.03), until: this.t + ef.burn.dur, tick: 1 };
+      if (ef.slow) { m.slow = ef.slow.pct; m.slowT = ef.slow.dur; }
+      if (ef.stun && !m.tpl.boss) m.stun = Math.max(m.stun, ef.stun);
+      else if (ef.stun && m.tpl.boss) m.stun = Math.max(m.stun, ef.stun * 0.25);
+    }
+    if (m.hp <= 0) this.killMob(m);
+  }
+  killMob(m) {
+    const G = this.G; m.dead = true; m.hp = 0; m.respawn = m.tpl.boss ? 120 : 22; m.obj.visible = false; m.charge = null; m.castLock = 0;
+    this.teles = this.teles.filter((t) => { if (t.owner === m) { this.scene.remove(t.group); return false; } return true; });
+    this.fxBurst(m.pos, m.tpl.boss ? '#ffb060' : '#ffffff', m.tpl.boss ? 40 : 14);
+    const wItem = G.equip.weapon ? ITEMS[G.equip.weapon] : null; const lac = G.equip.lacrima ? ITEMS[G.equip.lacrima] : null;
+    P.grantCharXp(G, m.tpl.xp); P.grantRankXp(G, wItem ? wItem.weaponType : 'knuckles', 4); if (lac) P.grantRankXp(G, lac.school, 6);
+    const j = m.tpl.jewels; const jw = Math.round(j[0] + this.rand() * (j[1] - j[0])); G.jewels += jw;
+    const loot = { };
+    for (const dr of m.tpl.drops) if (this.rand() < dr.chance) loot[dr.id] = (loot[dr.id] || 0) + (dr.min ? dr.min + Math.floor(this.rand() * (dr.max - dr.min + 1)) : 1);
+    for (const qd of P.questDropsFor(G, m.id)) if (this.rand() < qd.chance) loot[qd.item] = 1;
+    this.ui.log(`${m.tpl.name} defeated! +${m.tpl.xp} XP, +${jw} jewels.`, 'kill');
+    P.giveItems(G, loot);
+    P.onKill(G, m.id);
+    if (this.player.target === m) this.setTarget(null);
+    if (m.tpl.boss) { this.ui.toast('🏆 Grumblejaw topples with a very long GRUMBLE.'); this.ui.boss(null); for (const e of this.entities) if (e.kind === 'ally' && e.guildmate) e.until = this.t + 6; }
+    this.ui.refresh();
+  }
+  respawnMob(m) {
+    m.dead = false; m.hp = m.maxHp; m.pos.copy(m.home); m.pos.y = groundAt(m.home.x, m.home.z); m.obj.visible = true; m.aggro = false; m.burn = null; m.stun = 0; m.teleCds = {};
+  }
+
+  // ------------------------------------------------------------------ allies & escort
+  summon(allyId, dur, mult = 1, opts = {}) {
+    const tpl = ALLIES[allyId];
+    const old = this.entities.find((e) => e.kind === 'ally' && e.id === allyId); if (old) this.removeEntity(old);
+    let built;
+    if (tpl.model === 'npc') { const c = buildCharacter(tpl.look); built = { group: c.group, parts: {}, char: c }; }
+    else built = buildMob(tpl.model);
+    const side = this.rand() < 0.5 ? -1 : 1;
+    const p = this.player.pos.clone().add(new THREE.Vector3(Math.cos(this.player.rot) * 2 * side, 0, -Math.sin(this.player.rot) * 2 * side));
+    const e = { kind: 'ally', id: allyId, tpl, obj: built.group, model: built, pos: p, rot: this.player.rot, hp: tpl.hp * mult, maxHp: tpl.hp * mult, mult, atkCd: 0.5, atk: -1, until: dur ? this.t + dur : Infinity, healCd: 1, radius: 0.6, guildmate: !!opts.guildmate };
+    this.scene.add(built.group); this.entities.push(e);
+    this.fxRing(p, 1.6, '#ffe8a0'); this.fxBurst(p, '#fff0b0', 18);
+    this.ui.log(`${tpl.name}: "${tpl.lines[Math.floor(this.rand() * tpl.lines.length)]}"`, 'npc');
+    return e;
+  }
+  removeEntity(e) { this.scene.remove(e.obj); this.entities = this.entities.filter((x) => x !== e); }
+  startEscort() {
+    if (this.entities.some((e) => e.kind === 'escort')) return;
+    const m = buildMob('cat'); const p = this.player.pos.clone().add(new THREE.Vector3(1.5, 0, 0));
+    const e = { kind: 'escort', id: 'cat', obj: m.group, model: m, pos: p, rot: 0, radius: 0.4, warnT: 0 };
+    this.scene.add(m.group); this.entities.push(e);
+    this.ui.log('Sir Reginald Fluffbottom: "Mrrp." (He will follow you. Slowly. Judgmentally.)', 'npc');
+  }
+
+  // ------------------------------------------------------------------ projectiles, telegraphs, traps, fx
+  fireProj(from, tgt, fwd, ab, dmg, faction, color, opts = {}) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(opts.size || 0.22, 8, 6), glow(color)); const p = from.clone(); p.y += opts.y || 1.3;
+    m.position.copy(p); this.scene.add(m);
+    const trail = new THREE.Mesh(new THREE.ConeGeometry(opts.size || 0.18, 1.0, 6), glow(color, 0.5)); trail.rotation.x = -Math.PI / 2; m.add(trail); trail.position.z = -0.5;
+    const dir = tgt ? new THREE.Vector3(tgt.pos.x - p.x, (tgt.pos.y + (tgt.tpl && tgt.tpl.boss ? 3 : 0.8)) - p.y, tgt.pos.z - p.z).normalize() : fwd.clone();
+    m.lookAt(p.clone().add(dir));
+    this.projectiles.push({ mesh: m, pos: p, dir, speed: ab.speed || 24, life: 1.2, pierce: ab.pierce, hits: new Set(), dmg, ab, faction, homing: faction !== 'mob' && !ab.pierce ? tgt : null });
+  }
+  addTele(t) {
+    const g = new THREE.Group(); g.position.set(t.x, groundAt(t.x, t.z) + 0.08, t.z); if (t.rot !== undefined) g.rotation.y = t.rot;
+    const col = t.friendly ? (t.color || '#80c0ff') : '#ff3a2a';
+    const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
+    const fmat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide });
+    let geo, fgeo;
+    if (t.shape === 'circle') { geo = new THREE.CircleGeometry(t.radius, 40); fgeo = geo; }
+    else if (t.shape === 'ring') { geo = new THREE.RingGeometry(t.inner, t.radius, 48); fgeo = geo; }
+    else { geo = new THREE.PlaneGeometry(t.width, t.length); geo.translate(0, t.length / 2, 0); fgeo = geo; }
+    const a = new THREE.Mesh(geo, mat); a.rotation.x = -Math.PI / 2; g.add(a);
+    const f = new THREE.Mesh(fgeo, fmat); f.rotation.x = -Math.PI / 2; f.position.y = 0.02; f.scale.setScalar(0.01); g.add(f);
+    const edgeGeo = t.shape === 'rect' ? new THREE.EdgesGeometry(geo) : new THREE.EdgesGeometry(new THREE.RingGeometry(t.radius - 0.08, t.radius, 48));
+    const edge = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: col })); edge.rotation.x = -Math.PI / 2; g.add(edge);
+    this.scene.add(g); t.group = g; t.fill = f; t.age = 0; this.teles.push(t); return t;
+  }
+  addTrap(at, ab, dmg, color) {
+    const g = new THREE.Group(); g.position.set(at.x, groundAt(at.x, at.z) + 0.06, at.z);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(ab.radius * 0.8, ab.radius, 6), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false })); ring.rotation.x = -Math.PI / 2; g.add(ring);
+    const glyph = new THREE.Mesh(new THREE.RingGeometry(ab.radius * 0.3, ab.radius * 0.4, 3), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false })); glyph.rotation.x = -Math.PI / 2; g.add(glyph);
+    this.scene.add(g); this.traps.push({ g, ring: glyph, pos: at.clone(), ab, dmg, until: this.t + ab.dur, armed: this.t + 0.4 });
+  }
+  fxRing(p, r, color, big = false) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(r * 0.85, r, 40), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.set(p.x, groundAt(p.x, p.z) + 0.15, p.z); m.scale.setScalar(0.3); this.scene.add(m);
+    this.fx.push({ m, life: big ? 0.5 : 0.35, age: 0, kind: 'ring' });
+    if (big) this.fxBurst(p, color, 16);
+  }
+  fxArc(p, rot, r, arc, color) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(r * 0.35, r, 24, 1, -arc / 2, arc), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.rotation.z = rot - Math.PI / 2 + 0; m.position.set(p.x, p.y + 1.0, p.z);
+    m.rotation.order = 'YXZ'; m.rotation.set(-Math.PI / 2, 0, 0); const holder = new THREE.Group(); holder.position.copy(m.position); m.position.set(0, 0, 0); holder.add(m); holder.rotation.y = rot; m.rotation.z = Math.PI / 2;
+    this.scene.add(holder); this.fx.push({ m: holder, mat: m.material, life: 0.22, age: 0, kind: 'fade' });
+  }
+  fxBeam(p, rot, len, w, color) {
+    const g = new THREE.Group(); g.position.set(p.x, p.y + 1.1, p.z); g.rotation.y = rot;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.35, w * 0.5, len, 10, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false }));
+    m.rotation.x = Math.PI / 2; m.position.z = len / 2; g.add(m);
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.12, w * 0.2, len, 8), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9, depthWrite: false })); core.rotation.x = Math.PI / 2; core.position.z = len / 2; g.add(core);
+    this.scene.add(g); this.fx.push({ m: g, mats: [m.material, core.material], life: 0.35, age: 0, kind: 'beam' });
+  }
+  fxBurst(p, color, n = 12) {
+    const geo = new THREE.BufferGeometry(); const arr = new Float32Array(n * 3); const vel = [];
+    for (let i = 0; i < n; i++) { arr.set([p.x, p.y + 1, p.z], i * 3); vel.push(new THREE.Vector3((this.rand() - 0.5) * 6, this.rand() * 6 + 1, (this.rand() - 0.5) * 6)); }
+    geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color, size: 0.35, transparent: true, opacity: 1, depthWrite: false }));
+    this.scene.add(pts); this.fx.push({ m: pts, vel, life: 0.7, age: 0, kind: 'burst' });
+  }
+  inRect(p, o, rot, len, w) {
+    const dx = p.x - o.x, dz = p.z - o.z; const f = dx * Math.sin(rot) + dz * Math.cos(rot); const s = dx * Math.cos(rot) - dz * Math.sin(rot);
+    return f > -0.5 && f < len && Math.abs(s) < w / 2;
+  }
+  inTele(t, p, pad = 0.4) {
+    const d = Math.hypot(p.x - t.x, p.z - t.z);
+    if (t.shape === 'circle') return d < t.radius + pad;
+    if (t.shape === 'ring') return d > t.inner - pad && d < t.radius + pad;
+    return this.inRect(p, { x: t.x, z: t.z }, t.rot, t.length, t.width + pad * 2);
+  }
+
+  // ------------------------------------------------------------------ damage to player / allies
+  hurt(target, amt, srcName) {
+    if (target === 'player') {
+      const pl = this.player, G = this.G; if (pl.dead) return;
+      if (pl.iframes > 0) { this.ui.floatText(pl.pos, 2.2, 'Dodge!', 'heal'); return; }
+      const d = derived(G);
+      let dmg = amt * (1 - d.def / (d.def + 40)) * (1 - Math.min(0.8, this.buff('dr')));
+      for (const b of pl.buffs) if (b.shieldLeft > 0) { const ab = Math.min(b.shieldLeft, dmg); b.shieldLeft -= ab; dmg -= ab; }
+      dmg = Math.round(dmg); pl.combatT = 6;
+      if (dmg <= 0) { this.ui.floatText(pl.pos, 2.2, 'Blocked', 'heal'); return; }
+      G.hp -= dmg; this.ui.floatText(pl.pos, 2.2, '-' + dmg, 'hurt'); this.ui.hurtFlash();
+      G.adr = Math.min(100, G.adr + 2);
+      if (G.hp <= 0) this.playerDie(srcName);
+    } else {
+      target.hp -= amt; this.ui.floatText(target.pos, 2, '-' + Math.round(amt), 'hurtAlly');
+      if (target.hp <= 0) { this.ui.log(`${target.tpl.name} retreats, exhausted.`, 'npc'); this.fxBurst(target.pos, '#ffe0a0', 14); this.removeEntity(target); }
+    }
+  }
+  playerDie(src) {
+    const pl = this.player; pl.dead = 3; this.G.hp = 0; pl.gathering = null; pl.dash = null; this.setTarget(null);
+    this.ui.log(`You were knocked out by ${src}!`, 'warn'); this.ui.toast('💫 Knocked out!');
+  }
+  playerRespawn() {
+    const G = this.G, pl = this.player; const d = derived(G);
+    G.hp = d.maxHp; G.mp = d.maxMp; G.adr = 0; pl.dead = 0; pl.pos.set(0, 0, 9); pl.buffs = [];
+    for (const e of [...this.entities]) if (e.kind === 'ally') this.removeEntity(e);
+    for (const e of this.entities) if (e.kind === 'mob' && e.aggro) { e.aggro = false; e.hp = e.maxHp; }
+    this.ui.boss(null);
+    this.ui.log('Pell drags you back to the fountain. "Again? I am starting a punch card for you."', 'npc');
+  }
+
+  // ------------------------------------------------------------------ movement & collision
+  collide(p, r = 0.45) {
+    for (const b of this.world.boxes) {
+      const cx = Math.max(b.minX, Math.min(p.x, b.maxX)), cz = Math.max(b.minZ, Math.min(p.z, b.maxZ));
+      const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz);
+      if (d < r) {
+        if (d > 1e-5) { p.x = cx + dx / d * r; p.z = cz + dz / d * r; }
+        else { // centre inside the box: leave by the nearest face
+          const o = [p.x - b.minX, b.maxX - p.x, p.z - b.minZ, b.maxZ - p.z]; const i = o.indexOf(Math.min(...o));
+          if (i === 0) p.x = b.minX - r; else if (i === 1) p.x = b.maxX + r; else if (i === 2) p.z = b.minZ - r; else p.z = b.maxZ + r;
+        }
+      }
+    }
+    for (const c of this.world.circles) {
+      if (c.node && c.node.respawn > 0) continue;
+      const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), m = c.r + r;
+      if (d < m && d > 1e-5) { p.x = c.x + dx / d * m; p.z = c.z + dz / d * m; }
+    }
+    p.x = Math.max(BOUNDS.minX, Math.min(BOUNDS.maxX, p.x)); p.z = Math.max(BOUNDS.minZ, Math.min(BOUNDS.maxZ, p.z));
+  }
+  /** Moves in small sub-steps so a lag spike can never tunnel through a wall. */
+  moveBy(p, dx, dz, r) {
+    const len = Math.hypot(dx, dz); const n = Math.max(1, Math.ceil(len / 0.2));
+    for (let i = 0; i < n; i++) { p.x += dx / n; p.z += dz / n; this.collide(p, r); }
+  }
+
+  // ------------------------------------------------------------------ interaction
+  interactables() { return this.world.interactables; }
+  nearestInteractable() {
+    const p = this.player.pos; let best = null, bd = 1e9;
+    for (const it of this.world.interactables) {
+      if (it.kind === 'node' && it.respawn > 0) continue;
+      const d = Math.hypot(p.x - it.x, p.z - it.z); if (d < it.r && d < bd) { bd = d; best = it; }
+    }
+    return best;
+  }
+  interact(it) {
+    const pl = this.player; if (!it || pl.dead) return;
+    const d = Math.hypot(pl.pos.x - it.x, pl.pos.z - it.z);
+    if (d > it.r) { pl.follow = it; pl.moveTo = null; return; }
+    pl.follow = null; pl.moveTo = null; pl.rot = Math.atan2(it.x - pl.pos.x, it.z - pl.pos.z);
+    if (it.kind === 'node') return this.startGather(it);
+    this.ui.openInteract(it);
+  }
+  startGather(node) {
+    const G = this.G; const nt = NODE_TYPES[node.type]; const tier = NODE_TIERS[node.tier];
+    if (node.respawn > 0) { this.ui.toast('That one is depleted. It will grow back soon.'); return; }
+    const lvl = skillLevel(G, nt.skill);
+    if (lvl < tier.level) { this.ui.toast(`You need ${nt.skill[0].toUpperCase() + nt.skill.slice(1)} level ${tier.level} (T${node.tier}).`); return; }
+    if (!canAdd(G, `${node.type}_t${node.tier}`)) { this.ui.toast('Your bag is full!'); return; }
+    const dur = Math.max(0.7, tier.time * (1 - Math.min(0.5, (lvl - tier.level) * 0.02)));
+    this.player.gathering = { node, t: 0, dur };
+  }
+  finishGather() {
+    const G = this.G, pl = this.player, g = pl.gathering; const node = g.node; const nt = NODE_TYPES[node.type]; const tier = NODE_TIERS[node.tier];
+    const id = `${node.type}_t${node.tier}`;
+    const n = this.rand() < 0.1 + skillLevel(G, nt.skill) * 0.004 ? 2 : 1;
+    const left = addItem(G, id, n); const got = n - left;
+    if (got > 0) {
+      this.ui.log(`You ${nt.verb.toLowerCase()} ${got}× ${ITEMS[id].name}.`, 'loot');
+      P.grantSkillXp(G, nt.skill, tier.xp * got); P.onGather(G, id, got);
+      this.ui.floatText(node.obj.position, 2.6, `+${got} ${ITEMS[id].icon}`, 'loot');
+      this.fxBurst(new THREE.Vector3(node.x, node.obj.position.y, node.z), node.type === 'ore' ? '#d0c0a0' : node.type === 'wood' ? '#a0e070' : '#ffffff', 8);
+    }
+    node.uses--;
+    if (node.uses <= 0) { node.respawn = NODE_RESPAWN; node.obj.scale.setScalar(0.35); this.ui.log(`The ${node.name} is depleted.`, 'info'); pl.gathering = null; }
+    else if (!canAdd(G, id)) { this.ui.toast('Your bag is full!'); pl.gathering = null; }
+    else { g.t = 0; }
+    this.ui.refresh();
+  }
+
+  // ------------------------------------------------------------------ main update
+  update(dt) {
+    dt = Math.min(dt, 0.1); this.t += dt; const G = this.G, pl = this.player, d = derived(G);
+    G.playTime += dt;
+    // timers
+    for (const k in pl.cds) pl.cds[k] = Math.max(0, pl.cds[k] - dt);
+    pl.buffs = pl.buffs.filter((b) => b.until > this.t);
+    pl.iframes = Math.max(0, pl.iframes - dt); pl.combatT = Math.max(0, pl.combatT - dt);
+    if (pl.dead) { pl.dead -= dt; if (pl.dead <= 0) this.playerRespawn(); }
+    // regen
+    if (!pl.dead) {
+      const ooc = pl.combatT <= 0;
+      G.hp = Math.min(d.maxHp, G.hp + dt * (ooc ? d.maxHp * 0.04 : d.maxHp * 0.004));
+      G.mp = Math.min(d.maxMp, G.mp + dt * (2 + d.maxMp * 0.01 + this.buff('mpRegen')));
+      if (ooc) G.adr = Math.max(0, G.adr - dt * 4);
+    }
+    // movement
+    let mx = this.input.x, mz = this.input.z; const moving = (mx || mz) && !pl.dead;
+    if (moving) { pl.moveTo = null; pl.follow = null; pl.gathering = null; }
+    const fol = pl.follow;
+    if (fol && !pl.dead) {
+      const tp = fol.pos || { x: fol.x, z: fol.z };
+      const reach = fol.kind === 'mob' ? this.attackRange() : fol.r - 0.4;
+      const dd = Math.hypot(tp.x - pl.pos.x, tp.z - pl.pos.z);
+      if (fol.kind === 'mob' && fol.dead) pl.follow = null;
+      else if (dd <= reach) { pl.follow = null; if (fol.kind !== 'mob') this.interact(fol); }
+      else { mx = (tp.x - pl.pos.x) / dd; mz = (tp.z - pl.pos.z) / dd; }
+    } else if (pl.moveTo && !pl.dead) {
+      const dx = pl.moveTo.x - pl.pos.x, dz = pl.moveTo.z - pl.pos.z, dd = Math.hypot(dx, dz);
+      if (dd < 0.3) pl.moveTo = null; else { mx = dx / dd; mz = dz / dd; }
+    }
+    let mv = 0;
+    if (pl.dash) {
+      const step = Math.min(pl.dash.left, pl.dash.speed * dt); pl.dash.left -= step;
+      this.moveBy(pl.pos, pl.dash.dir.x * step, pl.dash.dir.z * step, 0.45);
+      if (pl.dash.ab.mult) for (const m of this.mobsNear(pl.pos, pl.dash.width + 0.5)) if (!pl.dash.hitSet.has(m)) { pl.dash.hitSet.add(m); this.damageMob(m, pl.dash.base, pl.dash.ab); }
+      if (pl.dash.left <= 0) pl.dash = null; mv = 1;
+    } else if ((mx || mz) && !pl.dead) {
+      const len = Math.hypot(mx, mz); const sp = d.speed * Math.min(1, len) * (pl.combatT > 0 ? 0.9 : 1);
+      this.moveBy(pl.pos, mx / len * sp * dt, mz / len * sp * dt, 0.45);
+      const tr = Math.atan2(mx, mz); pl.rot += ang(tr - pl.rot) * Math.min(1, dt * 14); mv = Math.min(1, len);
+    }
+    pl.moving = mv;
+    pl.pos.y += (groundAt(pl.pos.x, pl.pos.z) - pl.pos.y) * Math.min(1, dt * 20);
+    // auto attack
+    const tgt = this.validTarget();
+    if (tgt && this.autoAttack && !pl.dead && !pl.gathering) {
+      const dd = dist2(tgt.pos, pl.pos);
+      if (dd > 40) this.setTarget(null);
+      else if (dd <= this.attackRange() + tgt.radius && tgt.aggro !== undefined) { const basic = this.loadout()[0]; if (basic && !(pl.cds[basic] > 0) && (tgt.aggro || pl.combatT > 0 || pl.follow === tgt || true)) this.useAbility(0); }
+    } else if (pl.target && pl.target.dead) this.setTarget(null);
+    // gathering
+    if (pl.gathering && !pl.dead) {
+      const g = pl.gathering; g.t += dt; pl.rot = Math.atan2(g.node.x - pl.pos.x, g.node.z - pl.pos.z);
+      if (Math.floor(g.t / 0.55) !== Math.floor((g.t - dt) / 0.55)) { pl.atk = 0; pl.atkKind = g.node.type === 'fibre' ? 'punch' : 'slash'; }
+      if (g.t >= g.dur) this.finishGather();
+    }
+    this.ui.gatherBar(pl.gathering ? pl.gathering.t / pl.gathering.dur : null, pl.gathering ? pl.gathering.node.name : '');
+    // animation
+    if (pl.atk >= 0) { pl.atk += dt * 3.2; if (pl.atk >= 1) pl.atk = -1; }
+    pl.cast = Math.max(0, pl.cast - dt);
+    const g = pl.char.group; g.position.copy(pl.pos); g.rotation.y = pl.rot;
+    animateCharacter(pl.char, { t: this.t, move: mv, atk: pl.atk, kind: pl.atkKind, cast: pl.cast > 0 ? Math.min(1, pl.cast * 3) : 0, dead: !!pl.dead });
+    if (pl.iframes > 0 && pl.dash) g.rotation.x = 0; // roll is implied by the dash burst
+    // world systems
+    this.updateEntities(dt); this.updateProjectiles(dt); this.updateTeles(dt); this.updateTraps(dt); this.updateFx(dt);
+    for (const n of this.world.nodes) if (n.respawn > 0) { n.respawn -= dt; if (n.respawn <= 0) { n.respawn = 0; n.uses = NODE_TIERS[n.tier].uses; n.obj.scale.setScalar(1); } }
+    // boss party: guildmates join on the S-rank job or the final quest stage
+    const inArena = Math.hypot(pl.pos.x - BOSS_ARENA.x, pl.pos.z - BOSS_ARENA.z) < BOSS_ARENA.r + 6;
+    const boss = this.entities.find((e) => e.tpl && e.tpl.boss);
+    const wantsParty = G.jobs.active.some((a) => a.id === 'j_tyrant') || (G.quests.q_tyrant && G.quests.q_tyrant.stage === 2);
+    if (inArena && boss && !boss.dead && wantsParty && !this.entities.some((e) => e.guildmate)) {
+      this.summon('brakka', 0, 1 + d.level * 0.05, { guildmate: true }); this.summon('pip', 0, 1 + d.level * 0.05, { guildmate: true });
+      this.ui.toast('⚔️ Brakka and Pip join your party!');
+    }
+    if (!inArena) for (const e of [...this.entities]) if (e.guildmate && dist2(e.pos, BOSS_ARENA) > BOSS_ARENA.r + 30) this.removeEntity(e);
+    this.ui.boss(boss && !boss.dead && boss.aggro ? boss : null);
+    // camera + world
+    this.updateCamera(dt);
+    this.world.update(this.t, pl.pos);
+    const inside = pl.pos.x > HALL.minX && pl.pos.x < HALL.maxX && pl.pos.z > HALL.minZ && pl.pos.z < HALL.maxZ;
+    this.world.hallRoof.visible = !inside;
+    // persistence
+    G.pos = [pl.pos.x, pl.pos.z]; G.rot = pl.rot;
+    this.saveT += dt; if (this.saveT > 15) { this.saveT = 0; saveGame(G); }
+    this.zone = zoneAt(pl.pos.x, pl.pos.z);
+  }
+  attackRange() {
+    const w = this.G.equip.weapon ? ITEMS[this.G.equip.weapon] : null; const r = w ? WEAPON_TYPES[w.weaponType].range : 2;
+    return r;
+  }
+
+  updateEntities(dt) {
+    const pl = this.player, G = this.G;
+    for (const e of [...this.entities]) {
+      if (e.kind === 'mob') this.updateMob(e, dt);
+      else if (e.kind === 'ally') this.updateAlly(e, dt);
+      else if (e.kind === 'escort') this.updateEscort(e, dt);
+      if (!this.entities.includes(e)) continue;
+      if (!e.dead) {
+        e.obj.position.set(e.pos.x, e.pos.y + (e.tpl && e.tpl.float ? e.tpl.float : 0), e.pos.z); e.obj.rotation.y = e.rot;
+        if (e.atk >= 0) { e.atk += dt * 2.5; if (e.atk >= 1) e.atk = -1; }
+        if (e.model.char) animateCharacter(e.model.char, { t: this.t + e.pos.x, move: e.moving || 0, atk: e.atk, kind: e.tpl.role === 'healer' ? 'slash' : 'punch', cast: e.tpl.role === 'healer' && e.atk >= 0 ? 1 : 0 });
+        else animateMob(e.model, e.tpl ? e.tpl.model : 'cat', this.t + e.pos.x, e.moving || 0, e.atk);
+      }
+    }
+  }
+  allyTargets() { return [{ ref: 'player', pos: this.player.pos, dead: this.player.dead }, ...this.entities.filter((e) => e.kind === 'ally').map((e) => ({ ref: e, pos: e.pos, taunt: e.tpl.taunt }))]; }
+  updateMob(m, dt) {
+    const pl = this.player, tpl = m.tpl;
+    if (m.dead) { m.respawn -= dt; if (m.respawn <= 0) this.respawnMob(m); return; }
+    if (m.burn) { if (this.t > m.burn.until) m.burn = null; else { m.burn.tick -= dt; if (m.burn.tick <= 0) { m.burn.tick = 1; this.damageMob(m, m.burn.dps, null, 'dot'); if (m.dead) return; } } }
+    if (m.slowT > 0) { m.slowT -= dt; if (m.slowT <= 0) m.slow = 0; }
+    m.moving = 0;
+    if (m.stun > 0) { m.stun -= dt; return; }
+    const homeD = dist2(m.pos, m.home);
+    const pd = pl.dead ? 1e9 : dist2(pl.pos, m.pos);
+    if (!m.aggro) {
+      const canSee = tpl.boss ? Math.hypot(pl.pos.x - BOSS_ARENA.x, pl.pos.z - BOSS_ARENA.z) < BOSS_ARENA.r : pd < tpl.aggro;
+      if (canSee && !pl.dead) { m.aggro = true; if (tpl.bark) this.ui.log(`${tpl.name}: "${tpl.bark[Math.floor(this.rand() * tpl.bark.length)]}"`, 'npc'); }
+      else {
+        // wander
+        if (!m.wander || this.rand() < dt * 0.15) m.wander = m.home.clone().add(new THREE.Vector3((this.rand() - 0.5) * 8, 0, (this.rand() - 0.5) * 8));
+        const dx = m.wander.x - m.pos.x, dz = m.wander.z - m.pos.z, dd = Math.hypot(dx, dz);
+        if (dd > 0.5) { const s = tpl.speed * 0.35 * dt; this.moveBy(m.pos, dx / dd * s, dz / dd * s, m.radius); m.rot += ang(Math.atan2(dx, dz) - m.rot) * Math.min(1, dt * 5); m.moving = 0.5; }
+        if (m.hp < m.maxHp) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.1 * dt);
+        m.pos.y = groundAt(m.pos.x, m.pos.z); return;
+      }
+    }
+    if (homeD > (tpl.leash || 32) || pl.dead) { m.aggro = false; m.hp = m.maxHp; m.wander = m.home.clone(); m.castLock = 0; return; }
+    // choose a victim: taunting ally near the mob, else player
+    let victim = { ref: 'player', pos: pl.pos };
+    let best = pd;
+    for (const a of this.entities) if (a.kind === 'ally' && a.tpl.taunt) { const ad = dist2(a.pos, m.pos); if (ad < best + 3) { best = ad; victim = { ref: a, pos: a.pos }; } }
+    const vd = dist2(victim.pos, m.pos);
+    // boss telegraphs
+    if (tpl.telegraphs) { if (this.bossThink(m, dt, victim)) { m.pos.y = groundAt(m.pos.x, m.pos.z); return; } }
+    // boar charge
+    if (tpl.charge) {
+      m.chargeCd -= dt;
+      if (m.charge) {
+        m.charge.t -= dt;
+        if (m.charge.windup > 0) { m.charge.windup -= dt; }
+        else {
+          const s = tpl.charge.speed * dt; this.moveBy(m.pos, Math.sin(m.charge.rot) * s, Math.cos(m.charge.rot) * s, m.radius); m.moving = 1;
+          if (!m.charge.hit && !pl.dead && dist2(pl.pos, m.pos) < 1.6) { m.charge.hit = true; this.hurt('player', tpl.charge.dmg, tpl.name); }
+          if (m.charge.t <= 0) m.charge = null;
+        }
+        m.pos.y = groundAt(m.pos.x, m.pos.z); return;
+      }
+      if (m.chargeCd <= 0 && vd > 4 && vd < 11 && victim.ref === 'player') {
+        m.chargeCd = tpl.charge.cd; const rot = Math.atan2(victim.pos.x - m.pos.x, victim.pos.z - m.pos.z); m.rot = rot;
+        m.charge = { rot, windup: 0.75, t: 0.75 + tpl.charge.dur, hit: false };
+        this.addTele({ shape: 'rect', x: m.pos.x, z: m.pos.z, rot, length: tpl.charge.speed * tpl.charge.dur, width: 1.8, windup: 0.75, owner: m, dmg: 0, visualOnly: true });
+        return;
+      }
+    }
+    // chase / attack
+    const want = tpl.ranged ? tpl.range * 0.75 : tpl.range * 0.85 + (victim.ref === 'player' ? 0 : 0.3);
+    const rot = Math.atan2(victim.pos.x - m.pos.x, victim.pos.z - m.pos.z); m.rot += ang(rot - m.rot) * Math.min(1, dt * 8);
+    if (vd > want) { const s = tpl.speed * (1 - m.slow) * dt; this.moveBy(m.pos, Math.sin(rot) * s, Math.cos(rot) * s, m.radius); m.moving = 1; }
+    else if (tpl.ranged && vd < want * 0.5) { const s = tpl.speed * 0.6 * dt; this.moveBy(m.pos, -Math.sin(rot) * s, -Math.cos(rot) * s, m.radius); m.moving = 0.6; }
+    m.atkCd -= dt;
+    if (m.atkCd <= 0 && vd <= tpl.range + 0.5) {
+      m.atkCd = tpl.atkCd * (1 + m.slow); m.atk = 0;
+      if (tpl.ranged) this.fireProj(m.pos, victim.ref === 'player' ? { pos: pl.pos } : victim.ref, null, { speed: 16 }, tpl.dmg, 'mob', '#9a7aff', { y: tpl.float || 1, size: 0.3 });
+      else this.hurt(victim.ref, tpl.dmg * (0.85 + this.rand() * 0.3), tpl.name);
+    }
+    m.pos.y = groundAt(m.pos.x, m.pos.z);
+  }
+  bossThink(m, dt, victim) {
+    const tpl = m.tpl;
+    for (const t of tpl.telegraphs) m.teleCds[t.id] = (m.teleCds[t.id] ?? t.cd * 0.4) - dt;
+    if (m.castLock > 0) {
+      m.castLock -= dt; m.atk = m.castLock < 0.4 ? 0.5 : -1;
+      if (m.bossCharge && m.castLock <= 0) { m.bossCharge.go = true; }
+      return true;
+    }
+    if (m.bossCharge && m.bossCharge.go) {
+      const c = m.bossCharge; const s = 22 * dt; c.left -= s; this.moveBy(m.pos, Math.sin(c.rot) * s, Math.cos(c.rot) * s, m.radius); m.moving = 1;
+      if (c.left <= 0) m.bossCharge = null; return true;
+    }
+    const ready = tpl.telegraphs.filter((t) => m.teleCds[t.id] <= 0);
+    if (ready.length && dist2(victim.pos, m.pos) < 20) {
+      const t = ready[Math.floor(this.rand() * ready.length)]; m.teleCds[t.id] = t.cd;
+      const rot = Math.atan2(victim.pos.x - m.pos.x, victim.pos.z - m.pos.z); m.rot = rot;
+      this.ui.log(`⚠️ Grumblejaw prepares ${t.name}!`, 'warn'); this.ui.bossCast(t.name, t.windup);
+      if (t.at === 'targets') {
+        const victims = this.allyTargets().filter((v) => !v.dead).slice(0, t.count);
+        for (const v of victims) this.addTele({ shape: 'circle', x: v.pos.x, z: v.pos.z, radius: t.radius, windup: t.windup, dmg: t.dmg, owner: m, name: t.name });
+      } else if (t.shape === 'rect') {
+        this.addTele({ shape: 'rect', x: m.pos.x, z: m.pos.z, rot, length: t.length, width: t.width, windup: t.windup, dmg: t.dmg, owner: m, name: t.name });
+        m.bossCharge = { rot, left: t.length - 2, go: false };
+      } else this.addTele({ shape: t.shape, x: m.pos.x, z: m.pos.z, radius: t.radius, inner: t.inner, windup: t.windup, dmg: t.dmg, owner: m, name: t.name });
+      m.castLock = t.windup; return true;
+    }
+    return false;
+  }
+  updateAlly(a, dt) {
+    const pl = this.player; const tpl = a.tpl;
+    if (this.t > a.until) { this.fxBurst(a.pos, '#fff0b0', 12); this.ui.log(`${tpl.name} returns to the spirit world.`, 'npc'); this.removeEntity(a); return; }
+    a.moving = 0;
+    let foe = this.validTarget();
+    if (!foe || dist2(foe.pos, pl.pos) > 20) foe = this.entities.find((e) => e.kind === 'mob' && !e.dead && e.aggro && dist2(e.pos, pl.pos) < 18) || null;
+    if (tpl.role === 'healer') {
+      a.healCd -= dt;
+      const hurtList = [{ ref: 'player', frac: this.G.hp / derived(this.G).maxHp, pos: pl.pos }, ...this.entities.filter((e) => e.kind === 'ally').map((e) => ({ ref: e, frac: e.hp / e.maxHp, pos: e.pos }))];
+      const low = hurtList.filter((h) => !(h.ref === 'player' && pl.dead)).sort((x, y) => x.frac - y.frac)[0];
+      if (a.healCd <= 0 && low && low.frac < 0.85) {
+        a.healCd = 3.2; a.atk = 0; const amt = tpl.heal * a.mult * (1 + derived(this.G).level * 0.08);
+        if (low.ref === 'player') { this.G.hp = Math.min(derived(this.G).maxHp, this.G.hp + amt); this.ui.floatText(pl.pos, 2.4, '+' + Math.round(amt), 'heal'); }
+        else { low.ref.hp = Math.min(low.ref.maxHp, low.ref.hp + amt); this.ui.floatText(low.ref.pos, 2.2, '+' + Math.round(amt), 'heal'); }
+        this.fxRing(low.pos, 1.3, '#7affb0');
+      }
+    }
+    if (foe) {
+      const d = dist2(foe.pos, a.pos); const rot = Math.atan2(foe.pos.x - a.pos.x, foe.pos.z - a.pos.z); a.rot += ang(rot - a.rot) * Math.min(1, dt * 8);
+      if (d > tpl.range * 0.9 + foe.radius) { const s = tpl.speed * dt; this.moveBy(a.pos, Math.sin(rot) * s, Math.cos(rot) * s, a.radius); a.moving = 1; }
+      a.atkCd -= dt;
+      if (a.atkCd <= 0 && d <= tpl.range + foe.radius + 0.4) {
+        a.atkCd = tpl.atkCd; a.atk = 0; const dmg = tpl.dmg * a.mult * (1 + derived(this.G).level * 0.1);
+        if (tpl.range > 4) this.fireProj(a.pos, foe, null, { speed: 22 }, dmg, 'ally', tpl.model === 'maiden' ? '#7ad8ff' : '#a0ffd0', { y: 1.4 });
+        else this.damageMob(foe, dmg, null, 'ally');
+      }
+    } else {
+      const d = dist2(pl.pos, a.pos);
+      if (d > 3) { const rot = Math.atan2(pl.pos.x - a.pos.x, pl.pos.z - a.pos.z); a.rot = rot; const s = Math.min(tpl.speed * (d > 8 ? 1.6 : 1) * dt, d - 2.5); this.moveBy(a.pos, Math.sin(rot) * s, Math.cos(rot) * s, a.radius); a.moving = 1; }
+    }
+    a.pos.y = groundAt(a.pos.x, a.pos.z);
+  }
+  updateEscort(c, dt) {
+    const pl = this.player; const job = this.G.jobs.active.find((x) => x.id === 'j_cat');
+    if (!job || job.prog >= 1) { this.removeEntity(c); return; }
+    const [sx, sz] = POIS.shrine.pos; const dShrine = Math.hypot(c.pos.x - sx, c.pos.z - sz);
+    if (dShrine < 5.5) {
+      job.prog = 1; this.fxBurst(c.pos, '#9af0ff', 24);
+      this.ui.log('Sir Reginald sits at the shrine and meditates. He is now enlightened. And hungry. Report to Pell!', 'quest'); this.ui.toast('🐈 Escort complete!');
+      this.removeEntity(c); this.ui.refresh(); return;
+    }
+    const d = dist2(pl.pos, c.pos); c.moving = 0;
+    if (d > 14) { c.warnT -= dt; if (c.warnT <= 0) { c.warnT = 8; this.ui.log('Sir Reginald sits down and refuses to move until you come back.', 'npc'); } }
+    else if (d > 2.2) { const rot = Math.atan2(pl.pos.x - c.pos.x, pl.pos.z - c.pos.z); c.rot = rot; const s = Math.min(4.6 * dt, d - 2); this.moveBy(c.pos, Math.sin(rot) * s, Math.cos(rot) * s, 0.4); c.moving = 1; }
+    c.pos.y = groundAt(c.pos.x, c.pos.z);
+  }
+  updateProjectiles(dt) {
+    for (const p of [...this.projectiles]) {
+      p.life -= dt;
+      if (p.homing && !p.homing.dead && p.homing.pos) { const h = p.homing; const to = new THREE.Vector3(h.pos.x - p.pos.x, (h.pos.y + (h.tpl && h.tpl.boss ? 3 : 0.9)) - p.pos.y, h.pos.z - p.pos.z).normalize(); p.dir.lerp(to, Math.min(1, dt * 10)).normalize(); }
+      p.pos.addScaledVector(p.dir, p.speed * dt); p.mesh.position.copy(p.pos); p.mesh.lookAt(p.pos.clone().add(p.dir));
+      let done = p.life <= 0;
+      if (p.faction === 'mob') {
+        const pl = this.player;
+        if (!pl.dead && Math.hypot(pl.pos.x - p.pos.x, pl.pos.z - p.pos.z) < 0.8 && Math.abs(pl.pos.y + 1 - p.pos.y) < 1.6) { this.hurt('player', p.dmg, 'a Gloom Wisp'); done = true; }
+        for (const a of this.entities) if (!done && a.kind === 'ally' && dist2(a.pos, p.pos) < 0.8) { this.hurt(a, p.dmg, 'wisp'); done = true; }
+      } else {
+        for (const m of this.entities) {
+          if (m.kind !== 'mob' || m.dead || p.hits.has(m)) continue;
+          if (dist2(m.pos, p.pos) < m.radius + 0.5 && p.pos.y > m.pos.y - 0.5 && p.pos.y < m.pos.y + (m.tpl.boss ? 6 : 2.5)) {
+            p.hits.add(m); this.damageMob(m, p.dmg, p.ab, p.faction); this.fxBurst(p.pos.clone().setY(p.pos.y - 1), p.ab.color || '#a0ffd0', 6);
+            if (!p.pierce) { done = true; break; }
+          }
+        }
+      }
+      if (p.pos.y < groundAt(p.pos.x, p.pos.z) - 0.2) done = true;
+      if (done) { this.scene.remove(p.mesh); p.mesh.geometry.dispose(); this.projectiles.splice(this.projectiles.indexOf(p), 1); }
+    }
+  }
+  updateTeles(dt) {
+    for (const t of [...this.teles]) {
+      t.age += dt; const k = Math.min(1, t.age / t.windup); t.fill.scale.setScalar(Math.max(0.01, k));
+      if (t.shape === 'rect') { t.fill.scale.set(1, Math.max(0.01, k), 1); }
+      if (t.age >= t.windup) {
+        if (t.onHit) t.onHit();
+        else if (!t.visualOnly) {
+          const pl = this.player;
+          if (!pl.dead && this.inTele(t, pl.pos)) this.hurt('player', t.dmg, `Grumblejaw's ${t.name}`);
+          for (const a of [...this.entities]) if (a.kind === 'ally' && this.inTele(t, a.pos)) this.hurt(a, t.dmg * 0.6, t.name);
+          this.fxBurst(new THREE.Vector3(t.x, groundAt(t.x, t.z), t.z), '#ff8a4a', 18); this.ui.shake(0.35);
+        }
+        this.scene.remove(t.group); this.teles.splice(this.teles.indexOf(t), 1);
+      }
+    }
+  }
+  updateTraps(dt) {
+    for (const tr of [...this.traps]) {
+      tr.ring.rotation.z += dt * 2;
+      let fire = false;
+      if (this.t > tr.armed) for (const m of this.entities) if (m.kind === 'mob' && !m.dead && dist2(m.pos, tr.pos) < tr.ab.radius) { fire = true; break; }
+      if (fire) { for (const m of this.mobsNear(tr.pos, tr.ab.radius + 0.5)) this.damageMob(m, tr.dmg, tr.ab); this.fxRing(tr.pos, tr.ab.radius, tr.ab.color, true); }
+      if (fire || this.t > tr.until) { this.scene.remove(tr.g); this.traps.splice(this.traps.indexOf(tr), 1); }
+    }
+  }
+  updateFx(dt) {
+    for (const f of [...this.fx]) {
+      f.age += dt; const k = f.age / f.life;
+      if (f.kind === 'ring') { f.m.scale.setScalar(0.3 + k * 0.9); f.m.material.opacity = 0.9 * (1 - k); }
+      else if (f.kind === 'fade') { f.mat.opacity = 0.8 * (1 - k); f.m.scale.setScalar(0.8 + k * 0.4); }
+      else if (f.kind === 'beam') { for (const m of f.mats) m.opacity = (1 - k) * 0.85; f.m.scale.set(1 + k * 0.5, 1 + k * 0.5, 1); }
+      else if (f.kind === 'burst') {
+        const a = f.m.geometry.attributes.position;
+        for (let i = 0; i < f.vel.length; i++) { f.vel[i].y -= 12 * dt; a.setXYZ(i, a.getX(i) + f.vel[i].x * dt, a.getY(i) + f.vel[i].y * dt, a.getZ(i) + f.vel[i].z * dt); }
+        a.needsUpdate = true; f.m.material.opacity = 1 - k;
+      }
+      if (k >= 1) { this.scene.remove(f.m); f.m.traverse?.((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.dispose && f.kind !== 'ring') o.material.dispose(); }); if (f.kind === 'ring') { f.m.geometry.dispose(); f.m.material.dispose(); } this.fx.splice(this.fx.indexOf(f), 1); }
+    }
+  }
+  updateCamera(dt) {
+    const c = this.cam, pl = this.player;
+    const inside = pl.pos.x > HALL.minX && pl.pos.x < HALL.maxX && pl.pos.z > HALL.minZ && pl.pos.z < HALL.maxZ;
+    const dist = inside ? Math.min(c.dist, 10) : c.dist; const pitch = inside ? Math.max(c.pitch, 0.85) : c.pitch;
+    const k = Math.min(1, dt * 10);
+    c.tx += (pl.pos.x - c.tx) * k; c.ty += (pl.pos.y + 1.4 - c.ty) * k; c.tz += (pl.pos.z - c.tz) * k;
+    const shake = this.ui.shakeAmt ? (this.rand() - 0.5) * this.ui.shakeAmt : 0;
+    const cx = c.tx - Math.sin(c.yaw) * Math.cos(pitch) * dist, cz = c.tz - Math.cos(c.yaw) * Math.cos(pitch) * dist;
+    let cy = c.ty + Math.sin(pitch) * dist; cy = Math.max(cy, groundAt(cx, cz) + 0.6);
+    this.camera.position.set(cx + shake, cy + shake, cz);
+    this.camera.lookAt(c.tx, c.ty, c.tz);
+  }
+  render() { this.renderer.render(this.scene, this.camera); }
+}

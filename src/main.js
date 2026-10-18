@@ -1,1 +1,65 @@
-console.log('scaffold');
+import * as THREE from 'three';
+import './ui/style.css';
+import { GFX } from './world/toon.js';
+import { loadGame, newGame, saveGame, loadSettings } from './core/state.js';
+import { Game } from './systems/game.js';
+import { UI } from './ui/ui.js';
+import { setupInput } from './ui/input.js';
+import { characterCreation } from './ui/create.js';
+import * as P from './systems/progress.js';
+import { SCHOOLS } from './data/schools.js';
+
+const S = loadSettings();
+const qs = new URLSearchParams(location.search);
+if (qs.get('q')) S.quality = qs.get('q') === 'high' ? 'high' : 'low';
+GFX.high = S.quality === 'high'; GFX.outlines = GFX.high; GFX.shadows = GFX.high;
+
+function layout() {
+  const touchAuto = (navigator.maxTouchPoints > 0 || 'ontouchstart' in window) && matchMedia('(pointer: coarse)').matches;
+  const touch = qs.has('touch') ? qs.get('touch') !== '0' : S.touch === 'on' ? true : S.touch === 'off' ? false : touchAuto;
+  const b = document.body.classList; b.toggle('touch', touch); b.toggle('desktop', !touch);
+  const portrait = innerHeight > innerWidth; b.toggle('portrait', portrait); b.toggle('landscape', !portrait);
+}
+layout(); addEventListener('resize', layout);
+
+const loading = document.createElement('div'); loading.id = 'loading'; loading.textContent = 'Lighting the lanterns…'; document.body.appendChild(loading);
+
+async function boot() {
+  let G = loadGame();
+  loading.remove();
+  if (!G) {
+    const opts = await characterCreation();
+    G = newGame(opts); saveGame(G);
+    G._fresh = true;
+  }
+  const canvas = document.createElement('canvas'); canvas.id = 'game'; document.body.prepend(canvas);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: GFX.high, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, GFX.high ? 2.5 : 1.5));
+  renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+  if (GFX.shadows) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
+  const ui = new UI();
+  Object.assign(P.hooks, { log: (m, c) => ui.log(m, c), toast: (m) => ui.toast(m), refresh: () => ui.refresh(), levelUp: () => ui.refresh(), jobDone: () => {} });
+  const game = new Game(renderer, G, S, ui);
+  ui.attach(game);
+  const inputUpdate = setupInput(game, ui, canvas);
+  const resize = () => { renderer.setSize(innerWidth, innerHeight); game.camera.aspect = innerWidth / innerHeight; game.camera.updateProjectionMatrix(); };
+  resize(); addEventListener('resize', resize);
+  if (G.jobs.active.some((a) => a.id === 'j_cat' && a.prog < 1)) game.startEscort();
+  const fresh = G._fresh; delete G._fresh;
+  ui.log('Welcome to Lanternhaven, home of the Emberwake Guild!', 'lvl');
+  if (fresh) {
+    ui.log(`You are attuned to ${SCHOOLS[G.school].name}. Your gear decides your abilities: check the Equipment panel.`, 'info');
+    ui.log('Walk past the fountain into the guild hall and talk to Guildmaster Borrowick.', 'quest');
+  }
+  addEventListener('visibilitychange', () => { if (document.hidden && !game.noSave) saveGame(G); });
+  addEventListener('pagehide', () => { if (!game.noSave) saveGame(G); });
+  let last = performance.now();
+  const frame = (now) => {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    inputUpdate(); game.update(dt); ui.update(dt); game.render();
+  };
+  requestAnimationFrame(frame);
+  window.__ew = { game, G, ui, P, S, THREE };
+}
+boot().catch((e) => { console.error(e); const d = document.createElement('div'); d.id = 'loading'; d.textContent = 'Something exploded (not the guild this time): ' + e.message; document.body.appendChild(d); });
