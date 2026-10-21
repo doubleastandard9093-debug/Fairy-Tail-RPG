@@ -9,6 +9,7 @@ import { characterCreation } from './ui/create.js';
 import { titleScreen } from './ui/title.js';
 import * as P from './systems/progress.js';
 import { SCHOOLS } from './data/schools.js';
+import { Audio } from './core/audio.js';
 
 const S = loadSettings();
 const qs = new URLSearchParams(location.search);
@@ -23,6 +24,11 @@ function layout() {
 }
 layout(); addEventListener('resize', layout);
 
+const audio = new Audio(S); window.__audio = audio;
+const unlock = () => audio.unlock();
+for (const ev of ['pointerdown', 'touchend', 'keydown', 'click']) addEventListener(ev, unlock, { capture: true, passive: true });
+addEventListener('click', (e) => { if (e.target.closest && e.target.closest('button')) audio.sfx('ui'); }, { capture: true });
+audio.play('hall');
 const loading = document.createElement('div'); loading.id = 'loading'; loading.textContent = 'Opening the guild doors…'; document.body.appendChild(loading);
 
 async function boot() {
@@ -40,8 +46,8 @@ async function boot() {
   renderer.setPixelRatio(Math.min(devicePixelRatio, GFX.high ? 2.5 : 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
   if (GFX.shadows) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; }
-  const ui = new UI();
-  Object.assign(P.hooks, { log: (m, c) => ui.log(m, c), toast: (m) => ui.toast(m), refresh: () => ui.refresh(), levelUp: () => ui.refresh(), jobDone: () => {} });
+  const ui = new UI(); ui.audio = audio;
+  Object.assign(P.hooks, { log: (m, c) => ui.log(m, c), toast: (m) => ui.toast(m), refresh: () => ui.refresh(), levelUp: () => { ui.refresh(); audio.sfx('level'); }, jobDone: () => {} });
   const game = new Game(renderer, G, S, ui);
   ui.attach(game);
   const inputUpdate = setupInput(game, ui, canvas);
@@ -62,6 +68,7 @@ async function boot() {
     requestAnimationFrame(frame);
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     inputUpdate(); game.update(dt); ui.update(dt); game.render();
+    audio.play(ui.bossEnt ? 'boss' : game.zone === 'Fairy Tail Guild Hall' || game.zone === 'Magnolia' ? 'hall' : 'field');
   };
   requestAnimationFrame(frame);
   window.__ew = { game, G, ui, P, S, THREE };

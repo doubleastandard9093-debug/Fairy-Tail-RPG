@@ -92,6 +92,7 @@ export class Game {
     const fwd = new THREE.Vector3(Math.sin(pl.rot), 0, Math.cos(pl.rot));
     const color = ab.color || '#ffffff';
     const wt = wItem ? wItem.weaponType : 'knuckles';
+    this.ui.sfx(src.kind === 'school' ? 'spell' : 'swing');
     if (src.kind === 'school') pl.cast = 0.6; else { pl.atk = 0; pl.atkKind = wt === 'bow' ? 'bow' : wt === 'knuckles' ? 'punch' : 'slash'; }
     if (id.startsWith('fl_fist') || id.startsWith('kn_')) { pl.atk = 0; pl.atkKind = 'punch'; pl.cast = 0; }
     const hit = (m, mult = 1) => this.damageMob(m, base * mult, ab);
@@ -176,7 +177,7 @@ export class Game {
     if (m.form === 'flute') { if (from === 'player') this.ui.floatText(m.pos, 3, 'Immune', 'heal'); return; }
     const d = derived(this.G); const crit = from === 'player' && this.rand() < d.crit;
     let dmg = Math.max(1, Math.round(amt * (0.9 + this.rand() * 0.2) * (crit ? 1.6 : 1)));
-    m.hp -= dmg; m.aggro = true; if (from === 'player') this.player.combatT = 6;
+    m.hp -= dmg; m.aggro = true; if (from !== 'dot') this.ui.sfx('hit'); if (from === 'player') this.player.combatT = 6;
     this.ui.floatText(m.pos, m.tpl.boss ? 9 : 1.8, (crit ? '✦' : '') + dmg, crit ? 'crit' : from === 'ally' ? 'ally' : 'dmg');
     const ef = ab && ab.effect;
     if (ef) {
@@ -354,7 +355,7 @@ export class Game {
       for (const b of pl.buffs) if (b.shieldLeft > 0) { const ab = Math.min(b.shieldLeft, dmg); b.shieldLeft -= ab; dmg -= ab; }
       dmg = Math.round(dmg); pl.combatT = 6;
       if (dmg <= 0) { this.ui.floatText(pl.pos, 2.2, 'Blocked', 'heal'); return; }
-      G.hp -= dmg; this.ui.floatText(pl.pos, 2.2, '-' + dmg, 'hurt'); this.ui.hurtFlash();
+      G.hp -= dmg; this.ui.sfx('hurt'); this.ui.floatText(pl.pos, 2.2, '-' + dmg, 'hurt'); this.ui.hurtFlash();
       G.adr = Math.min(100, G.adr + 2);
       if (G.hp <= 0) this.playerDie(srcName);
     } else {

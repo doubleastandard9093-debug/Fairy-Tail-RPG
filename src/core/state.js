@@ -117,7 +117,7 @@ export function migrate(G) {
   return G;
 }
 export function loadSettings() {
-  const def = { quality: 'low', music: false, shake: true, touch: 'auto' };
+  const def = { quality: 'low', mute: false, vol: 0.7, musicVol: 0.5, sfxVol: 0.8, shake: true, touch: 'auto' };
   try { return { ...def, ...(JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}) }; } catch { return def; }
 }
 export function saveSettings(S) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(S)); } catch { /* ignore */ } }

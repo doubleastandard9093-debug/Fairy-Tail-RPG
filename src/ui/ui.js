@@ -100,6 +100,7 @@ export class UI {
   }
   hurtFlash() { const v = this.el.vig; v.classList.add('hit'); clearTimeout(this._hf); this._hf = setTimeout(() => v.classList.remove('hit'), 120); }
   shake(a) { if (this.game && this.game.S.shake === false) return; this.shakeAmt = Math.max(this.shakeAmt, a); }
+  sfx(n) { this.audio?.sfx(n); }
   abilityFired(slot) { const b = this.el.abar.children[slot]; b.classList.remove('fired'); void b.offsetWidth; b.classList.add('fired'); }
   setTarget(m) { this.target = m; this.el.target.classList.toggle('hidden', !m || (m.tpl && m.tpl.boss)); if (m) this.el.target.querySelector('.nm').textContent = `${m.tpl.name} · Lv ${m.tpl.level}`; }
   boss(m) { if (m === this.bossEnt) return; this.bossEnt = m; this.el.boss.classList.toggle('hidden', !m); if (m) this.bossPhase(m); }
@@ -224,6 +225,7 @@ export class UI {
     if (tl) for (const [k, label] of tl) { const b = h('button', 'tab' + (this.tab === k ? ' on' : ''), label); b.onclick = () => { this.tab = k; this.sel = null; this.renderPanel(); }; tabs.appendChild(b); }
     tabs.classList.toggle('hidden', !tl);
     body.innerHTML = html; body.scrollTop = st;
+    body.querySelectorAll('input[data-vol]').forEach((r) => { r.oninput = () => { const S = this.game.S; S[r.dataset.vol] = r.value / 100; this.audio?.applyVolume(); }; r.onchange = () => { saveSettings(this.game.S); this.sfx('ui'); }; });
     body.querySelectorAll('[data-act]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); this.act(b.dataset.act, b.dataset.arg, b.dataset.arg2); }; });
     if (bind) bind(body);
   }
@@ -331,6 +333,8 @@ export class UI {
     const g = this.game, S = g.S, G = g.G;
     return { title: '⚙️ Settings', html: `
       <div class="row"><div class="grow"><div class="nm">Graphics quality</div><div class="ds">Low is the default and runs well on phones. High adds outlines, shadows, dense grass and sharper rendering (reloads).</div></div><div class="seg"><button data-act="quality" data-arg="low" class="${S.quality === 'low' ? 'on' : ''}">Low</button><button data-act="quality" data-arg="high" class="${S.quality === 'high' ? 'on' : ''}">High</button></div></div>
+      <div class="row"><div class="grow"><div class="nm">Sound</div><div class="ds">${this.audio && this.audio.unlocked ? 'Music and effects are synthesised live in your browser.' : 'Tap anywhere to start audio (iPhone needs one tap).'}</div></div><div class="seg"><button data-act="mute" data-arg="0" class="${!S.mute ? 'on' : ''}">On</button><button data-act="mute" data-arg="1" class="${S.mute ? 'on' : ''}">Mute</button></div></div>
+      ${[['vol', 'Master volume', 0.7], ['musicVol', 'Music', 0.5], ['sfxVol', 'Effects', 0.8]].map(([k, l, d]) => `<div class="row"><div class="grow"><div class="nm">${l}</div></div><input type="range" min="0" max="100" value="${Math.round((S[k] ?? d) * 100)}" data-vol="${k}" style="width:46%"></div>`).join('')}
       <div class="row"><div class="grow"><div class="nm">Auto-attack</div><div class="ds">Uses ability 1 automatically on your target when in range.</div></div><div class="seg"><button data-act="auto" data-arg="1" class="${g.autoAttack ? 'on' : ''}">On</button><button data-act="auto" data-arg="0" class="${!g.autoAttack ? 'on' : ''}">Off</button></div></div>
       <div class="row"><div class="grow"><div class="nm">Screen shake</div></div><div class="seg"><button data-act="shake" data-arg="1" class="${S.shake !== false ? 'on' : ''}">On</button><button data-act="shake" data-arg="0" class="${S.shake === false ? 'on' : ''}">Off</button></div></div>
       <div class="row"><div class="grow"><div class="nm">Controls</div><div class="ds">Auto picks touch or keyboard for your device.</div></div><div class="seg">${['auto', 'on', 'off'].map((v) => `<button data-act="touch" data-arg="${v}" class="${S.touch === v ? 'on' : ''}">${{ auto: 'Auto', on: 'Touch', off: 'Keys' }[v]}</button>`).join('')}</div></div>
@@ -381,6 +385,7 @@ export class UI {
       case 'turninAll': for (const x of [...G.jobs.active]) if (P.jobReady(G, x)) P.turnInJob(G, x.id); break;
       case 'abandon': P.abandonJob(G, arg); break;
       case 'quality': g.S.quality = arg; saveSettings(g.S); saveGame(G); location.reload(); return;
+      case 'mute': g.S.mute = arg === '1'; saveSettings(g.S); this.audio?.unlock(); this.audio?.applyVolume(); break;
       case 'auto': g.autoAttack = arg === '1'; g.S.autoAttack = g.autoAttack; saveSettings(g.S); break;
       case 'shake': g.S.shake = arg === '1'; saveSettings(g.S); break;
       case 'touch': g.S.touch = arg; saveSettings(g.S); window.dispatchEvent(new Event('resize')); break;
