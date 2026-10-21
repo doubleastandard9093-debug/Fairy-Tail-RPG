@@ -50,7 +50,7 @@ export function giveReward(G, r, why) {
   if (r.gp) {
     const before = guildRank(G); G.gp += r.gp; const after = guildRank(G);
     hooks.log(`+${r.gp} guild points`, 'loot');
-    if (after !== before) { hooks.toast(`🛡️ Guild rank ${after}!`); hooks.log(`Pell stamps your guild card with a big "${after}". You can now take ${RANK_ORDER[Math.min(5, RANK_ORDER.indexOf(after) + 1)]}-rank jobs.`, 'lvl'); }
+    if (after !== before) { hooks.toast(`🛡️ Guild rank ${after}!`); hooks.log(`Mirajane stamps your guild card with a big "${after}". You can now take ${RANK_ORDER[Math.min(5, RANK_ORDER.indexOf(after) + 1)]}-rank jobs.`, 'lvl'); }
   }
   if (r.xp) grantCharXp(G, r.xp);
   if (r.items) giveItems(G, r.items, why);
@@ -87,7 +87,7 @@ export function jobReady(G, a) {
 export function jobProgressText(G, a) {
   const job = JOB_BY_ID[a.id];
   if (job.type === 'deliver') return `${Math.min(job.n, countItem(G, job.item))}/${job.n} ${itemName(job.item)}`;
-  if (job.type === 'escort') return a.prog >= 1 ? 'Sir Reginald arrived!' : 'Escort Sir Reginald to the Whispering Shrine';
+  if (job.type === 'escort') return a.prog >= 1 ? 'Plue arrived!' : 'Escort Plue to the Kardia Cathedral';
   if (job.type === 'gather') return `${Math.min(a.prog, job.n)}/${job.n} ${itemName(job.item)}`;
   return `${Math.min(a.prog, job.n)}/${job.n} ${MOBS[job.mob].name}`;
 }
@@ -160,11 +160,11 @@ export function questEvent(G, ev) {
 }
 export function onKill(G, mobId) {
   G.kills[mobId] = (G.kills[mobId] || 0) + 1;
-  for (const a of G.jobs.active) { const j = JOB_BY_ID[a.id]; if ((j.type === 'kill' || j.type === 'boss') && j.mob === mobId) { a.prog++; if (a.prog === j.n) hooks.log(`Job ready to hand in: ${j.title}. Report to Pell.`, 'quest'); } }
+  for (const a of G.jobs.active) { const j = JOB_BY_ID[a.id]; if ((j.type === 'kill' || j.type === 'boss') && j.mob === mobId) { a.prog++; if (a.prog === j.n) hooks.log(`Job ready to hand in: ${j.title}. Report to Mirajane.`, 'quest'); } }
   questEvent(G, { type: 'kill', mob: mobId });
 }
 export function onGather(G, itemId, n) {
-  for (const a of G.jobs.active) { const j = JOB_BY_ID[a.id]; if (j.type === 'gather' && j.item === itemId) { a.prog += n; if (a.prog >= j.n && a.prog - n < j.n) hooks.log(`Job ready to hand in: ${j.title}. Report to Pell.`, 'quest'); } }
+  for (const a of G.jobs.active) { const j = JOB_BY_ID[a.id]; if (j.type === 'gather' && j.item === itemId) { a.prog += n; if (a.prog >= j.n && a.prog - n < j.n) hooks.log(`Job ready to hand in: ${j.title}. Report to Mirajane.`, 'quest'); } }
   questEvent(G, { type: 'item' });
 }
 export function onCraft(G, itemId, n) { G.crafted[itemId] = (G.crafted[itemId] || 0) + n; questEvent(G, { type: 'craft', id: itemId, n }); }

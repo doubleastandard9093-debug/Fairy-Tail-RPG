@@ -1,23 +1,26 @@
 import * as THREE from 'three';
 import { buildCharacter, animateCharacter, equipVisual, HAIR_STYLES, HAIR_COLORS, SKIN_TONES, OUTFITS, OUTFIT_COLORS } from '../world/models.js';
 import { SCHOOLS } from '../data/schools.js';
+import { MARK_PLACES, MARK_COLORS, guildMarkDataURL } from '../world/mark.js';
 
 /** Character creation screen. Resolves with { name, look, school }. */
 export function characterCreation() {
   return new Promise((resolve) => {
-    const L = { hair: 'spiky', hairColor: HAIR_COLORS[0], skin: SKIN_TONES[1], outfit: 'adventurer', outfitColor: OUTFIT_COLORS[0] };
+    const L = { hair: 'spiky', hairColor: HAIR_COLORS[0], skin: SKIN_TONES[1], outfit: 'adventurer', outfitColor: OUTFIT_COLORS[0], mark: { place: 'right arm', color: MARK_COLORS[0] } };
     let school = 'flame';
     const root = document.createElement('div'); root.id = 'create';
-    root.innerHTML = `<div class="wrap"><div class="pv frame"><canvas></canvas><div class="logo">EMBERWAKE<small>GUILD CHRONICLES</small></div></div>
-      <div class="opts frame"><h2>Join the Emberwake Guild</h2><div class="muted">Lanternhaven's rowdiest magic guild is recruiting. Again. Make your wizard.</div>
-      <label>Name</label><input type="text" id="cc-name" maxlength="16" value="Ember" autocomplete="off">
+    root.innerHTML = `<div class="wrap"><div class="pv frame"><canvas></canvas><div class="logo"><img alt="" src="${guildMarkDataURL('#e0303a', 128)}">FAIRY TAIL<small>NEW MEMBER</small></div></div>
+      <div class="opts frame"><h2>Join Fairy Tail</h2><div class="muted">Fiore's rowdiest wizard guild is recruiting. Again. Make your wizard, then pick where Mirajane stamps your guild mark.</div>
+      <label>Name</label><input type="text" id="cc-name" maxlength="16" value="Rookie" autocomplete="off">
       <label>Hair style</label><div class="chips" id="cc-hair"></div>
       <label>Hair colour</label><div class="chips" id="cc-hairc"></div>
       <label>Skin tone</label><div class="chips" id="cc-skin"></div>
       <label>Outfit</label><div class="chips" id="cc-outfit"></div>
       <label>Outfit colour</label><div class="chips" id="cc-outc"></div>
+      <label>Guild mark: placement</label><div class="chips" id="cc-mark"></div>
+      <label>Guild mark: colour</label><div class="chips" id="cc-markc"></div>
       <label>Starting magic</label><div class="schools" id="cc-school"></div>
-      <div class="muted" style="margin-top:6px">Lightning, Script Runes and Requip lacrima can be bought later at the market. You can swap schools any time by attuning a different lacrima.</div>
+      <div class="muted" style="margin-top:6px">Lightning (Laxus), Solid Script (Levy) and Requip (Erza) can be bought later at the Magic Shop. Swap magic any time by attuning a different lacrima.</div>
       <button class="btn gold go" id="cc-go">Begin your adventure ▸</button></div></div>`;
     document.body.appendChild(root);
     const cv = root.querySelector('canvas');
@@ -43,6 +46,16 @@ export function characterCreation() {
       }
     };
     chips('#cc-hair', HAIR_STYLES, 'hair'); chips('#cc-hairc', HAIR_COLORS, 'hairColor', true); chips('#cc-skin', SKIN_TONES, 'skin', true); chips('#cc-outfit', OUTFITS, 'outfit'); chips('#cc-outc', OUTFIT_COLORS, 'outfitColor', true);
+    const markChips = (id, list, key, swatch) => {
+      const el = root.querySelector(id); el.innerHTML = '';
+      for (const v of list) {
+        const b = document.createElement('button'); b.className = swatch ? 'sw' : 'chip'; if (swatch) b.style.background = v; else b.textContent = v;
+        if (L.mark[key] === v) b.classList.add('on');
+        b.onclick = () => { L.mark = { ...L.mark, [key]: v }; el.querySelectorAll('button').forEach((x) => x.classList.remove('on')); b.classList.add('on'); rebuild(); };
+        el.appendChild(b);
+      }
+    };
+    markChips('#cc-mark', MARK_PLACES, 'place'); markChips('#cc-markc', MARK_COLORS, 'color', true);
     const sEl = root.querySelector('#cc-school');
     for (const [k, s] of Object.entries(SCHOOLS)) {
       if (!s.starter) continue;
@@ -62,9 +75,9 @@ export function characterCreation() {
     };
     loop();
     root.querySelector('#cc-go').onclick = () => {
-      const name = root.querySelector('#cc-name').value.trim() || 'Ember';
+      const name = root.querySelector('#cc-name').value.trim() || 'Rookie';
       alive = false; renderer.dispose(); renderer.forceContextLoss && renderer.forceContextLoss(); root.remove();
-      resolve({ name, look: { ...L }, school });
+      resolve({ name, look: { ...L, mark: { ...L.mark } }, school });
     };
   });
 }

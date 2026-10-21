@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
-import { buildNode, buildCharacter } from './models.js';
+import { buildNode, buildCharacter, buildMob } from './models.js';
 import { NODE_TYPES, NODE_TIERS, NODE_BANDS } from '../data/nodes.js';
 import { NPCS, POIS } from '../data/npcs.js';
+import { drawGuildMark } from './mark.js';
 import { BOSS_ARENA } from '../data/mobs.js';
 
 export function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -24,12 +25,12 @@ export function height(x, z) {
   return h;
 }
 export function zoneAt(x, z) {
-  if (x > HALL.minX && x < HALL.maxX && z > HALL.minZ && z < HALL.maxZ) return 'Emberwake Guild Hall';
-  if (z < 44) return 'Lanternhaven';
+  if (x > HALL.minX && x < HALL.maxX && z > HALL.minZ && z < HALL.maxZ) return 'Fairy Tail Guild Hall';
+  if (z < 44) return 'Magnolia';
   if (z < 92) return 'Sneezewort Meadow';
   if (z < 132) return 'Bristleback Hills';
   if (z < 166) return 'Gloamwood Edge';
-  return "Tyrant's Hollow";
+  return "Clover Canyon";
 }
 
 function textTexture(text, { w = 512, h = 128, bg = '#3a2414', fg = '#ffe2a0', font = 'bold 64px Georgia, serif', border = '#c89040' } = {}) {
@@ -40,11 +41,9 @@ function textTexture(text, { w = 512, h = 128, bg = '#3a2414', fg = '#ffe2a0', f
 }
 function emblemTexture() {
   const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
-  x.fillStyle = '#7a1a1a'; x.fillRect(0, 0, 256, 256);
-  x.strokeStyle = '#e8c36a'; x.lineWidth = 10; x.beginPath(); x.arc(128, 120, 80, 0, Math.PI * 2); x.stroke();
-  const g = x.createLinearGradient(0, 220, 0, 40); g.addColorStop(0, '#ff5a1f'); g.addColorStop(0.6, '#ffb02e'); g.addColorStop(1, '#fff2a8');
-  x.fillStyle = g; x.beginPath(); x.moveTo(128, 40); x.bezierCurveTo(170, 90, 200, 120, 180, 160); x.bezierCurveTo(170, 195, 145, 205, 128, 205); x.bezierCurveTo(110, 205, 85, 195, 76, 160); x.bezierCurveTo(68, 125, 95, 110, 102, 82); x.bezierCurveTo(112, 102, 120, 110, 134, 112); x.bezierCurveTo(124, 90, 120, 65, 128, 40); x.fill();
-  x.fillStyle = '#e8c36a'; x.font = 'bold 30px Georgia, serif'; x.textAlign = 'center'; x.fillText('EMBERWAKE', 128, 238);
+  x.fillStyle = '#f2e6c8'; x.fillRect(0, 0, 256, 256); x.strokeStyle = '#c89040'; x.lineWidth = 12; x.strokeRect(6, 6, 244, 244);
+  drawGuildMark(x, 128, 116, 190, '#d02030', '#2a0a10');
+  x.fillStyle = '#7a1a1a'; x.font = 'bold 28px Georgia, serif'; x.textAlign = 'center'; x.fillText('FAIRY TAIL', 128, 238);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
@@ -160,7 +159,7 @@ export function buildWorld(scene) {
     for (let i = 0; i < 11; i++) g.add(mesh(new THREE.BoxGeometry(H.maxX - H.minX - 1, 0.02, 0.06), toon('#7a5432'), 0, 0.52, H.minZ + 1 + i * 1.8));
     // Banner with emblem over the door
     const emb = mesh(new THREE.PlaneGeometry(3, 3), new THREE.MeshBasicMaterial({ map: emblemTexture(), fog: true }), 0, h + 1.6, H.maxZ + 0.05); g.add(emb);
-    const sign = mesh(new THREE.PlaneGeometry(6, 1.2), new THREE.MeshBasicMaterial({ map: textTexture('EMBERWAKE GUILD', { font: 'bold 56px Georgia, serif' }), fog: true }), 0, h - 0.6, H.maxZ + 0.08); g.add(sign);
+    const sign = mesh(new THREE.PlaneGeometry(6, 1.2), new THREE.MeshBasicMaterial({ map: textTexture('FAIRY TAIL', { font: 'bold 56px Georgia, serif' }), fog: true }), 0, h - 0.6, H.maxZ + 0.08); g.add(sign);
     // Roof (hidden when you're inside)
     const roof = new THREE.Group(); g.add(roof);
     const span = (H.maxX - H.minX) / 2 + 1.2, len = H.maxZ - H.minZ + 1.6, pitch = 0.62;
@@ -271,10 +270,10 @@ export function buildWorld(scene) {
     run(T.minX, T.maxZ, -T.gateHalf, T.maxZ); run(T.gateHalf, T.maxZ, T.maxX, T.maxZ);
     for (const s of [-1, 1]) { g.add(mesh(new THREE.BoxGeometry(1, 6, 1), stoneM, s * T.gateHalf, 3, T.maxZ)); g.add(mesh(new THREE.ConeGeometry(0.9, 1.4, 4), roofR, s * T.gateHalf, 6.7, T.maxZ)); }
     g.add(mesh(new THREE.BoxGeometry(T.gateHalf * 2 + 1, 0.8, 0.8), woodD, 0, 5.4, T.maxZ));
-    const gs = mesh(new THREE.PlaneGeometry(5, 1), new THREE.MeshBasicMaterial({ map: textTexture('LANTERNHAVEN'), side: THREE.DoubleSide }), 0, 4.6, T.maxZ + 0.45); g.add(gs);
+    const gs = mesh(new THREE.PlaneGeometry(5, 1), new THREE.MeshBasicMaterial({ map: textTexture('MAGNOLIA'), side: THREE.DoubleSide }), 0, 4.6, T.maxZ + 0.45); g.add(gs);
     addOutlines(g); shadowAll(g, true, false);
   }
-  // Lantern posts (Lanternhaven!)
+  // Lantern posts (Magnolia!)
   {
     const spots = [[-4, -8], [4, -8], [-14, 8], [14, 8], [-4, 30], [4, 30], [-8, 40], [8, 40], [-12, -2], [12, -2], [-12, 20], [12, 20]];
     for (let z = 52; z < 175; z += 14) spots.push([roadX(z) + 3.2, z]);
@@ -293,7 +292,7 @@ export function buildWorld(scene) {
   { const w = mesh(new THREE.CircleGeometry(POND.r, 28), toon('#4aa8e0', { emissive: '#103a5a', transparent: true, opacity: 0.85 }), POND.x, -0.35, POND.z); w.rotation.x = -Math.PI / 2; w.userData.noOutline = true; scene.add(w); W.circles.push({ x: POND.x, z: POND.z, r: POND.r - 1.2 });
     for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const lp = mesh(new THREE.CircleGeometry(0.6, 10), toon('#5ac05a'), POND.x + Math.cos(a) * 5, -0.3, POND.z + Math.sin(a) * 4); lp.rotation.x = -Math.PI / 2; scene.add(lp); }
     W.map.pond = POND; }
-  // Whispering Shrine (escort destination)
+  // Kardia Cathedral (escort destination)
   { const [sx, sz] = POIS.shrine.pos; const g = new THREE.Group(); g.position.set(sx, height(sx, sz), sz); scene.add(g);
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const s = mesh(new THREE.BoxGeometry(0.8, 2.6 + (i % 2), 0.8), stoneM, Math.cos(a) * 4, 1.3, Math.sin(a) * 4); g.add(s); W.circles.push({ x: sx + Math.cos(a) * 4, z: sz + Math.sin(a) * 4, r: 0.6 }); }
     const cr = mesh(new THREE.OctahedronGeometry(0.8, 0), glow('#9af0ff'), 0, 2.4, 0); g.add(cr); W.anim.push((t) => { cr.rotation.y = t; cr.position.y = 2.4 + Math.sin(t * 2) * 0.2; });
@@ -374,10 +373,10 @@ export function buildWorld(scene) {
   // ---------------- Town NPCs ----------------
   W.npcs = {};
   for (const [id, n] of Object.entries(NPCS)) {
-    const c = buildCharacter(n.look); const [x, z] = n.pos;
+    const c = n.model ? buildMob(n.model, { fur: n.fur, hat: false, bag: '#3aa05a', wings: true }) : buildCharacter(n.look); const [x, z] = n.pos;
+    if (n.model) c.parts.head = c.parts.body;
     c.group.position.set(x, z > HALL.minZ && z < HALL.maxZ && Math.abs(x) < HALL.maxX ? 0.5 : 0, z);
-    c.group.lookAt(id === 'borrowick' ? x : 0, 0, id === 'borrowick' ? z + 5 : 6);
-    if (id === 'pell') c.group.rotation.y = -Math.PI / 2 + 0.4;
+    const f = n.face || [0, 6]; c.group.lookAt(f[0], c.group.position.y, f[1]);
     scene.add(c.group);
     const it = { kind: 'npc', npc: id, name: n.name, x, z, r: 3.6, obj: c.group, char: c };
     W.npcs[id] = it; W.interactables.push(it); W.circles.push({ x, z, r: 0.5 });

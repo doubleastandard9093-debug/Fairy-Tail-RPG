@@ -1,24 +1,33 @@
-// Town NPCs. role decides what tapping them opens. `talk` lines are shown when they
-// have no quest business with you (picked at random). Positions match world/town.js.
+// Magnolia NPCs (Fairy Tail fan pitch). role decides what tapping them opens. `talk` lines are
+// shown when they have no quest business with you (picked at random). Positions match world/world.js.
+// model: 'cat' builds a small cat (Happy) instead of a humanoid.
 export const NPCS = {
-  borrowick: { name: 'Guildmaster Borrowick Thundermug', role: 'quest', pos: [5, -29], look: { hair: 'beard', hairColor: '#e8e8e8', outfit: 'brawler', outfitColor: '#7a2a1a', skin: '#e0b090', scale: 0.85 },
-    talk: ['Welcome to Emberwake! We are the most fireproof guild in Lanternhaven. Mostly.', 'The property damage bill this month is... no. I will not read it aloud.', 'A true guild wizard never runs from a fight! Unless it is a tax audit.'] },
-  pell: { name: 'Pell Quillfeather (Requests)', role: 'board', pos: [-6, -26.5], look: { hair: 'long', hairColor: '#f0c0e0', outfit: 'mage', outfitColor: '#4a6ab0', skin: '#f6d8c0' },
-    talk: ['The request board has jobs from E rank to S rank. Please do not take S rank jobs as a joke again.', 'Finished a job? Bring it to me and I will stamp it. I love stamping.'] },
-  coinsworth: { name: 'Penwhistle Coinsworth (Bank)', role: 'bank', pos: [-15.6, -2], look: { hair: 'short', hairColor: '#404040', outfit: 'mage', outfitColor: '#2a4a3a', skin: '#e8c8a8' },
-    talk: ['Your jewels are safe with us. Our vault is guarded by a very judgmental owl.', 'Interest rates? We prefer the term "vibes".'] },
-  zazzle: { name: 'Zazzle the Marvelous (Market)', role: 'shop', pos: [15.6, -2], look: { hair: 'spiky', hairColor: '#9a50ff', outfit: 'adventurer', outfitColor: '#d0a020', skin: '#c89070' },
-    talk: ['Prices on the market board change daily! Like my moods. And my hats.', 'Everything is genuine! Except the things that are not.'] },
-  greta: { name: 'Greta Sootwhistle (Forge)', role: 'forge', pos: [-15.5, 22], look: { hair: 'ponytail', hairColor: '#ff8030', outfit: 'brawler', outfitColor: '#5a4030', skin: '#d8a070' },
-    talk: ['Forge refines ore into bars. Workbench handles wood, cloth and leather. Do not lick the anvil.', 'I can smell a Flame Slayer from here. Keep your snacks away from my forge.'] },
-  marzipan: { name: 'Marzipan Doughty (Inn)', role: 'inn', pos: [16.2, 20], look: { hair: 'bob', hairColor: '#ffe0a0', outfit: 'adventurer', outfitColor: '#c04a5a', skin: '#f4d4b8' },
-    talk: ['A bed, a bath and a stew. Ten jewels. The stew is... also ten jewels.', 'If you hear singing at night, that is just the Ice-Make wizard in room 3. He is not wearing a shirt.'] },
-  puddingham: { name: 'Mayor Puddingham', role: 'talk', pos: [5, 7], look: { hair: 'short', hairColor: '#a07040', outfit: 'mage', outfitColor: '#6a2a8a', skin: '#f0c8a0', scale: 1.05 },
-    talk: ['Lanternhaven! Home of lanterns. And haven. Mostly lanterns.', 'Have you seen Sir Reginald Fluffbottom? He is my cat and also my chief advisor.'] },
+  mirajane: { name: 'Mirajane (Bar & Requests)', role: 'board', pos: [6.5, -28.6], face: [6.5, -20], look: { hair: 'long', hairColor: '#f4f0f6', outfit: 'mage', outfitColor: '#b02a4a', skin: '#f8dcc8', eyeColor: '#3a5ab0' },
+    talk: ['Welcome back! Can I get you a drink? Or a job? Or both? The guild runs on both.', 'Natsu and Gray are fighting again. Do not worry, I already put the bill on their tabs. ♪', 'Finished a request? Bring it to me and I will stamp it. Stamping is my favourite part!', 'If Erza asks who ate the last strawberry cake, you did not see anything. Okay? ♪'] },
+  makarov: { name: 'Master Makarov', role: 'quest', pos: [1, -31], face: [1, -24], look: { hair: 'beard', hairColor: '#f2f2f2', outfit: 'mage', outfitColor: '#e8e0c8', skin: '#e8c0a0', scale: 0.62 },
+    talk: ['The Magic Council sent another complaint letter. I am using it as a napkin.', 'Brats! Do not let anyone tell you what your magic can or cannot do!', 'A guild is a family. A loud, flammable, slightly underdressed family.', 'I am not short. I am concentrated.'] },
+  natsu: { name: 'Natsu', role: 'talk', pos: [-4, -21], face: [0, -17], look: { hair: 'spiky', hairColor: '#ff8aa6', outfit: 'brawler', outfitColor: '#2a2a2a', skin: '#f0c8a0', eyeColor: '#3a2a1a', scarf: '#f4f4ec' },
+    talk: ['I\'m all fired up! Wanna fight? No? Wanna fight LATER?', 'Fire tastes great. Ice tastes like Gray. Ugh.', 'Trains are the worst. Don\'t even say the word. Ugh, now I feel sick.', 'Happy! Get the fish ready, we\'re taking the next job!'] },
+  happy: { name: 'Happy', role: 'talk', model: 'cat', fur: '#5ab4f0', pos: [-2.6, -20.4], face: [0, -16],
+    talk: ['Aye sir!', 'Do you have a fish? A big fish? A medium fish? I\'ll take any fish.', 'Lucy is weeeird. She talks to her keys. ...Wait, she\'s behind me, isn\'t she.', 'You liiiike the request board. I can tell.'] },
+  lucy: { name: 'Lucy', role: 'talk', pos: [2.5, -20], face: [0, -16], look: { hair: 'twintails', hairColor: '#ffe07a', outfit: 'adventurer', outfitColor: '#3a7ad8', skin: '#fbe0cc', eyeColor: '#5a3a1a' },
+    talk: ['Rent is due in three days and Natsu burned the last reward. AGAIN.', 'Celestial spirits are friends, not tools! ...Taurus, stop staring.', 'I\'m writing a novel about the guild. Nobody will believe it\'s non-fiction.', 'Plue needs his walk, if you have time. He\'s very good. He just shivers a lot.'] },
+  gray: { name: 'Gray', role: 'talk', pos: [-7, -24], face: [-4, -21], look: { hair: 'spiky', hairColor: '#1e2230', outfit: 'brawler', outfitColor: '#e8e8f0', skin: '#f0d0b0', eyeColor: '#1e2230' },
+    talk: ['Hey, flame-brain! Oh. You\'re not Natsu. Never mind.', 'Gray, your clothes. ...Wait, where did my shirt go?!', 'Ice-Make is all about imagination. Picture it, then make it. Simple.', 'Juvia keeps leaving lunch on my seat. It\'s... actually really good.'] },
+  erza: { name: 'Erza', role: 'talk', pos: [8.5, -20.5], face: [6, -17], look: { hair: 'long', hairColor: '#d0202a', outfit: 'brawler', outfitColor: '#c8ccd8', skin: '#f6d8c0', eyeColor: '#4a2a1a' },
+    talk: ['Are you two fighting? ...No? Good. Carry on being friends.', 'Discipline, a sharp blade and strawberry cake. That is all a warrior needs.', 'Requip is about choosing the right armor for the moment. And the right cake.', 'If you see anyone near my cake, report it immediately.'] },
+  levy: { name: 'Levy (Archive & Storage)', role: 'bank', pos: [-15.6, -2], face: [0, -2], look: { hair: 'bob', hairColor: '#5ab0f0', outfit: 'mage', outfitColor: '#f0a030', skin: '#f8dcc8', eyeColor: '#7a4a1a' },
+    talk: ['I filed your items by genre. Your sword is a romance, apparently.', 'Solid Script lets you write words that become real. Please do not write "BOOM" indoors.', 'Gajeel says reading is boring. He has read every one of my book recommendations. Twice.'] },
+  shopkeep: { name: 'Magic Shop Owner (Market)', role: 'shop', pos: [15.6, -2], face: [0, -2], look: { hair: 'short', hairColor: '#7a5030', outfit: 'adventurer', outfitColor: '#d0a020', skin: '#c89070' },
+    talk: ['Lacrima, keys, gear! Everything a wizard needs. Fairy Tail members get the "please stop breaking my windows" discount.', 'Prices on the market board change daily. Like the weather. Or Natsu\'s mood.'] },
+  gajeel: { name: 'Gajeel (Forge)', role: 'forge', pos: [-15.5, 22], face: [0, 22], look: { hair: 'long', hairColor: '#141418', outfit: 'brawler', outfitColor: '#3a3440', skin: '#d8b090', eyeColor: '#b01a1a' },
+    talk: ['Gihi. Need something forged? Hand it over. If it\'s iron, I might eat it first.', 'Shoo-bee-doo-bah. ...You didn\'t hear that.', 'Forge refines ore into bars. Workbench handles wood, cloth and leather. Don\'t touch my snacks.'] },
+  wendy: { name: 'Wendy (Inn & Healing)', role: 'inn', pos: [16.2, 20], face: [0, 20], look: { hair: 'twintails', hairColor: '#3a68d0', outfit: 'mage', outfitColor: '#f0f0ff', skin: '#fbe2d0', eyeColor: '#5a3a2a', scale: 0.82 },
+    talk: ['I can heal you with Sky Dragon magic! Please hold still. And try not to get hurt so much?', 'Carla says I worry too much. I think everyone else worries too little!', 'Rest here any time. The beds are soft and Natsu is banned from the kitchen.'] },
 };
 // Points in the world referenced by jobs (escorts) and the minimap.
 export const POIS = {
-  gate: { name: 'Town Gate', pos: [0, 44] },
-  shrine: { name: 'Whispering Shrine', pos: [36, 108] },
-  arena: { name: "Tyrant's Hollow", pos: [0, 182] },
+  gate: { name: 'Magnolia South Gate', pos: [0, 44] },
+  shrine: { name: 'Kardia Cathedral Steps', pos: [36, 108] },
+  arena: { name: 'Clover Canyon', pos: [0, 182] },
 };

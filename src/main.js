@@ -6,6 +6,7 @@ import { Game } from './systems/game.js';
 import { UI } from './ui/ui.js';
 import { setupInput } from './ui/input.js';
 import { characterCreation } from './ui/create.js';
+import { titleScreen } from './ui/title.js';
 import * as P from './systems/progress.js';
 import { SCHOOLS } from './data/schools.js';
 
@@ -22,11 +23,13 @@ function layout() {
 }
 layout(); addEventListener('resize', layout);
 
-const loading = document.createElement('div'); loading.id = 'loading'; loading.textContent = 'Lighting the lanterns…'; document.body.appendChild(loading);
+const loading = document.createElement('div'); loading.id = 'loading'; loading.textContent = 'Opening the guild doors…'; document.body.appendChild(loading);
 
 async function boot() {
   let G = loadGame();
   loading.remove();
+  const choice = qs.has('skiptitle') ? (G ? 'continue' : 'new') : await titleScreen(!!G);
+  if (choice === 'new') G = null;
   if (!G) {
     const opts = await characterCreation();
     G = newGame(opts); saveGame(G);
@@ -46,10 +49,11 @@ async function boot() {
   resize(); addEventListener('resize', resize);
   if (G.jobs.active.some((a) => a.id === 'j_cat' && a.prog < 1)) game.startEscort();
   const fresh = G._fresh; delete G._fresh;
-  ui.log('Welcome to Lanternhaven, home of the Emberwake Guild!', 'lvl');
+  ui.log('Welcome to Magnolia, home of the Fairy Tail guild!', 'lvl');
   if (fresh) {
-    ui.log(`You are attuned to ${SCHOOLS[G.school].name}. Your gear decides your abilities: check the Equipment panel.`, 'info');
-    ui.log('Walk past the fountain into the guild hall and talk to Guildmaster Borrowick.', 'quest');
+    ui.log(`Your guild mark glows. You wield ${SCHOOLS[G.school].name} magic. Your gear decides your abilities: check the Equipment panel.`, 'info');
+    ui.log('Tutorial: talk to Mirajane at the bar.', 'quest');
+    setTimeout(() => { if (!ui.dlg) ui.openDialogue('mirajane'); }, 900);
   }
   addEventListener('visibilitychange', () => { if (document.hidden && !game.noSave) saveGame(G); });
   addEventListener('pagehide', () => { if (!game.noSave) saveGame(G); });

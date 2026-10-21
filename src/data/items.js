@@ -44,27 +44,28 @@ for (let t = 1; t <= 8; t++) {
 }
 
 // ---- Lacrima: the equipped crystal decides your magic school (you are what you wear). ----
-add({ id: 'lac_flame', name: 'Ember Drake Lacrima', icon: '🔥', kind: 'lacrima', school: 'flame', stack: false, value: 300 });
-add({ id: 'lac_ice', name: 'Glacier Heart Lacrima', icon: '❄️', kind: 'lacrima', school: 'ice', stack: false, value: 300 });
-add({ id: 'lac_celestial', name: 'Starbound Keyring', icon: '✨', kind: 'lacrima', school: 'celestial', stack: false, value: 300 });
-add({ id: 'lac_lightning', name: 'Stormcaller Lacrima', icon: '⚡', kind: 'lacrima', school: 'lightning', stack: false, value: 900 });
-add({ id: 'lac_rune', name: 'Glyphwright Quill', icon: '📜', kind: 'lacrima', school: 'rune', stack: false, value: 900 });
-add({ id: 'lac_requip', name: 'Pocket Armory Ring', icon: '💍', kind: 'lacrima', school: 'requip', stack: false, value: 900 });
+add({ id: 'lac_flame', name: 'Fire Dragon Slayer Lacrima', icon: '🔥', kind: 'lacrima', school: 'flame', stack: false, value: 300 });
+add({ id: 'lac_ice', name: 'Ice-Make Lacrima', icon: '❄️', kind: 'lacrima', school: 'ice', stack: false, value: 300 });
+add({ id: 'lac_celestial', name: 'Celestial Spirit Keyring', icon: '✨', kind: 'lacrima', school: 'celestial', stack: false, value: 300 });
+add({ id: 'lac_lightning', name: 'Lightning Dragon Lacrima (Laxus)', icon: '⚡', kind: 'lacrima', school: 'lightning', stack: false, value: 900 });
+add({ id: 'lac_rune', name: 'Solid Script Pen (Levy)', icon: '📜', kind: 'lacrima', school: 'rune', stack: false, value: 900 });
+add({ id: 'lac_requip', name: 'Requip Ring (Erza)', icon: '💍', kind: 'lacrima', school: 'requip', stack: false, value: 900 });
 
 // Celestial keys: summon abilities need the matching key in your bag.
-add({ id: 'key_ram', name: 'Brass Ram Key', icon: '🗝️', kind: 'key', stack: false, value: 150 });
-add({ id: 'key_coral', name: 'Coral Maiden Key', icon: '🔑', kind: 'key', stack: false, value: 150 });
+add({ id: 'key_ram', name: 'Gate Key: Taurus', icon: '🗝️', kind: 'key', stack: false, value: 150 });
+add({ id: 'key_leo', name: 'Gate Key: Leo (Loke)', icon: '🦁', kind: 'key', stack: false, value: 400 });
+add({ id: 'key_coral', name: 'Gate Key: Aquarius', icon: '🔑', kind: 'key', stack: false, value: 150 });
 
 // ---- Consumables ----
 add({ id: 'tonic_hp', name: 'Fizzy Tonic', icon: '🧪', kind: 'consumable', heal: 60, value: 15 });
 add({ id: 'tea_mp', name: 'Starmilk Tea', icon: '🍵', kind: 'consumable', mana: 50, value: 15 });
-add({ id: 'stew', name: 'Suspiciously Good Stew', icon: '🍲', kind: 'consumable', heal: 120, mana: 40, value: 30 });
+add({ id: 'stew', name: "Mira's Special Stew", icon: '🍲', kind: 'consumable', heal: 120, mana: 40, value: 30 });
 
 // ---- Drops / quest items ----
 add({ id: 'spore', name: 'Puffcap Spore', icon: '🍄', kind: 'resource', value: 3 });
 add({ id: 'wisp_ember', name: 'Wisp Ember', icon: '🕯️', kind: 'resource', value: 18 });
-add({ id: 'pudding', name: 'Suspicious Pudding', icon: '🍮', kind: 'quest', value: 0 });
-add({ id: 'tyrant_core', name: 'Grumbling Core', icon: '💎', kind: 'quest', value: 500 });
-add({ id: 'mayor_hat', name: "Mayor's Spare Hat", icon: '🎩', kind: 'quest', stack: false, value: 0 });
+add({ id: 'pudding', name: "Erza's Strawberry Cake", icon: '🍮', kind: 'quest', value: 0 });
+add({ id: 'tyrant_core', name: 'Broken Lullaby Flute', icon: '💎', kind: 'quest', value: 500 });
+add({ id: 'mayor_hat', name: "Plue's Spare Lollipop", icon: '🎩', kind: 'quest', stack: false, value: 0 });
 
 export function itemName(id) { return ITEMS[id] ? ITEMS[id].name : id; }

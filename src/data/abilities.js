@@ -38,11 +38,11 @@ export const ABILITIES = {
   ar_roll: { name: 'Evasive Roll', icon: '🤸', type: 'dash', dist: 5, width: 0, mult: 0, cd: 9, iframes: 0.5, color: '#c0ffc0' },
   ar_guard: { name: 'Iron Guard', icon: '🛡️', type: 'buff', buff: { dr: 0.5, dur: 6 }, cd: 22, color: '#d0d0d0' },
 
-  // ---------- Flame Slayer ----------
-  fl_fist: { name: 'Blazing Fist', icon: '👊', type: 'melee', range: 2.6, arc: 1.4, mult: 1.6, cd: 2.5, cost: { mp: 6 }, gain: 8, stat: 'INT', color: '#ff7a2a', effect: { burn: { dps: 4, dur: 4 } }, rank: 1 },
-  fl_bellow: { name: "Drake's Bellow", icon: '🐉', type: 'beam', length: 11, width: 2.6, mult: 2.6, cd: 9, cost: { mp: 18 }, gain: 6, stat: 'INT', color: '#ff5a10', effect: { burn: { dps: 6, dur: 5 } }, rank: 1 },
-  fl_wing: { name: 'Cinder Wing Spiral', icon: '🌪️', type: 'aoe_self', radius: 5, mult: 3.6, cd: 15, cost: { adr: 60 }, stat: 'INT', color: '#ffa030', effect: { burn: { dps: 8, dur: 4 } }, rank: 2 },
-  fl_feast: { name: 'Ember Feast', icon: '🍖', type: 'buff', buff: { dmgUp: 0.3, mpRestore: 40, dur: 10 }, cd: 30, stat: 'INT', color: '#ffcf40', rank: 3 },
+  // ---------- Fire Dragon Slayer (Natsu) ----------
+  fl_fist: { name: "Fire Dragon's Iron Fist", icon: '👊', type: 'melee', range: 2.6, arc: 1.4, mult: 1.6, cd: 2.5, cost: { mp: 6 }, gain: 8, stat: 'INT', color: '#ff7a2a', effect: { burn: { dps: 4, dur: 4 } }, rank: 1 },
+  fl_bellow: { name: "Fire Dragon's Roar", icon: '🐉', type: 'beam', length: 11, width: 2.6, mult: 2.6, cd: 9, cost: { mp: 18 }, gain: 6, stat: 'INT', color: '#ff5a10', effect: { burn: { dps: 6, dur: 5 } }, rank: 1 },
+  fl_wing: { name: "Fire Dragon's Wing Attack", icon: '🌪️', type: 'aoe_self', radius: 5, mult: 3.6, cd: 15, cost: { adr: 60 }, stat: 'INT', color: '#ffa030', effect: { burn: { dps: 8, dur: 4 } }, rank: 2 },
+  fl_feast: { name: 'Fire Feast', icon: '🍖', type: 'buff', buff: { dmgUp: 0.3, mpRestore: 40, dur: 10 }, cd: 30, stat: 'INT', color: '#ffcf40', rank: 3 },
 
   // ---------- Ice-Make ----------
   ic_lance: { name: 'Ice-Make: Lance', icon: '🧊', type: 'proj', speed: 30, pierce: true, mult: 1.5, cd: 2.5, cost: { mp: 6 }, gain: 8, stat: 'INT', color: '#a8e8ff', effect: { slow: { pct: 0.4, dur: 3 } }, rank: 1 },
@@ -50,29 +50,29 @@ export const ABILITIES = {
   ic_floor: { name: 'Ice-Make: Floor', icon: '❄️', type: 'aoe_self', radius: 6, mult: 1.2, cd: 12, cost: { mp: 16 }, gain: 6, stat: 'INT', color: '#e0faff', effect: { slow: { pct: 0.6, dur: 4 } }, rank: 2 },
   ic_hammer: { name: 'Ice-Make: Hammer', icon: '🔨', type: 'aoe_target', radius: 3.6, dist: 7, delay: 0.7, mult: 4.0, cd: 15, cost: { adr: 60 }, stat: 'INT', color: '#8fdcff', effect: { stun: 1.5 }, rank: 3 },
 
-  // ---------- Celestial Summoning ----------
-  ce_ram: { name: 'Gate of the Brass Ram', icon: '🐏', type: 'summon', ally: 'spirit_ram', dur: 22, needs: 'key_ram', cd: 30, cost: { mp: 25 }, stat: 'INT', color: '#ffd27a', rank: 1 },
-  ce_coral: { name: 'Gate of the Coral Maiden', icon: '🧜', type: 'summon', ally: 'spirit_coral', dur: 18, needs: 'key_coral', cd: 34, cost: { mp: 25 }, stat: 'INT', color: '#7ad8ff', rank: 1 },
-  ce_star: { name: 'Starfall', icon: '🌠', type: 'aoe_target', radius: 4, dist: 8, delay: 0.8, mult: 2.4, cd: 10, cost: { mp: 14 }, gain: 6, stat: 'INT', color: '#fff0a0', rank: 2 },
-  ce_bond: { name: 'Spirit Bond', icon: '💫', type: 'buff', buff: { dmgUp: 0.25, allyUp: 0.5, dur: 12 }, cd: 26, cost: { adr: 50 }, stat: 'INT', color: '#ffe8ff', rank: 3 },
+  // ---------- Celestial Spirit (Lucy) ----------
+  ce_ram: { name: 'Open, Gate of the Golden Bull: Taurus!', icon: '🐏', type: 'summon', ally: 'spirit_ram', dur: 22, needs: 'key_ram', cd: 30, cost: { mp: 25 }, stat: 'INT', color: '#ffd27a', rank: 1 },
+  ce_coral: { name: 'Open, Gate of the Water Bearer: Aquarius!', icon: '🧜', type: 'summon', ally: 'spirit_coral', dur: 18, needs: 'key_coral', cd: 34, cost: { mp: 25 }, stat: 'INT', color: '#7ad8ff', rank: 1 },
+  ce_star: { name: 'Loke: Regulus Impact', icon: '🌠', type: 'aoe_target', radius: 4, dist: 8, delay: 0.8, mult: 2.4, cd: 10, cost: { mp: 14 }, gain: 6, stat: 'INT', color: '#fff0a0', rank: 2 },
+  ce_bond: { name: 'Star Dress', icon: '💫', type: 'buff', buff: { dmgUp: 0.25, allyUp: 0.5, dur: 12 }, cd: 26, cost: { adr: 50 }, stat: 'INT', color: '#ffe8ff', rank: 3 },
 
   // ---------- Lightning ----------
-  li_spark: { name: 'Spark Bolt', icon: '⚡', type: 'proj', speed: 48, mult: 1.4, cd: 1.8, cost: { mp: 5 }, gain: 9, stat: 'INT', color: '#fff27a', rank: 1 },
-  li_lance: { name: 'Thunder Lance', icon: '🌩️', type: 'beam', length: 13, width: 1.4, mult: 2.4, cd: 8, cost: { mp: 15 }, gain: 6, stat: 'INT', color: '#ffff9a', effect: { stun: 0.6 }, rank: 1 },
-  li_step: { name: 'Static Step', icon: '💨', type: 'dash', dist: 8, width: 2, mult: 1.2, cd: 9, cost: { mp: 10 }, stat: 'INT', color: '#e8f8ff', rank: 2 },
-  li_cage: { name: 'Storm Cage', icon: '⛈️', type: 'aoe_self', radius: 5.5, mult: 3.4, cd: 15, cost: { adr: 60 }, stat: 'INT', color: '#f8ff8a', effect: { stun: 1.6 }, rank: 3 },
+  li_spark: { name: 'Raging Bolt', icon: '⚡', type: 'proj', speed: 48, mult: 1.4, cd: 1.8, cost: { mp: 5 }, gain: 9, stat: 'INT', color: '#fff27a', rank: 1 },
+  li_lance: { name: "Lightning Dragon's Roar", icon: '🌩️', type: 'beam', length: 13, width: 1.4, mult: 2.4, cd: 8, cost: { mp: 15 }, gain: 6, stat: 'INT', color: '#ffff9a', effect: { stun: 0.6 }, rank: 1 },
+  li_step: { name: 'Lightning Body', icon: '💨', type: 'dash', dist: 8, width: 2, mult: 1.2, cd: 9, cost: { mp: 10 }, stat: 'INT', color: '#e8f8ff', rank: 2 },
+  li_cage: { name: 'Thunder Palace', icon: '⛈️', type: 'aoe_self', radius: 5.5, mult: 3.4, cd: 15, cost: { adr: 60 }, stat: 'INT', color: '#f8ff8a', effect: { stun: 1.6 }, rank: 3 },
 
   // ---------- Script / Rune ----------
-  ru_bolt: { name: 'Glyph Bolt', icon: '✒️', type: 'proj', speed: 24, mult: 1.2, cd: 1.6, cost: { mp: 4 }, gain: 9, stat: 'INT', color: '#d0a0ff', rank: 1 },
+  ru_bolt: { name: 'Solid Script: Fire', icon: '✒️', type: 'proj', speed: 24, mult: 1.2, cd: 1.6, cost: { mp: 4 }, gain: 9, stat: 'INT', color: '#d0a0ff', rank: 1 },
   ru_blast: { name: 'Rune Trap: Blast', icon: '💣', type: 'trap', radius: 3.4, dist: 4, dur: 20, mult: 3.0, cd: 8, cost: { mp: 12 }, stat: 'INT', color: '#c080ff', rank: 1 },
   ru_bind: { name: 'Rune Trap: Bind', icon: '⛓️', type: 'trap', radius: 3.8, dist: 4, dur: 20, mult: 0.8, cd: 12, cost: { mp: 12 }, stat: 'INT', color: '#9a7aff', effect: { stun: 2.5 }, rank: 2 },
-  ru_script: { name: 'Script Detonation', icon: '📜', type: 'aoe_target', radius: 5, dist: 6, delay: 1.0, mult: 4.2, cd: 16, cost: { adr: 60 }, stat: 'INT', color: '#e0b0ff', rank: 3 },
+  ru_script: { name: 'Dark Écriture: Explosion', icon: '📜', type: 'aoe_target', radius: 5, dist: 6, delay: 1.0, mult: 4.2, cd: 16, cost: { adr: 60 }, stat: 'INT', color: '#e0b0ff', rank: 3 },
 
   // ---------- Requip ----------
   rq_swap: { name: 'Requip: Swap', icon: '🔁', type: 'requip', radius: 3, mult: 1.6, cd: 4, cost: { mp: 6 }, gain: 10, stat: 'STR', color: '#fff0d0', rank: 1 },
-  rq_lances: { name: 'Requip: Lance Volley', icon: '🔱', type: 'proj', speed: 36, pierce: true, mult: 2.0, cd: 8, cost: { mp: 12 }, gain: 6, stat: 'STR', color: '#ffe0b0', rank: 1 },
-  rq_armor: { name: 'Requip: Bulwark', icon: '🏰', type: 'buff', buff: { dr: 0.4, shield: 50, dur: 10 }, cd: 24, cost: { mp: 15 }, stat: 'STR', color: '#f0e0c0', rank: 2 },
-  rq_storm: { name: 'Requip: Blade Storm', icon: '🗡️', type: 'aoe_self', radius: 5, mult: 4.0, cd: 16, cost: { adr: 60 }, stat: 'STR', color: '#fff8e0', rank: 3 },
+  rq_lances: { name: 'Requip: Spear Volley', icon: '🔱', type: 'proj', speed: 36, pierce: true, mult: 2.0, cd: 8, cost: { mp: 12 }, gain: 6, stat: 'STR', color: '#ffe0b0', rank: 1 },
+  rq_armor: { name: 'Requip: Adamantine Armor', icon: '🏰', type: 'buff', buff: { dr: 0.4, shield: 50, dur: 10 }, cd: 24, cost: { mp: 15 }, stat: 'STR', color: '#f0e0c0', rank: 2 },
+  rq_storm: { name: "Heaven's Wheel: Blumenblatt", icon: '🗡️', type: 'aoe_self', radius: 5, mult: 4.0, cd: 16, cost: { adr: 60 }, stat: 'STR', color: '#fff8e0', rank: 3 },
 
   // ---------- Mob-only ----------
   mob_bite: { name: 'Bite', type: 'mob' },

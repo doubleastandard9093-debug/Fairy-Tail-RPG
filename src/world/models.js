@@ -1,3 +1,4 @@
+import { guildMarkTexture } from './mark.js';
 import * as THREE from 'three';
 import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
 
@@ -90,6 +91,20 @@ export function buildCharacter(look = {}) {
   const armL = mkArm(-1), armR = mkArm(1), legL = mkLeg(-1), legR = mkLeg(1);
   // Lacrima gem on the belt (coloured by school at runtime)
   const gem = mesh(G.sph(0.05, 8, 6), glow('#ffffff'), 0.2, 0.98, 0.12); body.add(gem);
+  // Scale-pattern scarf (Dragon Slayer style)
+  if (L.scarf) {
+    const sm = toon(L.scarf); const sc = mesh(new THREE.TorusGeometry(0.15, 0.065, 8, 16), sm, 0, 1.41, 0); sc.rotation.x = Math.PI / 2; body.add(sc);
+    for (const [x, r] of [[0.06, 0.25], [-0.04, -0.2]]) { const t = mesh(G.box(0.11, 0.42, 0.035), sm, x, 1.2, -0.21); t.rotation.z = r; body.add(t); }
+  }
+  // Guild mark decal
+  if (L.mark) {
+    const mm = new THREE.MeshBasicMaterial({ map: guildMarkTexture(L.mark.color), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    const p = mesh(new THREE.PlaneGeometry(0.17, 0.17), mm); p.userData.noOutline = true; p.castShadow = false;
+    const place = L.mark.place || 'right arm';
+    if (place === 'chest') { p.position.set(0.1, 1.27, 0.2); body.add(p); }
+    else if (place === 'right hand') { p.scale.setScalar(0.6); p.position.set(0.07, -0.3, 0); p.rotation.y = Math.PI / 2; armR.userData.fore.add(p); }
+    else { const s = place === 'left arm' ? -1 : 1; const arm = s < 0 ? armL : armR; p.position.set(s * 0.079, -0.14, 0); p.rotation.y = s * Math.PI / 2; arm.add(p); }
+  }
 
   root.scale.setScalar(L.scale);
   addOutlines(root); shadowAll(root, true, false);
@@ -200,7 +215,7 @@ export function animateCharacter(char, st) {
 }
 
 // ------------------------------- Mobs -----------------------------------
-export function buildMob(model) {
+export function buildMob(model, opt = {}) {
   const g = new THREE.Group(); const parts = {};
   const eyes = (parent, y, z, sx = 0.1, r = 0.05) => {
     for (const s of [-1, 1]) {
@@ -278,15 +293,18 @@ export function buildMob(model) {
     const ring = mesh(new THREE.TorusGeometry(0.7, 0.05, 6, 24), glow('#7ad8ff', 0.7), 0, 0.2, 0); ring.rotation.x = Math.PI / 2; g.add(ring); parts.ring = ring;
   } else if (model === 'cat') {
     const b = new THREE.Group(); g.add(b); parts.body = b;
-    const fur = toon('#f0a050'), fur2 = toon('#fff0e0');
+    const fur = toon(opt.fur || '#f0a050'), fur2 = toon(opt.belly || '#fff0e0');
     const torso = mesh(G.sph(0.25, 12, 10), fur, 0, 0.3, 0); torso.scale.set(0.8, 0.75, 1.3); b.add(torso);
     const head = mesh(G.sph(0.2, 12, 10), fur, 0, 0.52, 0.3); b.add(head);
     const muzz = mesh(G.sph(0.09, 8, 6), fur2, 0, 0.47, 0.47); muzz.scale.z = 0.6; b.add(muzz);
     for (const s of [-1, 1]) { const ear = mesh(G.cone(0.07, 0.14, 4), fur, s * 0.11, 0.7, 0.28); b.add(ear); }
     eyes(b, 0.55, 0.47, 0.08, 0.035);
     const tail = mesh(G.cap(0.04, 0.4), fur, 0, 0.5, -0.38); tail.rotation.x = -0.6; b.add(tail); parts.tail = tail;
-    const hat = mesh(G.cyl(0.1, 0.1, 0.18, 10), toon('#2a2a30'), 0, 0.78, 0.3); b.add(hat);
-    const brim = mesh(G.cyl(0.16, 0.16, 0.02, 12), toon('#2a2a30'), 0, 0.69, 0.3); b.add(brim);
+    if (opt.hat !== false) { const hat = mesh(G.cyl(0.1, 0.1, 0.18, 10), toon('#2a2a30'), 0, 0.78, 0.3); b.add(hat);
+      const brim = mesh(G.cyl(0.16, 0.16, 0.02, 12), toon('#2a2a30'), 0, 0.69, 0.3); b.add(brim); }
+    if (opt.nose) { const n = mesh(G.cone(0.04, 0.12, 6), toon(opt.nose), 0, 0.5, 0.52); n.rotation.x = Math.PI / 2; b.add(n); }
+    if (opt.bag) { const bag = mesh(G.box(0.22, 0.2, 0.12), toon(opt.bag), 0, 0.36, -0.24); b.add(bag); const st = mesh(G.box(0.04, 0.04, 0.5), toon(opt.bag), 0, 0.48, 0); st.rotation.z = 0.7; b.add(st); }
+    if (opt.wings) { for (const s of [-1, 1]) { const w = mesh(G.box(0.36, 0.02, 0.2), toon('#ffffff'), s * 0.28, 0.48, -0.08); w.rotation.z = s * 0.5; b.add(w); parts['wing' + s] = w; } }
     for (const [x, z] of [[-0.1, 0.18], [0.1, 0.18], [-0.1, -0.18], [0.1, -0.18]]) b.add(mesh(G.cyl(0.045, 0.045, 0.2, 6), fur2, x, 0.1, z));
   }
   addOutlines(g); shadowAll(g, true, false);

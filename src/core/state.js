@@ -3,8 +3,8 @@ import { SCHOOLS, rankForXp } from '../data/schools.js';
 import { GUILD_RANKS } from '../data/jobs.js';
 import { charLevelForXp, levelForXp } from './xp.js';
 
-export const SAVE_KEY = 'emberwake_save_v1';
-export const SETTINGS_KEY = 'emberwake_settings_v1';
+export const SAVE_KEY = 'ftrpg_save_v1';
+export const SETTINGS_KEY = 'ftrpg_settings_v1';
 export const INV_SIZE = 28;
 export const BANK_SIZE = 96;
 export const SKILLS = {
@@ -26,7 +26,7 @@ export function newGame(opts) {
   const school = SCHOOLS[opts.school] ? opts.school : 'flame';
   const G = {
     v: 1, name: (opts.name || 'Wizard').slice(0, 16), look: { ...opts.look }, school,
-    pos: [0, 12], rot: Math.PI,
+    pos: [3, -18], rot: Math.PI,
     hp: 1, mp: 1, adr: 0,
     xp: 0, statPoints: 5, stats: { STR: 1, INT: 1, AGI: 1, DEX: 1, VIT: 1 },
     skills: Object.fromEntries(Object.keys(SKILLS).map((k) => [k, 0])),
@@ -107,7 +107,7 @@ export function loadGame() {
   try { const raw = localStorage.getItem(SAVE_KEY); return raw ? migrate(JSON.parse(raw)) : null; } catch { return null; }
 }
 export function migrate(G) {
-  if (!G || typeof G !== 'object' || !G.v || !Array.isArray(G.inv)) throw new Error('Not an Emberwake save');
+  if (!G || typeof G !== 'object' || !G.v || !Array.isArray(G.inv)) throw new Error('Not an Fairy Tail save');
   const base = newGame({ name: G.name, look: G.look || {}, school: G.school });
   for (const k of Object.keys(base)) if (G[k] === undefined) G[k] = base[k];
   while (G.inv.length < INV_SIZE) G.inv.push(null);

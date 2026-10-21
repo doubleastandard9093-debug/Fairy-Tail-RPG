@@ -275,14 +275,14 @@ export class UI {
   p_skills() {
     const G = this.game.G;
     const rows = Object.entries(SKILLS).map(([k, s]) => { const l = skillLevel(G, k); return `<div class="row"><div class="ic">${s.icon}</div><div class="grow"><div class="nm">${s.name} <span style="float:right">${l}/99</span></div><div class="bar xp"><i style="width:${progressToNext(G.skills[k]) * 100}%"></i></div><div class="ds">${fmt(G.skills[k])} XP${l < 99 ? ` · ${fmt(xpForLevel(l + 1) - G.skills[k])} to level ${l + 1}` : ''}</div></div></div>`; }).join('');
-    return { title: `⛏️ Skills <span class="muted">Total ${totalLevel(G)}</span>`, html: rows + `<div class="muted" style="margin-top:8px">Gathering tiers: T1 at level 1, T2 at 10, T3 at 20. Refine at the forge and workbench in Lanternhaven.</div>` };
+    return { title: `⛏️ Skills <span class="muted">Total ${totalLevel(G)}</span>`, html: rows + `<div class="muted" style="margin-top:8px">Gathering tiers: T1 at level 1, T2 at 10, T3 at 20. Refine at the forge and workbench in Magnolia.</div>` };
   }
   p_quests() {
     const G = this.game.G; const nx = nextGuildRank(G); const cur = GUILD_RANKS.find((r) => r.r === guildRank(G));
     const head = `<div class="row"><div class="rk ${guildRank(G)}">${guildRank(G)}</div><div class="grow"><div class="nm">Guild rank ${guildRank(G)} · ${G.qp} quest points</div><div class="bar gp"><i style="width:${nx ? (G.gp - cur.gp) / (nx.gp - cur.gp) * 100 : 100}%"></i></div><div class="ds">${G.gp} guild points${nx ? ` · ${nx.gp - G.gp} to rank ${nx.r}` : ' · max rank!'}</div></div></div>`;
     let html = head;
     if (this.tab === 'story') html += QUESTS.map((q) => { const s = P.questStatus(G, q.id); return `<div class="row"><div class="ic">${s === 'done' ? '✅' : s === 'active' ? '📜' : '❔'}</div><div class="grow"><div class="nm">${esc(q.name)} <span class="muted">${q.qp} QP</span></div><div class="ds">${s === 'new' ? `Start: talk to ${esc(NPCS[q.start].name.split(' (')[0])}` : s === 'done' ? 'Completed' : esc(P.stageText(G, q.id))}</div></div></div>`; }).join('');
-    else html += G.jobs.active.length ? G.jobs.active.map((a) => { const j = P.JOB_BY_ID[a.id]; const r = P.jobReady(G, a); return `<div class="row"><div class="rk ${j.rank}">${j.rank}</div><div class="grow"><div class="nm">${esc(j.title)}</div><div class="ds">${esc(P.jobProgressText(G, a))}${r ? ' — <b style="color:#7aff9a">ready! Hand in to Pell</b>' : ''}</div></div><button class="btn small" data-act="abandon" data-arg="${a.id}">Abandon</button></div>`; }).join('') : '<div class="muted">No active jobs. Visit the request board in the Emberwake guild hall.</div>';
+    else html += G.jobs.active.length ? G.jobs.active.map((a) => { const j = P.JOB_BY_ID[a.id]; const r = P.jobReady(G, a); return `<div class="row"><div class="rk ${j.rank}">${j.rank}</div><div class="grow"><div class="nm">${esc(j.title)}</div><div class="ds">${esc(P.jobProgressText(G, a))}${r ? ' — <b style="color:#7aff9a">ready! Hand in to Pell</b>' : ''}</div></div><button class="btn small" data-act="abandon" data-arg="${a.id}">Abandon</button></div>`; }).join('') : '<div class="muted">No active jobs. Visit the request board in the Fairy Tail guild hall.</div>';
     return { title: '📜 Quests & Jobs', tabs: [['story', 'Story quests'], ['jobs', `Jobs (${G.jobs.active.length}/${P.MAX_ACTIVE_JOBS})`]], html };
   }
   p_board() {
@@ -297,7 +297,7 @@ export class UI {
     }).join('') || '<div class="muted">No requests at this rank.</div>';
     const ready = G.jobs.active.filter((a) => P.jobReady(G, a));
     const quick = ready.length ? `<div class="row" style="border-color:#7aff9a"><div class="ic">✅</div><div class="grow"><div class="nm">Ready to hand in</div><div class="ds">${ready.map((a) => esc(P.JOB_BY_ID[a.id].title)).join(', ')}</div></div><button class="btn small gold" data-act="turninAll">Hand in all</button></div>` : '';
-    return { title: `📋 Request Board <span class="muted">Your rank <span class="rankbadge">${my}</span> · jobs ${G.jobs.active.length}/${P.MAX_ACTIVE_JOBS}</span>`, tabs: [...RANK_ORDER].map((r) => [r, `${r} (${JOBS.filter((j) => j.rank === r).length})`]), html: quick + rows };
+    return { title: `📋 Request Board <span class="muted">Your rank <span class="rankbadge">${my}</span> · jobs ${G.jobs.active.length}/${P.MAX_ACTIVE_JOBS}</span>`, tabs: [...RANK_ORDER].map((r) => [r, `${r === 'S' ? 'S-Class' : r} (${JOBS.filter((j) => j.rank === r).length})`]), html: quick + rows };
   }
   p_bank() {
     const G = this.game.G; const used = G.bank.filter(Boolean).length;
@@ -340,12 +340,12 @@ export class UI {
       <input type="file" id="savefile" accept=".json,application/json" class="hidden">
       <div class="sec">Danger zone</div><button class="btn" data-act="newchar">🗑️ Delete character and start over</button>
       <div class="sec">Controls</div><div class="muted">Keyboard: WASD move · drag mouse to turn camera · wheel zoom · click to move/attack/use · 1–8 abilities · E interact · Tab target · I bag · G gear · C stats · K skills · J quests · Esc close.<br>Touch: left stick moves · drag the world to turn · pinch to zoom · tap things to target or use them.</div>
-      <div class="muted" style="margin-top:8px">Emberwake Guild Chronicles v0.1 · single-player (online play is paused) · an original fan-inspired game.</div>`,
+      <div class="muted" style="margin-top:8px">Fairy Tail RPG v0.1 · single-player (online play is paused) · fan-made pitch prototype, not affiliated with Hiro Mashima, Kodansha or the Fairy Tail rights holders.</div>`,
       bind: (body) => { const f = body.querySelector('#savefile'); f.onchange = async () => { const file = f.files[0]; if (file) this.importSave(await file.text()); }; } };
   }
   importSave(txt) {
     try { const G = migrate(JSON.parse(txt)); localStorage.setItem(SAVE_KEY, JSON.stringify(G)); this.toast('Save imported! Reloading...'); this.game.noSave = true; setTimeout(() => location.reload(), 600); }
-    catch (e) { this.toast('That is not a valid Emberwake save.'); }
+    catch (e) { this.toast('That is not a valid Fairy Tail save.'); }
   }
 
   act(a, arg, arg2) {
@@ -368,7 +368,7 @@ export class UI {
       case 'withdraw': case 'withdrawAll': { const n = a === 'withdrawAll' ? s.qty : 1; const left = addItem(G, s.id, n); if (left < n) removeItem(G, s.id, n - left, 'bank'); else this.toast('Bag full!'); if (!G.bank[idx]) this.sel = null; break; }
       case 'depositBag': case 'depositRes': {
         for (let i = 0; i < G.inv.length; i++) { const x = G.inv[i]; if (!x) continue; const k = ITEMS[x.id].kind; if (a === 'depositRes' && !(k === 'resource' || k === 'refined')) continue; if (k === 'quest' || k === 'key') continue; if (addItem(G, x.id, x.qty, 'bank') === 0) G.inv[i] = null; }
-        this.sel = null; this.log('Mr. Coinsworth stores your items. The owl judges you silently.', 'npc'); break;
+        this.sel = null; this.log('Levy stores your items. The owl judges you silently.', 'npc'); break;
       }
       case 'sell': case 'sellAll': { const n = a === 'sellAll' ? s.qty : 1; const p = sellPrice(s.id) * n; removeItem(G, s.id, n); G.jewels += p; this.log(`Sold ${n}× ${ITEMS[s.id].name} for ${p} jewels.`, 'loot'); if (!G.inv[idx]) this.sel = null; break; }
       case 'buy': { const p = buyPrice(arg); if (G.jewels < p) { this.toast('Not enough jewels.'); break; } if (!canAdd(G, arg)) { this.toast('Bag full!'); break; } G.jewels -= p; addItem(G, arg, 1); this.log(`Bought ${ITEMS[arg].name} for ${p} jewels.`, 'loot'); P.questEvent(G, { type: 'item' }); break; }
@@ -386,7 +386,7 @@ export class UI {
       case 'save': saveGame(G); this.toast('💾 Saved!'); break;
       case 'export': {
         saveGame(G); const txt = JSON.stringify(G); const ta = $('#savetext'); ta.value = txt;
-        const blob = new Blob([txt], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = h('a'); link.href = url; link.download = `emberwake-${G.name.replace(/\W+/g, '_')}.json`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+        const blob = new Blob([txt], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = h('a'); link.href = url; link.download = `fairytail-rpg-${G.name.replace(/\W+/g, '_')}.json`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
         try { navigator.clipboard && navigator.clipboard.writeText(txt).catch(() => {}); } catch { /* ignore */ }
         this.toast('Save exported (file + text box).'); return;
       }
@@ -443,5 +443,5 @@ export class UI {
     if (lines && lines.length) { this.dlg.queue = [...lines]; this.stepDialogue(); }
   }
   innRest() { const G = this.game.G; if (G.jewels < 10) { this.toast('Not enough jewels.'); return; } G.jewels -= 10; const d = derived(G); G.hp = d.maxHp; G.mp = d.maxMp; this.log('You nap in a lumpy bed. Fully rested! Someone was singing in room 3.', 'npc'); this.toast('🛏️ Fully rested'); this.refresh(); }
-  innStew() { const G = this.game.G; if (G.jewels < 30) { this.toast('Not enough jewels.'); return; } if (!canAdd(G, 'stew')) { this.toast('Bag full!'); return; } G.jewels -= 30; addItem(G, 'stew', 1); this.log('Marzipan hands you a steaming bowl. "Do not ask what is in it."', 'npc'); this.refresh(); }
+  innStew() { const G = this.game.G; if (G.jewels < 30) { this.toast('Not enough jewels.'); return; } if (!canAdd(G, 'stew')) { this.toast('Bag full!'); return; } G.jewels -= 30; addItem(G, 'stew', 1); this.log('Wendy hands you a steaming bowl. "Do not ask what is in it."', 'npc'); this.refresh(); }
 }

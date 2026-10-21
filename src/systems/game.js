@@ -199,7 +199,7 @@ export class Game {
     P.giveItems(G, loot);
     P.onKill(G, m.id);
     if (this.player.target === m) this.setTarget(null);
-    if (m.tpl.boss) { this.ui.toast('🏆 Grumblejaw topples with a very long GRUMBLE.'); this.ui.boss(null); for (const e of this.entities) if (e.kind === 'ally' && e.guildmate) e.until = this.t + 6; }
+    if (m.tpl.boss) { this.ui.toast('🏆 Lullaby shatters! The Song of Death is cancelled due to fairies.'); this.ui.boss(null); for (const e of this.entities) if (e.kind === 'ally' && e.guildmate) e.until = this.t + 6; }
     this.ui.refresh();
   }
   respawnMob(m) {
@@ -224,10 +224,10 @@ export class Game {
   removeEntity(e) { this.scene.remove(e.obj); this.entities = this.entities.filter((x) => x !== e); }
   startEscort() {
     if (this.entities.some((e) => e.kind === 'escort')) return;
-    const m = buildMob('cat'); const p = this.player.pos.clone().add(new THREE.Vector3(1.5, 0, 0));
+    const m = buildMob('cat', { fur: '#f6f6f0', nose: '#ffa040', hat: false }); const p = this.player.pos.clone().add(new THREE.Vector3(1.5, 0, 0));
     const e = { kind: 'escort', id: 'cat', obj: m.group, model: m, pos: p, rot: 0, radius: 0.4, warnT: 0 };
     this.scene.add(m.group); this.entities.push(e);
-    this.ui.log('Sir Reginald Fluffbottom: "Mrrp." (He will follow you. Slowly. Judgmentally.)', 'npc');
+    this.ui.log('Plue: "Puun puun!" (He shivers, then follows you. Slowly. Adorably.)', 'npc');
   }
 
   // ------------------------------------------------------------------ projectiles, telegraphs, traps, fx
@@ -325,7 +325,7 @@ export class Game {
     for (const e of [...this.entities]) if (e.kind === 'ally') this.removeEntity(e);
     for (const e of this.entities) if (e.kind === 'mob' && e.aggro) { e.aggro = false; e.hp = e.maxHp; }
     this.ui.boss(null);
-    this.ui.log('Pell drags you back to the fountain. "Again? I am starting a punch card for you."', 'npc');
+    this.ui.log('Mirajane has Elfman carry you back to the fountain. "Again? I am starting a punch card for you."', 'npc');
   }
 
   // ------------------------------------------------------------------ movement & collision
@@ -469,10 +469,10 @@ export class Game {
     // boss party: guildmates join on the S-rank job or the final quest stage
     const inArena = Math.hypot(pl.pos.x - BOSS_ARENA.x, pl.pos.z - BOSS_ARENA.z) < BOSS_ARENA.r + 6;
     const boss = this.entities.find((e) => e.tpl && e.tpl.boss);
-    const wantsParty = G.jobs.active.some((a) => a.id === 'j_tyrant') || (G.quests.q_tyrant && G.quests.q_tyrant.stage === 2);
+    const wantsParty = G.jobs.active.some((a) => a.id === 'j_lullaby') || (G.quests.q_lullaby && G.quests.q_lullaby.stage === 2);
     if (inArena && boss && !boss.dead && wantsParty && !this.entities.some((e) => e.guildmate)) {
-      this.summon('brakka', 0, 1 + d.level * 0.05, { guildmate: true }); this.summon('pip', 0, 1 + d.level * 0.05, { guildmate: true });
-      this.ui.toast('⚔️ Brakka and Pip join your party!');
+      this.summon('gm_natsu', 0, 1 + d.level * 0.05, { guildmate: true }); this.summon('gm_wendy', 0, 1 + d.level * 0.05, { guildmate: true });
+      this.ui.toast('⚔️ Natsu and Wendy join your party!');
     }
     if (!inArena) for (const e of [...this.entities]) if (e.guildmate && dist2(e.pos, BOSS_ARENA) > BOSS_ARENA.r + 30) this.removeEntity(e);
     this.ui.boss(boss && !boss.dead && boss.aggro ? boss : null);
@@ -585,7 +585,7 @@ export class Game {
     if (ready.length && dist2(victim.pos, m.pos) < 20) {
       const t = ready[Math.floor(this.rand() * ready.length)]; m.teleCds[t.id] = t.cd;
       const rot = Math.atan2(victim.pos.x - m.pos.x, victim.pos.z - m.pos.z); m.rot = rot;
-      this.ui.log(`⚠️ Grumblejaw prepares ${t.name}!`, 'warn'); this.ui.bossCast(t.name, t.windup);
+      this.ui.log(`⚠️ Lullaby prepares ${t.name}!`, 'warn'); this.ui.bossCast(t.name, t.windup);
       if (t.at === 'targets') {
         const victims = this.allyTargets().filter((v) => !v.dead).slice(0, t.count);
         for (const v of victims) this.addTele({ shape: 'circle', x: v.pos.x, z: v.pos.z, radius: t.radius, windup: t.windup, dmg: t.dmg, owner: m, name: t.name });
@@ -635,11 +635,11 @@ export class Game {
     const [sx, sz] = POIS.shrine.pos; const dShrine = Math.hypot(c.pos.x - sx, c.pos.z - sz);
     if (dShrine < 5.5) {
       job.prog = 1; this.fxBurst(c.pos, '#9af0ff', 24);
-      this.ui.log('Sir Reginald sits at the shrine and meditates. He is now enlightened. And hungry. Report to Pell!', 'quest'); this.ui.toast('🐈 Escort complete!');
+      this.ui.log('Plue made it to the cathedral steps and is eating a lollipop. Mission accomplished. Report to Mirajane!', 'quest'); this.ui.toast('🐈 Escort complete!');
       this.removeEntity(c); this.ui.refresh(); return;
     }
     const d = dist2(pl.pos, c.pos); c.moving = 0;
-    if (d > 14) { c.warnT -= dt; if (c.warnT <= 0) { c.warnT = 8; this.ui.log('Sir Reginald sits down and refuses to move until you come back.', 'npc'); } }
+    if (d > 14) { c.warnT -= dt; if (c.warnT <= 0) { c.warnT = 8; this.ui.log('Plue sits down, shivers and refuses to move until you come back.', 'npc'); } }
     else if (d > 2.2) { const rot = Math.atan2(pl.pos.x - c.pos.x, pl.pos.z - c.pos.z); c.rot = rot; const s = Math.min(4.6 * dt, d - 2); this.moveBy(c.pos, Math.sin(rot) * s, Math.cos(rot) * s, 0.4); c.moving = 1; }
     c.pos.y = groundAt(c.pos.x, c.pos.z);
   }
@@ -674,7 +674,7 @@ export class Game {
         if (t.onHit) t.onHit();
         else if (!t.visualOnly) {
           const pl = this.player;
-          if (!pl.dead && this.inTele(t, pl.pos)) this.hurt('player', t.dmg, `Grumblejaw's ${t.name}`);
+          if (!pl.dead && this.inTele(t, pl.pos)) this.hurt('player', t.dmg, `Lullaby's ${t.name}`);
           for (const a of [...this.entities]) if (a.kind === 'ally' && this.inTele(t, a.pos)) this.hurt(a, t.dmg * 0.6, t.name);
           this.fxBurst(new THREE.Vector3(t.x, groundAt(t.x, t.z), t.z), '#ff8a4a', 18); this.ui.shake(0.35);
         }
