@@ -2,6 +2,7 @@ import { ITEMS } from '../data/items.js';
 import { SCHOOLS, rankForXp } from '../data/schools.js';
 import { GUILD_RANKS } from '../data/jobs.js';
 import { charLevelForXp, levelForXp } from './xp.js';
+import { globalBonus, migrateTree } from '../data/skilltree.js';
 
 export const SAVE_KEY = 'ftrpg_save_v1';
 export const SETTINGS_KEY = 'ftrpg_settings_v1';
@@ -34,7 +35,7 @@ export function newGame(opts) {
     inv: new Array(INV_SIZE).fill(null), bank: new Array(BANK_SIZE).fill(null),
     equip: { weapon: null, weapon2: null, armor: null, lacrima: SCHOOLS[school].lacrima },
     quests: {}, jobs: { active: [], done: {}, completed: 0 }, kills: {}, crafted: {},
-    playTime: 0, day: dayStamp(),
+    playTime: 0, day: dayStamp(), tree: {}, respecs: 0,
   };
   const start = { flame: ['knuckles_t1', 'jacket_t1'], ice: ['sword1h_t1', 'robe_t1'], celestial: ['staff_t1', 'robe_t1'] }[school] || ['sword1h_t1', 'jacket_t1'];
   G.equip.weapon = start[0]; G.equip.armor = start[1];
@@ -51,15 +52,15 @@ export function dayStamp() { const d = new Date(); return d.getFullYear() * 1000
 export function derived(G) {
   const level = charLevelForXp(G.xp);
   const armor = G.equip.armor ? ITEMS[G.equip.armor] : null;
-  const s = G.stats;
+  const s = G.stats; const tb = globalBonus(G);
   return {
     level,
-    maxHp: Math.round(120 + 12 * (level - 1) + s.VIT * 9),
-    maxMp: Math.round(60 + 5 * (level - 1) + s.INT * 4 + (armor ? armor.mp : 0)),
+    maxHp: Math.round((120 + 12 * (level - 1) + s.VIT * 9) * (1 + tb.hp)),
+    maxMp: Math.round(60 + 5 * (level - 1) + s.INT * 4 + (armor ? armor.mp : 0) + tb.mp),
     def: armor ? armor.def : 0,
     speed: 6.2 * (1 + s.AGI * 0.006),
     cdr: Math.min(0.3, s.AGI * 0.004),
-    crit: Math.min(0.5, 0.05 + s.DEX * 0.004),
+    crit: Math.min(0.5, 0.05 + s.DEX * 0.004 + tb.crit),
   };
 }
 export function skillLevel(G, k) { return levelForXp(G.skills[k] || 0); }
@@ -108,6 +109,7 @@ export function loadGame() {
 }
 export function migrate(G) {
   if (!G || typeof G !== 'object' || !G.v || !Array.isArray(G.inv)) throw new Error('Not an Fairy Tail save');
+  if (!G.tree) migrateTree(G, classRank);
   const base = newGame({ name: G.name, look: G.look || {}, school: G.school });
   for (const k of Object.keys(base)) if (G[k] === undefined) G[k] = base[k];
   while (G.inv.length < INV_SIZE) G.inv.push(null);

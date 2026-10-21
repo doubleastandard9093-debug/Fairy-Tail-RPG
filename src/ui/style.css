@@ -234,3 +234,12 @@ body.landscape.touch #create .pv { flex: 0 0 32%; } body.landscape.touch #create
 #title .disc { position: absolute; left: 0; right: 0; bottom: calc(8px + var(--sab, 0px)); text-align: center; font-size: 11px; color: #f0d0c0cc; padding: 0 12px; }
 body.landscape.touch #title .mark { width: 22vmin; } body.landscape.touch #title .tag, body.landscape.touch #title .pillars { display: none; }
 #create .logo img { width: 54px; display: block; margin: 0 auto 2px; }
+/* Skill tree */
+.tree { position: relative; margin: 4px 0 10px; background: radial-gradient(ellipse at 50% 30%, rgba(255,215,106,.08), transparent 70%); border-radius: 10px; }
+.tree svg { position: absolute; inset: 0; pointer-events: none; }
+.tnode { position: absolute; transform: translate(-50%, -50%); width: 74px; min-height: 64px; padding: 4px 2px; border-radius: 12px; border: 2px solid #6a5a7a; background: #241a30; color: #fff; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 10px; line-height: 1.1; cursor: pointer; }
+.tnode.passive { border-radius: 50%/38%; }
+.tnode .ti { font-size: 20px; } .tnode .tr { font-weight: 800; color: #ffd76a; } .tnode .tn { opacity: .85; max-height: 2.3em; overflow: hidden; text-align: center; }
+.tnode.lock { filter: grayscale(.8) brightness(.6); } .tnode.open { border-color: #9ad0ff; box-shadow: 0 0 8px rgba(154,208,255,.5); }
+.tnode.have { border-color: #ffd76a; } .tnode.max { border-color: #ffd76a; background: #4a3a18; box-shadow: 0 0 10px rgba(255,215,106,.6); }
+.tnode.sel { outline: 3px solid #fff; }

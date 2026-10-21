@@ -26,7 +26,7 @@ export function grantCharXp(G, xp) {
   if (after > before) {
     const gained = after - before; G.statPoints += 3 * gained;
     const d = derived(G); G.hp = d.maxHp; G.mp = d.maxMp;
-    hooks.toast(`⭐ Level ${after}! +${3 * gained} stat points`); hooks.log(`You reached level ${after}. Spend your stat points in the Stats panel.`, 'lvl'); hooks.levelUp();
+    hooks.toast(`⭐ Level ${after}! +${3 * gained} stat points, +${gained} skill point${gained > 1 ? 's' : ''}`); hooks.log(`You reached level ${after}. Spend stat points in Stats and skill points in the Skill Tree.`, 'lvl'); hooks.levelUp();
   }
 }
 export function grantRankXp(G, key, xp) {

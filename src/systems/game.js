@@ -10,6 +10,7 @@ import { buildCharacter, buildMob, animateCharacter, animateMob, equipVisual } f
 import { buildWorld, groundAt, BOUNDS, HALL, zoneAt, rng } from '../world/world.js';
 import { glow, GFX } from '../world/toon.js';
 import * as P from './progress.js';
+import { abilityLearned, abilityBonus, NODE } from '../data/skilltree.js';
 
 const TMP = new THREE.Vector3();
 const ang = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -62,8 +63,8 @@ export class Game {
     return { kind: 'armor', key: null };
   }
   abilityLocked(id) {
-    const ab = ABILITIES[id]; if (!ab || !ab.rank) return false;
-    const src = this.abilitySource(id); return classRank(this.G, src.key) < ab.rank;
+    const ab = ABILITIES[id]; if (!ab) return false;
+    return !abilityLearned(this.G, id);
   }
   buff(k) { let v = 0; for (const b of this.player.buffs) if (b[k]) v += b[k]; return v; }
 
@@ -71,7 +72,7 @@ export class Game {
     const id = this.loadout()[slot]; if (!id) return;
     const ab = ABILITIES[id]; const G = this.G; const pl = this.player; const d = derived(G);
     if (pl.dead) return;
-    if (this.abilityLocked(id)) { this.ui.toast(`${ab.name} unlocks at class rank ${ab.rank}.`); return; }
+    if (this.abilityLocked(id)) { this.ui.toast(`Learn ${ab.name} in the Skill Tree (T) first.`); return; }
     if ((pl.cds[id] || 0) > 0) return;
     const cost = ab.cost || {};
     if (cost.mp && G.mp < cost.mp) { this.ui.toast('Not enough mana!'); return; }
@@ -79,16 +80,16 @@ export class Game {
     if (ab.needs && countItem(G, ab.needs) < 1) { this.ui.toast(`You need the ${ITEMS[ab.needs].name}.`); return; }
     if (ab.type === 'requip' && !G.equip.weapon2) { this.ui.toast('No reserve weapon! Equip one as Reserve in your bag.'); return; }
     G.mp -= cost.mp || 0; G.adr -= cost.adr || 0; G.adr = Math.min(100, G.adr + (ab.gain || 0));
-    pl.cds[id] = ab.cd * (1 - d.cdr);
+    const src = this.abilitySource(id); const tb = abilityBonus(G, id, src.key);
+    pl.cds[id] = ab.cd * (1 - d.cdr) * (1 - Math.min(0.3, tb.cdr));
     pl.gathering = null; pl.combatT = 6;
-    const src = this.abilitySource(id);
     P.grantRankXp(G, src.key === 'none' ? 'knuckles' : src.key, 2);
     let tgt = this.validTarget();
     if (!tgt && ab.type !== 'buff' && ab.type !== 'summon') { tgt = this.nearestMob(pl.pos, 16, true); if (tgt) this.setTarget(tgt); }
     if (tgt && ab.type !== 'buff' && ab.type !== 'dash') pl.rot = Math.atan2(tgt.pos.x - pl.pos.x, tgt.pos.z - pl.pos.z);
     const wItem = G.equip.weapon ? ITEMS[G.equip.weapon] : null;
     const power = src.kind === 'weapon' ? (wItem ? wItem.power : 0.8) : src.kind === 'school' ? 1 + 0.12 * (classRank(G, src.key) - 1) + (wItem ? (wItem.power - 1) * 0.5 : 0) : 1;
-    const base = (14 + d.level * 3) * power * (ab.mult || 0) * (1 + (G.stats[ab.stat] || 0) * 0.035) * (1 + this.buff('dmgUp'));
+    const base = (14 + d.level * 3) * power * (ab.mult || 0) * (1 + (G.stats[ab.stat] || 0) * 0.035) * (1 + this.buff('dmgUp')) * (1 + tb.dmg);
     const fwd = new THREE.Vector3(Math.sin(pl.rot), 0, Math.cos(pl.rot));
     const color = ab.color || '#ffffff';
     const wt = wItem ? wItem.weaponType : 'knuckles';

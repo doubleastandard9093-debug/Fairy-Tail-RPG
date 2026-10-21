@@ -10,7 +10,7 @@ export function setupInput(game, ui, canvas) {
     else if (k === 'e' || k === 'f') { const it = game.nearestInteractable(); if (!ui.el.dialog.classList.contains('hidden')) { const b = ui.el.dialog.querySelector('.opts .btn'); if (b) b.click(); } else if (it) game.interact(it); }
     else if (k === 'tab') { e.preventDefault(); const m = game.nearestMob(game.player.pos, 25); if (m) game.setTarget(m); }
     else if (k === 'escape') { ui.closePanel(); ui.closeDialog(); game.setTarget(null); }
-    else if (k === 'i' || k === 'b') ui.togglePanel('bag'); else if (k === 'g') ui.togglePanel('gear'); else if (k === 'c') ui.togglePanel('stats'); else if (k === 'k') ui.togglePanel('skills'); else if (k === 'j' || k === 'l') ui.togglePanel('quests');
+    else if (k === 'i' || k === 'b') ui.togglePanel('bag'); else if (k === 'g') ui.togglePanel('gear'); else if (k === 'c') ui.togglePanel('stats'); else if (k === 'k') ui.togglePanel('skills'); else if (k === 't') ui.togglePanel('tree'); else if (k === 'j' || k === 'l') ui.togglePanel('quests');
   });
   addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
   addEventListener('blur', () => keys.clear());
