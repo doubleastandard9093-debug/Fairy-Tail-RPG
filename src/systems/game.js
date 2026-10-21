@@ -72,7 +72,7 @@ export class Game {
     const id = this.loadout()[slot]; if (!id) return;
     const ab = ABILITIES[id]; const G = this.G; const pl = this.player; const d = derived(G);
     if (pl.dead) return;
-    if (this.abilityLocked(id)) { this.ui.toast(`Learn ${ab.name} in the Skill Tree (T) first.`); return; }
+    if (this.abilityLocked(id)) { if (!(this.lockToastT > this.t)) { this.lockToastT = this.t + 3; this.ui.toast(`Learn ${ab.name} in the Skill Tree (T) first.`); } return; }
     if ((pl.cds[id] || 0) > 0) return;
     const cost = ab.cost || {};
     if (cost.mp && G.mp < cost.mp) { this.ui.toast('Not enough mana!'); return; }

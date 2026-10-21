@@ -161,6 +161,7 @@ export class UI {
   }
   renderMenuDots() {
     const G = this.game.G; const b = this.el.menu.querySelector('[data-p=stats]');
+    { const tb = this.el.menu.querySelector('[data-p=tree]'); const fp = T.pointsFree(G); let td = tb.querySelector('.dot'); if (fp > 0) { if (!td) { td = h('span', 'dot'); tb.appendChild(td); } td.textContent = fp > 9 ? '9+' : fp; } else if (td) td.remove(); }
     let dot = b.querySelector('.dot'); if (G.statPoints > 0) { if (!dot) { dot = h('span', 'dot'); b.appendChild(dot); } dot.textContent = G.statPoints > 9 ? '9+' : G.statPoints; } else if (dot) dot.remove();
     const q = this.el.menu.querySelector('[data-p=quests]'); let qd = q.querySelector('.dot'); const ready = G.jobs.active.filter((a) => P.jobReady(G, a)).length;
     if (ready) { if (!qd) { qd = h('span', 'dot'); q.appendChild(qd); } qd.textContent = ready; } else if (qd) qd.remove();
