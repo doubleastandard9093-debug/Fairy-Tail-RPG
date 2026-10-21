@@ -26,7 +26,7 @@ export function newGame(opts) {
   const school = SCHOOLS[opts.school] ? opts.school : 'flame';
   const G = {
     v: 1, name: (opts.name || 'Wizard').slice(0, 16), look: { ...opts.look }, school,
-    pos: [3, -18], rot: Math.PI,
+    pos: [0, -22.5], rot: Math.PI,
     hp: 1, mp: 1, adr: 0,
     xp: 0, statPoints: 5, stats: { STR: 1, INT: 1, AGI: 1, DEX: 1, VIT: 1 },
     skills: Object.fromEntries(Object.keys(SKILLS).map((k) => [k, 0])),

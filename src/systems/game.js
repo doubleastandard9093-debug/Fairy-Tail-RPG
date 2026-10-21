@@ -274,10 +274,16 @@ export class Game {
   }
   fxBeam(p, rot, len, w, color) {
     const g = new THREE.Group(); g.position.set(p.x, p.y + 1.1, p.z); g.rotation.y = rot;
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.35, w * 0.5, len, 10, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false }));
+    const add = { transparent: true, depthWrite: false, blending: THREE.AdditiveBlending };
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.3, w * 0.55, len, 14, 1, true), new THREE.MeshBasicMaterial({ color, opacity: 0.75, side: THREE.DoubleSide, ...add }));
     m.rotation.x = Math.PI / 2; m.position.z = len / 2; g.add(m);
-    const core = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.12, w * 0.2, len, 8), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9, depthWrite: false })); core.rotation.x = Math.PI / 2; core.position.z = len / 2; g.add(core);
-    this.scene.add(g); this.fx.push({ m: g, mats: [m.material, core.material], life: 0.35, age: 0, kind: 'beam' });
+    const halo = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.45, w * 0.8, len * 1.05, 14, 1, true), new THREE.MeshBasicMaterial({ color, opacity: 0.3, side: THREE.DoubleSide, ...add }));
+    halo.rotation.x = Math.PI / 2; halo.position.z = len / 2; g.add(halo);
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.08, w * 0.16, len, 8), new THREE.MeshBasicMaterial({ color: '#fff6d0', opacity: 0.7, ...add })); core.rotation.x = Math.PI / 2; core.position.z = len / 2; g.add(core);
+    const mouth = new THREE.Mesh(new THREE.SphereGeometry(w * 0.3, 14, 10), new THREE.MeshBasicMaterial({ color, opacity: 0.45, ...add })); mouth.position.z = 0.9; g.add(mouth);
+    for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(w * (0.5 + i * 0.12), 0.06, 6, 24), new THREE.MeshBasicMaterial({ color, opacity: 0.8, ...add })); r.position.z = len * (0.2 + i * 0.3); g.add(r); }
+    this.scene.add(g); this.fx.push({ m: g, mats: [m.material, halo.material, core.material, mouth.material, ...g.children.slice(4).map((c) => c.material)], life: 0.6, age: 0, kind: 'beam' });
+    for (let i = 1; i <= 3; i++) { const q = new THREE.Vector3(p.x + Math.sin(rot) * len * i / 3, p.y, p.z + Math.cos(rot) * len * i / 3); this.fxBurst(q, color, 10); }
   }
   fxBurst(p, color, n = 12) {
     const geo = new THREE.BufferGeometry(); const arr = new Float32Array(n * 3); const vel = [];
