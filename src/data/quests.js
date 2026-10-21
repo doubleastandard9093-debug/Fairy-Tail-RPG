@@ -41,7 +41,7 @@ export const QUESTS = [
     id: 'q_lullaby', name: 'The Lullaby Incident', qp: 3, start: 'makarov',
     intro: [
       ['makarov', 'Brat. A dark guild, Eisenwald, has stolen a flute named Lullaby. A demon from the books of Zeref. Its song kills anyone who hears it.'],
-      ['makarov', 'They have woken it in Clover Canyon, at the far end of the field. Natsu and Wendy will go with you on the S-Class job.'],
+      ['makarov', 'They have woken it in Clover Canyon, at the far end of the field. Natsu, Wendy and Erza will go with you on the S-Class job.'],
       ['makarov', 'But first, see Gajeel at the forge. You will need proper gear, and he needs someone to stop him eating the iron stock.'],
     ],
     stages: [

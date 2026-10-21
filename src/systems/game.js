@@ -224,21 +224,39 @@ export class Game {
     const tpl = ALLIES[allyId];
     const old = this.entities.find((e) => e.kind === 'ally' && e.id === allyId); if (old) this.removeEntity(old);
     let built;
-    if (tpl.model === 'npc') { const c = buildCharacter(tpl.look); built = { group: c.group, parts: {}, char: c }; }
+    if (tpl.model === 'npc') { const c = buildCharacter(tpl.look); built = { group: c.group, parts: {}, char: c }; if (tpl.weapon) equipVisual(c, tpl.weapon, 4); }
     else built = buildMob(tpl.model);
     const side = this.rand() < 0.5 ? -1 : 1;
     const p = this.player.pos.clone().add(new THREE.Vector3(Math.cos(this.player.rot) * 2 * side, 0, -Math.sin(this.player.rot) * 2 * side));
     const e = { kind: 'ally', id: allyId, tpl, obj: built.group, model: built, pos: p, rot: this.player.rot, hp: tpl.hp * mult, maxHp: tpl.hp * mult, mult, atkCd: 0.5, atk: -1, until: dur ? this.t + dur : Infinity, healCd: 1, radius: 0.6, guildmate: !!opts.guildmate };
     this.scene.add(built.group); this.entities.push(e);
+    if (tpl.requip) this.requipFx(built.char, p);
     this.fxRing(p, 1.6, '#ffe8a0'); this.fxBurst(p, '#fff0b0', 18);
     this.ui.log(`${tpl.name}: "${tpl.lines[Math.floor(this.rand() * tpl.lines.length)]}"`, 'npc');
     return e;
   }
+  /** Erza's Requip: a column of light, then the armour materialises piece by piece. */
+  requipFx(char, pos) {
+    const p = char.parts; const bits = [p.armor, ...(p.armorBits || [])].filter(Boolean);
+    const add = { transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide };
+    const g = new THREE.Group(); g.position.set(pos.x, (pos.y || groundAt(pos.x, pos.z)), pos.z);
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 6, 20, 1, true), new THREE.MeshBasicMaterial({ color: '#fff2c0', opacity: 0.8, ...add })); col.position.y = 3; g.add(col);
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 6, 12, 1, true), new THREE.MeshBasicMaterial({ color: '#ffffff', opacity: 0.9, ...add })); core.position.y = 3; g.add(core);
+    for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.04, 6, 32), new THREE.MeshBasicMaterial({ color: '#ffd76a', opacity: 0.9, ...add })); r.rotation.x = Math.PI / 2; r.position.y = 0.4 + i * 0.8; g.add(r); }
+    this.scene.add(g);
+    this.fx.push({ m: g, mats: g.children.map((c) => c.material), life: 1.4, age: 0, kind: 'requip' });
+    (this.requips ||= []).push({ bits, t: 0 }); for (const b of bits) b.scale.setScalar(0.01);
+    this.fxBurst(pos, '#fff0b0', 30); this.ui.sfx?.('requip');
+  }
+  requipNpc(id) {
+    const it = this.world.npcs[id]; if (!it || it.requipped) return; it.requipped = true;
+    this.requipFx(it.char, { x: it.x, y: it.obj.position.y, z: it.z });
+  }
   removeEntity(e) { this.scene.remove(e.obj); this.entities = this.entities.filter((x) => x !== e); }
   startEscort() {
     if (this.entities.some((e) => e.kind === 'escort')) return;
-    const m = buildMob('cat', { fur: '#f6f6f0', nose: '#ffa040', hat: false }); const p = this.player.pos.clone().add(new THREE.Vector3(1.5, 0, 0));
-    const e = { kind: 'escort', id: 'cat', obj: m.group, model: m, pos: p, rot: 0, radius: 0.4, warnT: 0 };
+    const m = buildMob('plue'); const p = this.player.pos.clone().add(new THREE.Vector3(1.5, 0, 0));
+    const e = { kind: 'escort', id: 'cat', modelName: 'plue', obj: m.group, model: m, pos: p, rot: 0, radius: 0.4, warnT: 0 };
     this.scene.add(m.group); this.entities.push(e);
     this.ui.log('Plue: "Puun puun!" (He shivers, then follows you. Slowly. Adorably.)', 'npc');
   }
@@ -500,8 +518,8 @@ export class Game {
     const boss = this.entities.find((e) => e.tpl && e.tpl.boss);
     const wantsParty = G.jobs.active.some((a) => a.id === 'j_lullaby') || (G.quests.q_lullaby && G.quests.q_lullaby.stage === 2);
     if (inArena && boss && !boss.dead && wantsParty && !this.entities.some((e) => e.guildmate)) {
-      this.summon('gm_natsu', 0, 1 + d.level * 0.05, { guildmate: true }); this.summon('gm_wendy', 0, 1 + d.level * 0.05, { guildmate: true });
-      this.ui.toast('⚔️ Natsu and Wendy join your party!');
+      this.summon('gm_natsu', 0, 1 + d.level * 0.05, { guildmate: true }); this.summon('gm_wendy', 0, 1 + d.level * 0.05, { guildmate: true }); this.summon('gm_erza', 0, 1 + d.level * 0.05, { guildmate: true });
+      this.ui.toast('⚔️ Natsu, Wendy and Erza join your party! Erza requips into Heart Kreuz!');
     }
     if (!inArena) for (const e of [...this.entities]) if (e.guildmate && dist2(e.pos, BOSS_ARENA) > BOSS_ARENA.r + 30) this.removeEntity(e);
     this.ui.boss(boss && !boss.dead && boss.aggro ? boss : null);
@@ -531,7 +549,7 @@ export class Game {
         e.obj.position.set(e.pos.x, e.pos.y + (e.tpl && e.tpl.float ? e.tpl.float : 0), e.pos.z); e.obj.rotation.y = e.rot;
         if (e.atk >= 0) { e.atk += dt * 2.5; if (e.atk >= 1) e.atk = -1; }
         if (e.model.char) animateCharacter(e.model.char, { t: this.t + e.pos.x, move: e.moving || 0, atk: e.atk, kind: e.tpl.role === 'healer' ? 'slash' : 'punch', cast: e.tpl.role === 'healer' && e.atk >= 0 ? 1 : 0 });
-        else animateMob(e.model, e.tpl ? e.tpl.model : 'cat', this.t + e.pos.x, e.moving || 0, e.atk);
+        else animateMob(e.model, e.tpl ? e.tpl.model : (e.modelName || 'cat'), this.t + e.pos.x, e.moving || 0, e.atk);
       }
     }
   }
@@ -738,11 +756,13 @@ export class Game {
     }
   }
   updateFx(dt) {
+    if (this.requips) for (const r of [...this.requips]) { r.t += dt; const k = Math.min(1, Math.max(0, (r.t - 0.35) / 0.7)); r.bits.forEach((b, i) => b.scale.setScalar(Math.max(0.01, Math.min(1, k * 1.6 - i * 0.04)))); if (r.t > 1.2) { r.bits.forEach((b) => b.scale.setScalar(1)); this.requips.splice(this.requips.indexOf(r), 1); } }
     for (const f of [...this.fx]) {
       f.age += dt; const k = f.age / f.life;
       if (f.kind === 'ring') { f.m.scale.setScalar(0.3 + k * 0.9); f.m.material.opacity = 0.9 * (1 - k); }
       else if (f.kind === 'fade') { f.mat.opacity = 0.8 * (1 - k); f.m.scale.setScalar(0.8 + k * 0.4); }
       else if (f.kind === 'beam') { for (const m of f.mats) m.opacity = (1 - k) * 0.85; f.m.scale.set(1 + k * 0.5, 1 + k * 0.5, 1); }
+      else if (f.kind === 'requip') { for (const m of f.mats) m.opacity = Math.max(0, 1 - k) * 0.85; f.m.children.forEach((c, i) => { if (i > 1) c.position.y = (0.4 + (i - 2) * 0.8 + k * 4) % 6; }); f.m.scale.set(1 - k * 0.5, 1, 1 - k * 0.5); }
       else if (f.kind === 'burst') {
         const a = f.m.geometry.attributes.position;
         for (let i = 0; i < f.vel.length; i++) { f.vel[i].y -= 12 * dt; a.setXYZ(i, a.getX(i) + f.vel[i].x * dt, a.getY(i) + f.vel[i].y * dt, a.getZ(i) + f.vel[i].z * dt); }

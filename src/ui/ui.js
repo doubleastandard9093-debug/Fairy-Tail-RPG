@@ -407,6 +407,7 @@ export class UI {
   }
   closeDialog() { this.el.dialog.classList.add('hidden'); this.dlg = null; }
   openDialogue(npcId) {
+    if (npcId === 'erza' && this.game) this.game.requipNpc('erza');
     this.closePanel(); const G = this.game.G;
     const { lines, options } = P.npcDialogue(G, npcId);
     const role = NPCS[npcId].role; const svc = [];

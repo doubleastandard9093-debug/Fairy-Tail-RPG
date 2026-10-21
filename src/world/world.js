@@ -373,7 +373,7 @@ export function buildWorld(scene) {
   // ---------------- Town NPCs ----------------
   W.npcs = {};
   for (const [id, n] of Object.entries(NPCS)) {
-    const c = n.model ? buildMob(n.model, { fur: n.fur, hat: false, bag: '#3aa05a', wings: true }) : buildCharacter(n.look); const [x, z] = n.pos;
+    const c = n.model ? buildMob(n.model, n.model === 'cat' ? { fur: n.fur, hat: false, bag: '#3aa05a', wings: true, happy: n.happy, belly: '#ffffff' } : {}) : buildCharacter(n.look); const [x, z] = n.pos;
     if (n.model) c.parts.head = c.parts.body;
     c.group.position.set(x, n.y ?? (z > HALL.minZ && z < HALL.maxZ && Math.abs(x) < HALL.maxX ? 0.5 : 0), z);
     const f = n.face || [0, 6]; c.group.lookAt(f[0], c.group.position.y, f[1]);
@@ -383,7 +383,7 @@ export function buildWorld(scene) {
   }
   W.update = (t, playerPos) => {
     for (const f of W.anim) f(t);
-    for (const id in W.npcs) { const it = W.npcs[id]; const d = Math.hypot(playerPos.x - it.x, playerPos.z - it.z); if (it.char.parts.wing1) { const b = it.char.parts.body; b.position.y = Math.sin(t * 3) * 0.12; it.char.parts.wing1.rotation.z = 0.5 + Math.sin(t * 18) * 0.5; it.char.parts['wing-1'].rotation.z = -0.5 - Math.sin(t * 18) * 0.5; } else it.char.parts.head.rotation.y = d < 6 ? Math.max(-0.6, Math.min(0.6, Math.sin(t * 0.7 + it.x) * 0.3)) : 0; }
+    for (const id in W.npcs) { const it = W.npcs[id]; const d = Math.hypot(playerPos.x - it.x, playerPos.z - it.z); if (it.char.parts.wing1) { const b = it.char.parts.body; b.position.y = Math.sin(t * 3) * 0.12; it.char.parts.wing1.rotation.z = 0.5 + Math.sin(t * 18) * 0.5; it.char.parts['wing-1'].rotation.z = -0.5 - Math.sin(t * 18) * 0.5; } else if (it.npc === 'plue') { const b = it.char.parts.body; b.position.x = Math.sin(t * 40) * 0.012; b.rotation.z = Math.sin(t * 33) * 0.04; } else it.char.parts.head.rotation.y = d < 6 ? Math.max(-0.6, Math.min(0.6, Math.sin(t * 0.7 + it.x) * 0.3)) : 0; }
     if (GFX.shadows) { W.sun.position.set(playerPos.x + 30, 60, playerPos.z + 20); W.sun.target.position.set(playerPos.x, 0, playerPos.z); }
     W.sky.position.set(playerPos.x, 0, playerPos.z);
   };

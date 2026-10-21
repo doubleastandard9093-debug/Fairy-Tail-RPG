@@ -33,5 +33,5 @@ export const JOBS = [
   { id: 'j_star', rank: 'A', type: 'gather', item: 'ore_t3', n: 3, title: 'Starsilver for Lucy\'s Keys', client: 'Lucy',
     desc: 'Starsilver polishes Gate keys beautifully. Aquarius said her key looks "cheap". I need this.', reward: { jewels: 520, gp: 120, xp: 900 } },
   { id: 'j_lullaby', rank: 'S', type: 'boss', mob: 'grumblejaw', n: 1, title: 'S-Class: Silence Lullaby', client: 'Master Makarov',
-    desc: 'Eisenwald has awoken Lullaby, a demon of Zeref, in Clover Canyon. Natsu and Wendy will join you as a party. Do NOT let it finish its song.', reward: { jewels: 1500, gp: 300, xp: 2500, items: { stew: 3 } } },
+    desc: 'Eisenwald has awoken Lullaby, a demon of Zeref, in Clover Canyon. Natsu, Wendy and Erza will join you as a party. Do NOT let it finish its song.', reward: { jewels: 1500, gp: 300, xp: 2500, items: { stew: 3 } } },
 ];

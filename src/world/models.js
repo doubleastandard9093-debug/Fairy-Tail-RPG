@@ -11,7 +11,7 @@ const G = {
 };
 const shade = (hex, k) => { const c = new THREE.Color(hex); c.multiplyScalar(k); return '#' + c.getHexString(); };
 
-export const HAIR_STYLES = ['spiky', 'long', 'ponytail', 'bob', 'short', 'twintails'];
+export const HAIR_STYLES = ['spiky', 'long', 'ponytail', 'sideponytail', 'bob', 'short', 'twintails'];
 export const OUTFITS = ['mage', 'adventurer', 'brawler'];
 export const HAIR_COLORS = ['#ff5a2a', '#ffd23f', '#3a2a22', '#f2f2f8', '#6a8cff', '#ff7ac0', '#38c08a', '#9a50ff', '#202028'];
 export const SKIN_TONES = ['#f8dcc4', '#efc39e', '#d9a275', '#b07a52', '#7a4e32'];
@@ -106,9 +106,11 @@ export function buildCharacter(look = {}) {
     else { const s = place === 'left arm' ? -1 : 1; const arm = s < 0 ? armL : armR; p.position.set(s * 0.079, -0.14, 0); p.rotation.y = s * Math.PI / 2; arm.add(p); }
   }
 
+  const parts = { body, head, torso, armL, armR, legL, legR, gem, weapon: null, bowHand: null };
+  if (L.preset || L.build) dressPreset(L, parts, { skin, cloth, cloth2, hair: hairM });
   root.scale.setScalar(L.scale);
   addOutlines(root); shadowAll(root, true, false);
-  return { group: root, parts: { body, head, torso, armL, armR, legL, legR, gem, weapon: null, bowHand: null } };
+  return { group: root, parts };
 }
 
 function buildHair(head, style, m) {
@@ -136,6 +138,13 @@ function buildHair(head, style, m) {
     fringe(4, 0.38, 0.17, 0.25, 0.18);
     const tie = mesh(G.sph(0.06, 8, 6), toon('#e83a5a'), 0, 0.12, -0.32); head.add(tie);
     const tail = mesh(G.cap(0.1, 0.5), m, 0, -0.18, -0.44); tail.rotation.x = 0.35; head.add(tail);
+  } else if (style === 'sideponytail') {
+    fringe(5, 0.42, 0.16, 0.25, 0.19);
+    const tie = mesh(G.sph(0.06, 8, 6), toon('#3a6ae8'), 0.27, 0.16, -0.12); head.add(tie);
+    const bowL = mesh(G.box(0.14, 0.08, 0.03), toon('#3a6ae8'), 0.3, 0.2, -0.1); bowL.rotation.z = 0.5; head.add(bowL);
+    const tail = mesh(G.cap(0.09, 0.42), m, 0.38, -0.08, -0.16); tail.rotation.z = -0.35; head.add(tail);
+    for (const s of [-1, 1]) { const side = mesh(G.cap(0.06, 0.34), m, s * 0.27, -0.22, 0.1); head.add(side); }
+    const hang = mesh(G.cap(0.2, 0.3), m, 0, -0.26, -0.15); hang.scale.set(1.25, 1, 0.55); head.add(hang);
   } else if (style === 'bob') {
     fringe(6, 0.46, 0.15, 0.25, 0.17);
     const bob = mesh(G.sph(0.36, 18, 12), m, 0, -0.06, -0.04); bob.scale.set(1.08, 0.82, 1); head.add(bob);
@@ -291,6 +300,20 @@ export function buildMob(model, opt = {}) {
     const c = buildCharacter({ hair: 'long', hairColor: '#3ab8f0', outfit: 'mage', outfitColor: '#2a8ac0', skin: '#e0f0ff' });
     g.add(c.group); parts.char = c;
     const ring = mesh(new THREE.TorusGeometry(0.7, 0.05, 6, 24), glow('#7ad8ff', 0.7), 0, 0.2, 0); ring.rotation.x = Math.PI / 2; g.add(ring); parts.ring = ring;
+  } else if (model === 'plue') {
+    // Plue (Nikora): little white snowman-dog with a carrot nose
+    const b = new THREE.Group(); g.add(b); parts.body = b;
+    const wht = toon('#fbfbff'), wh2 = toon('#e8ecf6');
+    const belly = mesh(G.sph(0.26, 14, 12), wht, 0, 0.3, 0); belly.scale.set(1, 0.9, 0.9); b.add(belly);
+    const head = mesh(G.sph(0.22, 14, 12), wht, 0, 0.66, 0.02); head.scale.set(1.05, 0.95, 0.95); b.add(head); parts.head = head;
+    const nose = mesh(G.cone(0.05, 0.22, 8), toon('#ff8a1a'), 0, 0.64, 0.3); nose.rotation.x = Math.PI / 2; b.add(nose);
+    for (const s of [-1, 1]) {
+      const e = mesh(G.sph(0.03, 8, 6), toon('#141418'), s * 0.08, 0.72, 0.2); b.add(e);
+      const ear = mesh(G.cone(0.05, 0.1, 6), wh2, s * 0.15, 0.85, 0); ear.rotation.z = -s * 0.5; b.add(ear);
+      const arm = mesh(G.cap(0.04, 0.1), wh2, s * 0.25, 0.34, 0.06); arm.rotation.z = s * 0.8; b.add(arm);
+      const ft = mesh(G.sph(0.06, 8, 6), wh2, s * 0.11, 0.05, 0.05); ft.scale.y = 0.6; b.add(ft);
+    }
+    const tail = mesh(G.cap(0.03, 0.08), wh2, 0, 0.3, -0.26); tail.rotation.x = -0.8; b.add(tail); parts.tail = tail;
   } else if (model === 'cat') {
     const b = new THREE.Group(); g.add(b); parts.body = b;
     const fur = toon(opt.fur || '#f0a050'), fur2 = toon(opt.belly || '#fff0e0');
@@ -304,7 +327,14 @@ export function buildMob(model, opt = {}) {
       const brim = mesh(G.cyl(0.16, 0.16, 0.02, 12), toon('#2a2a30'), 0, 0.69, 0.3); b.add(brim); }
     if (opt.nose) { const n = mesh(G.cone(0.04, 0.12, 6), toon(opt.nose), 0, 0.5, 0.52); n.rotation.x = Math.PI / 2; b.add(n); }
     if (opt.bag) { const bag = mesh(G.box(0.22, 0.2, 0.12), toon(opt.bag), 0, 0.36, -0.24); b.add(bag); const st = mesh(G.box(0.04, 0.04, 0.5), toon(opt.bag), 0, 0.48, 0); st.rotation.z = 0.7; b.add(st); }
-    if (opt.wings) { for (const s of [-1, 1]) { const w = mesh(G.box(0.36, 0.02, 0.2), toon('#ffffff'), s * 0.28, 0.48, -0.08); w.rotation.z = s * 0.5; b.add(w); parts['wing' + s] = w; } }
+    if (opt.wings) { // Aera: feathered white wings, each a fan of overlapping feathers
+      for (const s of [-1, 1]) { const w = new THREE.Group(); w.position.set(s * 0.12, 0.5, -0.12); b.add(w); parts['wing' + s] = w;
+        for (let i = 0; i < 5; i++) { const f = mesh(G.cap(0.035, 0.26 - i * 0.03), toon(i % 2 ? '#f4f4ff' : '#ffffff'), s * (0.12 + i * 0.05), 0.02 - i * 0.035, -0.02 * i); f.rotation.z = s * (1.2 + i * 0.18); f.scale.z = 0.4; w.add(f); } } }
+    if (opt.happy) { // white belly and muzzle, big ears, curled tail tip
+      const belly = mesh(G.sph(0.19, 12, 10), fur2, 0, 0.27, 0.12); belly.scale.set(0.8, 0.85, 0.6); b.add(belly);
+      const tip = mesh(G.sph(0.06, 8, 6), fur2, 0, 0.72, -0.55); b.add(tip);
+      const mouth = mesh(G.box(0.06, 0.012, 0.01), toon('#3a1a1a'), 0, 0.42, 0.5); b.add(mouth);
+    }
     for (const [x, z] of [[-0.1, 0.18], [0.1, 0.18], [-0.1, -0.18], [0.1, -0.18]]) b.add(mesh(G.cyl(0.045, 0.045, 0.2, 6), fur2, x, 0.1, z));
   } else if (model === 'lullaby') {
     // Lullaby: cursed flute of Zeref (form 1) that becomes a towering wooden demon (form 2).
@@ -398,6 +428,7 @@ export function animateMob(m, model, t, move, atk) {
   else if (model === 'maiden') { animateCharacter(p.char, { t, move: 0, atk: -1, cast: atk > 0 ? 1 : 0.3 }); p.char.group.position.y = 0.3 + Math.sin(t * 2) * 0.1; p.ring.rotation.z = t; }
   else if (model === 'lullaby') animateLullaby(p, t, move, atk);
   else if (model === 'mage') animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: atk > 0 ? 0.8 : 0 });
+  else if (model === 'plue') { p.body.position.x = Math.sin(t * 40) * 0.012; p.body.position.y = Math.abs(Math.sin(t * 8)) * 0.05 * move; p.body.rotation.z = Math.sin(t * 33) * 0.04; p.tail.rotation.z = Math.sin(t * 20) * 0.3; }
   else if (model === 'cat') { p.body.position.y = Math.abs(Math.sin(t * 10)) * 0.05 * move; p.tail.rotation.z = Math.sin(t * 3) * 0.4; }
 }
 
@@ -459,4 +490,110 @@ function animateLullaby(p, t, move, atk) {
   p.legs.forEach((l, i) => { l.rotation.x = Math.sin(t * 3 + i * Math.PI) * 0.35 * move; l.userData.shin.rotation.x = Math.max(0, Math.sin(t * 3 + i * Math.PI - 0.5)) * 0.4 * move; });
   p.demon.position.y = Math.abs(Math.sin(t * 3)) * 0.2 * move;
   p.demon.rotation.x = phase >= 3 ? 0.12 : 0;
+}
+
+// ------------------------- Canon character presets -------------------------
+function bare(a, b, m) { for (const l of [a, b]) if (l) { l.children[0].material = m; l.userData.shin.children[0].material = m; } }
+// Each preset adds signature costume pieces on top of the base body, plus body variation.
+function dressPreset(L, P, M) {
+  const { body, head, torso, armL, armR, legL, legR } = P;
+  const add = (par, geo, mat, x = 0, y = 0, z = 0) => { const m = mesh(geo, mat, x, y, z); par.add(m); return m; };
+  const silver = toon('#d8dce6'), silver2 = toon('#9aa2b4'), gold = toon('#e8c060'), metal = toon('#a8acb8');
+  const pr = L.preset;
+  if (pr === 'natsu') {
+    // scaled white scarf: overlapping scale tiles on wrap and tails
+    const sm = toon('#f4f4ec'), sc = toon('#d8d8cc');
+    for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2; const t = add(body, G.box(0.07, 0.05, 0.02), sc, Math.sin(a) * 0.2, 1.43 + (i % 2) * 0.03, Math.cos(a) * 0.2); t.rotation.y = a; t.rotation.z = 0.785; }
+    for (const [x, r] of [[0.06, 0.25], [-0.04, -0.2]]) for (let k = 0; k < 4; k++) { const t = add(body, G.box(0.07, 0.06, 0.02), sc, x + Math.sin(r) * (0.1 - k * 0.09), 1.36 - k * 0.09, -0.235); t.rotation.z = 0.785; }
+    // open black vest with gold trim, white wrap trousers
+    for (const s of [-1, 1]) { const tr = add(body, G.box(0.02, 0.44, 0.02), gold, s * 0.04, 1.15, 0.205); tr.rotation.z = s * 0.06; }
+    const sash = add(body, G.cyl(0.24, 0.24, 0.09, 14), toon('#e8e0c0'), 0, 0.98, 0); sash.scale.z = 0.82;
+    const sashT = add(body, G.box(0.08, 0.26, 0.03), toon('#e8e0c0'), 0.14, 0.82, 0.18); sashT.rotation.z = 0.2;
+    for (const l of [legL, legR]) { l.children[0].material = toon('#ece6d4'); l.userData.shin.children[0].material = toon('#ece6d4'); }
+    // one sleeve on the left arm (Natsu's half-coat look), right arm bare with wrap
+    armL.children[0].material = toon('#2a2a2a');
+  } else if (pr === 'gray') {
+    torso.material = M.skin; // shirtless
+    for (const c of body.children) if (c !== torso && c.geometry && c.geometry.type === 'BoxGeometry' && c.position.y > 1.0 && c.position.y < 1.3 && c.position.z > 0.15) c.visible = false;
+    // pecs / abs definition
+    for (const s of [-1, 1]) { const pc = add(body, G.sph(0.11, 10, 8), M.skin, s * 0.1, 1.27, 0.15); pc.scale.set(1.1, 0.6, 0.5); }
+    for (let i = 0; i < 3; i++) for (const s of [-1, 1]) { const ab = add(body, G.box(0.07, 0.05, 0.02), toon(shade(L.skin, 0.88)), s * 0.045, 1.13 - i * 0.07, 0.19); }
+    // cross necklace
+    const chain = add(body, new THREE.TorusGeometry(0.12, 0.008, 4, 20), metal, 0, 1.38, 0.05); chain.rotation.x = 1.2;
+    add(body, G.box(0.03, 0.12, 0.015), silver, 0, 1.24, 0.2); add(body, G.box(0.08, 0.025, 0.015), silver, 0, 1.27, 0.2);
+    for (const a of [armL, armR]) a.children[1].material = M.skin;
+    for (const l of [legL, legR]) l.children[0].material = toon('#2a2c3a');
+    const chainB = add(body, G.cyl(0.005, 0.005, 0.25, 4), metal, 0.2, 0.86, 0.12); chainB.rotation.z = 1.2;
+  } else if (pr === 'lucy') {
+    // white-and-blue top, blue skirt, whip coiled on belt, key pouch with golden keys
+    const skirt = add(body, G.cyl(0.25, 0.34, 0.26, 14, 1, true), toon('#2a5ad0'), 0, 0.82, 0); skirt.scale.z = 0.85; skirt.material = toon('#2a5ad0', { side: THREE.DoubleSide });
+    const top = add(body, G.box(0.36, 0.08, 0.3), toon('#f4f4fa'), 0, 1.3, 0.02);
+    const whip = add(body, new THREE.TorusGeometry(0.1, 0.022, 6, 18), glow('#ffb6e0'), -0.25, 0.95, 0.04); whip.rotation.y = Math.PI / 2;
+    const whip2 = add(body, new THREE.TorusGeometry(0.08, 0.02, 6, 18), glow('#ffd6f0'), -0.26, 0.95, 0.04); whip2.rotation.y = Math.PI / 2 + 0.3;
+    const pouch = add(body, G.box(0.12, 0.13, 0.08), toon('#8a5a2a'), 0.24, 0.92, 0.06);
+    for (let i = 0; i < 4; i++) { const k = add(body, G.box(0.018, 0.1, 0.01), gold, 0.2 + i * 0.026, 0.84, 0.11); k.rotation.z = (i - 1.5) * 0.15; add(body, G.sph(0.016, 6, 4), gold, 0.2 + i * 0.026, 0.9, 0.11); }
+    bare(legL, legR, M.skin);
+  } else if (pr === 'erza') {
+    // Heart Kreuz armour: grouped so Requip can make it materialise
+    const ar = new THREE.Group(); body.add(ar); P.armor = ar;
+    const bp = add(ar, G.sph(0.27, 16, 12), silver, 0, 1.22, 0.04); bp.scale.set(1.02, 0.95, 0.85);
+    add(ar, G.box(0.03, 0.34, 0.02), toon('#c03040'), 0, 1.2, 0.27); add(ar, G.box(0.16, 0.03, 0.02), toon('#c03040'), 0, 1.27, 0.27); // cross emblem
+    const plate = add(ar, G.cyl(0.25, 0.24, 0.14, 14), silver2, 0, 1.0, 0); plate.scale.z = 0.82;
+    // armoured skirt: overlapping plates around a blue skirt
+    const blue = add(ar, G.cyl(0.24, 0.36, 0.3, 16, 1, true), toon('#2a4ab8', { side: THREE.DoubleSide }), 0, 0.8, 0); blue.scale.z = 0.86;
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2 + 0.2; const pl = add(ar, G.box(0.15, 0.22, 0.03), silver, Math.sin(a) * 0.3, 0.86, Math.cos(a) * 0.26); pl.rotation.y = a; pl.rotation.x = 0.25 * Math.cos(0); pl.rotation.order = 'YXZ'; pl.rotation.x = -0.3; }
+    for (const a of [armL, armR]) {
+      const s = a === armL ? -1 : 1;
+      const pa = mesh(new THREE.SphereGeometry(0.15, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), silver, 0, 0.02, 0); pa.scale.set(1.15, 0.9, 1.1); a.add(pa); ar.userData[`p${s}`] = pa;
+      const pa2 = mesh(new THREE.SphereGeometry(0.13, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), silver2, s * 0.02, -0.06, 0); a.add(pa2);
+      const gt = mesh(G.cyl(0.085, 0.075, 0.2, 10), silver, 0, -0.16, 0); a.userData.fore.add(gt);
+      const gh = mesh(G.box(0.12, 0.06, 0.1), silver2, 0, -0.3, 0); a.userData.fore.add(gh);
+      a.children[0].material = toon('#2a2a34');
+      (P.armorBits ||= []).push(pa, pa2, gt, gh);
+    }
+    for (const l of [legL, legR]) { bare(l, null, M.skin); const gr = mesh(G.cyl(0.095, 0.085, 0.32, 10), silver, 0, -0.18, 0.01); l.userData.shin.add(gr); P.armorBits.push(gr); }
+  } else if (pr === 'makarov') {
+    // jester hat with two drooping horns and bells, short white coat
+    const hm = toon('#3a68c8'), hm2 = toon('#e8c060');
+    const band = add(head, G.cyl(0.32, 0.33, 0.1, 16), hm2, 0, 0.17, 0);
+    const dome = add(head, new THREE.SphereGeometry(0.32, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), hm, 0, 0.2, 0);
+    for (const s of [-1, 1]) {
+      const horn = add(head, G.cone(0.13, 0.6, 8), hm, s * 0.32, 0.45, -0.05); horn.rotation.z = -s * 1.1;
+      add(head, G.sph(0.06, 8, 6), hm2, s * 0.6, 0.6, -0.05);
+    }
+    const coat = add(body, G.cyl(0.27, 0.36, 0.56, 14, 1, true), toon('#f4f0e4', { side: THREE.DoubleSide }), 0, 0.92, 0); coat.scale.z = 0.86;
+    const fur = add(body, new THREE.TorusGeometry(0.2, 0.05, 6, 14), toon('#e0d8c8'), 0, 1.4, 0); fur.rotation.x = Math.PI / 2;
+  } else if (pr === 'mirajane') {
+    // long maroon dress to the ankles, with her bangs tied up in a little topknot
+    const dress = add(body, G.cyl(0.25, 0.42, 0.88, 16, 1, true), toon('#9a1e40', { side: THREE.DoubleSide }), 0, 0.5, 0); dress.scale.z = 0.86;
+    const bodice = add(body, G.box(0.36, 0.06, 0.3), toon('#f4e8ee'), 0, 1.33, 0.02);
+    add(body, G.box(0.04, 0.3, 0.02), toon('#f4e8ee'), 0, 1.15, 0.2);
+    const knot = add(head, G.cap(0.06, 0.12), M.hair, 0, 0.36, 0.2); knot.rotation.x = -0.6;
+    const tie = add(head, G.box(0.12, 0.04, 0.04), toon('#c02a4a'), 0, 0.33, 0.22);
+    bare(legL, legR, M.skin);
+  } else if (pr === 'levy') {
+    const hb = add(head, new THREE.TorusGeometry(0.31, 0.035, 6, 24), toon('#f0a030'), 0, 0.12, 0.02); hb.rotation.x = Math.PI / 2 - 0.35;
+    const bow = add(head, G.box(0.16, 0.06, 0.04), toon('#f0a030'), 0.12, 0.3, 0.18); bow.rotation.z = 0.4;
+    const dress = add(body, G.cyl(0.25, 0.34, 0.34, 14, 1, true), toon('#f0a030', { side: THREE.DoubleSide }), 0, 0.82, 0); dress.scale.z = 0.86;
+    bare(legL, legR, M.skin);
+  } else if (pr === 'gajeel') {
+    // studs: brows, nose, ears, arms; long spiky black mane
+    for (const [x, y, z] of [[-0.11, 0.14, 0.27], [0.11, 0.14, 0.27], [-0.16, 0.13, 0.25], [0.16, 0.13, 0.25], [0, -0.06, 0.3], [-0.03, -0.04, 0.3], [0.03, -0.04, 0.3], [-0.3, -0.04, 0.03], [0.3, -0.04, 0.03], [0, -0.26, 0.2]])
+      add(head, G.sph(0.018, 6, 4), metal, x, y, z);
+    for (let i = 0; i < 9; i++) { const a = (i / 8 - 0.5) * 2.4; const sp = add(head, G.cone(0.09, 0.75, 6), M.hair, Math.sin(a) * 0.24, -0.25 - Math.abs(Math.cos(a)) * 0.05, -0.2 - Math.cos(a) * 0.1); sp.rotation.x = Math.PI - 0.3; sp.rotation.z = a * 0.25; }
+    for (const a of [armL, armR]) for (let i = 0; i < 3; i++) a.add(mesh(G.sph(0.02, 6, 4), metal, 0, -0.08 - i * 0.08, 0.075));
+    const tunic = add(body, G.cyl(0.25, 0.32, 0.3, 12), toon('#2a2a30'), 0, 0.84, 0); tunic.scale.z = 0.82;
+  } else if (pr === 'wendy') {
+    for (const s of [-1, 1]) add(head, G.sph(0.05, 8, 6), toon('#f04070'), s * 0.33, -0.06, -0.06);
+    const dress = add(body, G.cyl(0.25, 0.36, 0.4, 14, 1, true), toon('#e8e8ff', { side: THREE.DoubleSide }), 0, 0.78, 0); dress.scale.z = 0.86;
+    const trim = add(body, G.cyl(0.365, 0.365, 0.04, 14), toon('#3a8ad0'), 0, 0.59, 0); trim.scale.z = 0.86;
+    bare(legL, legR, M.skin);
+  }
+  // body variation (width, leg length, head size)
+  const B = L.build; if (B) {
+    if (B.w) { torso.scale.x *= B.w; armL.position.x *= B.w; armR.position.x *= B.w; }
+    if (B.arm) { armL.scale.set(B.arm, 1, B.arm); armR.scale.set(B.arm, 1, B.arm); }
+    if (B.leg) { legL.scale.y = legR.scale.y = B.leg; body.position.y = 0; P.bodyLift = (B.leg - 1) * 0.86; }
+    if (B.head) head.scale.setScalar(B.head);
+  }
 }
