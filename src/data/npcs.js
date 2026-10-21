@@ -30,6 +30,6 @@ export const NPCS = {
 // Points in the world referenced by jobs (escorts) and the minimap.
 export const POIS = {
   gate: { name: 'Magnolia South Gate', pos: [0, 44] },
-  shrine: { name: 'Kardia Cathedral Steps', pos: [36, 108] },
-  arena: { name: 'Clover Canyon', pos: [0, 182] },
+  shrine: { name: 'Kardia Cathedral Steps', pos: [63, -14.4] },
+  arena: { name: 'Clover Canyon', pos: [-363.2, -60.8] },
 };

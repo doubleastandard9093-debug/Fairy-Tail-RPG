@@ -9,7 +9,8 @@ export function setupInput(game, ui, canvas) {
     if (k >= '1' && k <= '8') game.useAbility(Number(k) - 1);
     else if (k === 'e' || k === 'f') { const it = game.nearestInteractable(); if (!ui.el.dialog.classList.contains('hidden')) { const b = ui.el.dialog.querySelector('.opts .btn'); if (b) b.click(); } else if (it) game.interact(it); }
     else if (k === 'tab') { e.preventDefault(); const m = game.nearestMob(game.player.pos, 25); if (m) game.setTarget(m); }
-    else if (k === 'escape') { ui.closePanel(); ui.closeDialog(); game.setTarget(null); }
+    else if (k === 'escape') { ui.closePanel(); ui.closeDialog(); ui.closeWorldMap(); game.setTarget(null); }
+    else if (k === 'm') ui.toggleWorldMap();
     else if (k === 'i' || k === 'b') ui.togglePanel('bag'); else if (k === 'g') ui.togglePanel('gear'); else if (k === 'c') ui.togglePanel('stats'); else if (k === 'k') ui.togglePanel('skills'); else if (k === 't') ui.togglePanel('tree'); else if (k === 'j' || k === 'l') ui.togglePanel('quests');
   });
   addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
@@ -47,11 +48,11 @@ export function setupInput(game, ui, canvas) {
     const objs = []; const map = new Map();
     for (const it of game.world.interactables) { if (it.kind === 'node' && it.respawn > 0) continue; objs.push(it.obj); map.set(it.obj, it); }
     for (const e of game.entities) if (e.kind === 'mob' && !e.dead) { objs.push(e.obj); map.set(e.obj, e); }
-    objs.push(game.world.terrain);
+    for (const gm of game.world.terrain.groundMeshes()) objs.push(gm);
     const hits = ray.intersectObjects(objs, true);
     for (const h of hits) {
-      let o = h.object; while (o && !map.has(o) && o !== game.world.terrain) o = o.parent;
-      if (o === game.world.terrain || !o) { if (h.distance < 200) { game.player.moveTo = new THREE.Vector3(h.point.x, 0, h.point.z); game.player.follow = null; ui.clickMarker && ui.clickMarker(h.point); } return; }
+      let o = h.object; while (o && !map.has(o) && !o.userData.ground) o = o.parent;
+      if (!o || o.userData.ground) { if (h.distance < 200) { game.player.moveTo = new THREE.Vector3(h.point.x, 0, h.point.z); game.player.follow = null; ui.clickMarker && ui.clickMarker(h.point); } return; }
       const it = map.get(o);
       if (it.kind === 'mob') { game.setTarget(it); const r = game.attackRange(); if (Math.hypot(it.pos.x - game.player.pos.x, it.pos.z - game.player.pos.z) > r + it.radius) game.player.follow = it; return; }
       game.interact(it); return;

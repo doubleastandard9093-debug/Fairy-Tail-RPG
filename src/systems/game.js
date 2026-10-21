@@ -7,7 +7,8 @@ import { NODE_TYPES, NODE_TIERS, NODE_RESPAWN } from '../data/nodes.js';
 import { POIS } from '../data/npcs.js';
 import { derived, countItem, addItem, skillLevel, classRank, canAdd, saveGame } from '../core/state.js';
 import { buildCharacter, buildMob, animateCharacter, animateMob, equipVisual } from '../world/models.js';
-import { buildWorld, groundAt, BOUNDS, HALL, zoneAt, rng } from '../world/world.js';
+import { buildWorld, groundAt, HALL, zoneAt, placeAt, blockedAt, rng } from '../world/world.js';
+import { PLACE, trainCost, FERRY_COST } from '../world/fiore.js';
 import { glow, GFX } from '../world/toon.js';
 import * as P from './progress.js';
 import { abilityLearned, abilityBonus, NODE } from '../data/skilltree.js';
@@ -27,6 +28,7 @@ export class Game {
     this.input = { x: 0, z: 0 }; this.autoAttack = S.autoAttack !== false;
     this.rand = rng(Date.now() & 0xffff);
     this.spawnPlayer();
+    this.world.flush(this.player.pos.x, this.player.pos.z);
     this.spawnMobs();
     this.saveT = 0;
   }
@@ -150,7 +152,9 @@ export class Game {
   spawnMobs() {
     const R = this.rand;
     for (const sp of SPAWNS) for (let i = 0; i < (sp.count || 1); i++) {
-      const x = sp.at ? sp.at[0] : sp.x[0] + R() * (sp.x[1] - sp.x[0]); const z = sp.at ? sp.at[1] : sp.z[0] + R() * (sp.z[1] - sp.z[0]);
+      let x, z, tries = 0;
+      do { if (sp.at) { [x, z] = sp.at; break; } const a = R() * Math.PI * 2, r = Math.sqrt(R()) * sp.r; x = sp.c[0] + Math.cos(a) * r; z = sp.c[1] + Math.sin(a) * r; tries++; }
+      while ((blockedAt(x, z) || this.world.keepOut(x, z, 1)) && tries < 40);
       this.makeMob(sp.mob, x, z);
     }
   }
@@ -380,6 +384,7 @@ export class Game {
   // ------------------------------------------------------------------ movement & collision
   collide(p, r = 0.45) {
     for (const b of this.world.boxes) {
+      if (p.x < b.minX - 2 || p.x > b.maxX + 2 || p.z < b.minZ - 2 || p.z > b.maxZ + 2) continue;
       const cx = Math.max(b.minX, Math.min(p.x, b.maxX)), cz = Math.max(b.minZ, Math.min(p.z, b.maxZ));
       const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz);
       if (d < r) {
@@ -392,15 +397,20 @@ export class Game {
     }
     for (const c of this.world.circles) {
       if (c.node && c.node.respawn > 0) continue;
+      if (Math.abs(p.x - c.x) > c.r + 2 || Math.abs(p.z - c.z) > c.r + 2) continue;
       const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), m = c.r + r;
       if (d < m && d > 1e-5) { p.x = c.x + dx / d * m; p.z = c.z + dz / d * m; }
     }
-    p.x = Math.max(BOUNDS.minX, Math.min(BOUNDS.maxX, p.x)); p.z = Math.max(BOUNDS.minZ, Math.min(BOUNDS.maxZ, p.z));
   }
   /** Moves in small sub-steps so a lag spike can never tunnel through a wall. */
   moveBy(p, dx, dz, r) {
     const len = Math.hypot(dx, dz); const n = Math.max(1, Math.ceil(len / 0.2));
-    for (let i = 0; i < n; i++) { p.x += dx / n; p.z += dz / n; this.collide(p, r); }
+    for (let i = 0; i < n; i++) {
+      const ox = p.x, oz = p.z; p.x += dx / n; p.z += dz / n; this.collide(p, r);
+      if (blockedAt(p.x, p.z)) { // sea / border: slide along the shore, else stay put
+        const nx = p.x, nz = p.z; p.x = nx; p.z = oz; if (blockedAt(p.x, p.z)) { p.x = ox; p.z = nz; if (blockedAt(p.x, p.z)) { p.x = ox; p.z = oz; } }
+      }
+    }
   }
 
   // ------------------------------------------------------------------ interaction
@@ -518,7 +528,7 @@ export class Game {
     // boss party: guildmates join on the S-rank job or the final quest stage
     const inArena = Math.hypot(pl.pos.x - BOSS_ARENA.x, pl.pos.z - BOSS_ARENA.z) < BOSS_ARENA.r + 6;
     const boss = this.entities.find((e) => e.tpl && e.tpl.boss);
-    const wantsParty = G.jobs.active.some((a) => a.id === 'j_lullaby') || (G.quests.q_lullaby && G.quests.q_lullaby.stage === 2);
+    const wantsParty = G.jobs.active.some((a) => a.id === 'j_lullaby') || (G.quests.q_lullaby && G.quests.q_lullaby.stage === 3);
     if (inArena && boss && !boss.dead && wantsParty && !this.entities.some((e) => e.guildmate)) {
       this.summon('gm_natsu', 0, 1 + d.level * 0.05, { guildmate: true }); this.summon('gm_wendy', 0, 1 + d.level * 0.05, { guildmate: true }); this.summon('gm_erza', 0, 1 + d.level * 0.05, { guildmate: true });
       this.ui.toast('⚔️ Natsu, Wendy and Erza join your party! Erza requips into Heart Kreuz!');
@@ -534,6 +544,29 @@ export class Game {
     G.pos = [pl.pos.x, pl.pos.z]; G.rot = pl.rot;
     this.saveT += dt; if (this.saveT > 15) { this.saveT = 0; saveGame(G); }
     this.zone = zoneAt(pl.pos.x, pl.pos.z);
+    const place = placeAt(pl.pos.x, pl.pos.z); const pid = place ? place.id : null;
+    if (pid !== this.placeId) { this.placeId = pid; if (place) { const first = !G.discovered[pid]; G.discovered[pid] = true; this.ui.arrive(place, first); if (first && place.station) this.ui.log(`Discovered ${place.station.label}: fast travel unlocked on the World Map (M).`, 'lvl'); } }
+  }
+  // ------------------------------------------------------------------ travel
+  /** Teleport with a fade. kind: 'train' | 'boat' | 'debug' */
+  travel(dest, kind = 'train') {
+    const G = this.G, pl = this.player; const p = PLACE[dest]; if (!p || pl.dead || this.travelling) return false;
+    let cost = 0, tx, tz, rot = pl.rot;
+    if (kind === 'train') { cost = trainCost(this.placeId || 'magnolia', dest); [tx, tz] = p.station.pos; const st = this.world.interactables.find((i) => i.kind === 'rail' && i.place === dest); if (st) { tx = st.x; tz = st.z; } }
+    else if (kind === 'boat') { cost = FERRY_COST; const d = this.world.docks[dest]; tx = d.x; tz = d.z; rot = d.rot; }
+    else [tx, tz] = p.pos;
+    if (this.entities.some((e) => e.kind === 'mob' && e.aggro && !e.dead)) { this.ui.toast('You can\'t travel in the middle of a fight!'); return false; }
+    if (G.jewels < cost) { this.ui.toast(`Not enough Jewels (${cost} J needed).`); return false; }
+    G.jewels -= cost; this.travelling = true;
+    this.ui.fade(kind === 'boat' ? `⛵ Sailing to ${p.name}…` : kind === 'train' ? `🚂 Magic train to ${p.station.label}…` : `✨ ${p.name}`, () => {
+      pl.pos.set(tx, 0, tz); pl.pos.y = groundAt(tx, tz); pl.rot = rot; pl.moveTo = null; pl.follow = null; pl.gathering = null; this.setTarget(null);
+      this.cam.yaw = rot; this.cam.tx = tx; this.cam.tz = tz; this.cam.ty = pl.pos.y + 1.4;
+      for (const e of this.entities) if (e.kind === 'escort' || e.kind === 'ally') { e.pos.set(tx + 1.5, groundAt(tx + 1.5, tz), tz); }
+      this.world.flush(tx, tz); this.travelling = false;
+      if (cost) this.ui.log(`Paid ${cost} Jewels for the ${kind === 'boat' ? 'ferry' : 'train'}. ${kind === 'train' && G.look && dest !== 'magnolia' ? '(Natsu would have thrown up twice by now.)' : ''}`, 'info');
+      saveGame(G); this.ui.refresh();
+    });
+    return true;
   }
   attackRange() {
     const w = this.G.equip.weapon ? ITEMS[this.G.equip.weapon] : null; const r = w ? WEAPON_TYPES[w.weaponType].range : 2;
@@ -543,7 +576,12 @@ export class Game {
   updateEntities(dt) {
     const pl = this.player, G = this.G;
     for (const e of [...this.entities]) {
-      if (e.kind === 'mob') this.updateMob(e, dt);
+      if (e.kind === 'mob') {
+        const far = !e.aggro && Math.abs(e.pos.x - pl.pos.x) + Math.abs(e.pos.z - pl.pos.z) > 170;
+        if (far) { e.obj.visible = false; if (e.dead) this.updateMob(e, dt); continue; }
+        if (!e.dead) e.obj.visible = true;
+        this.updateMob(e, dt);
+      }
       else if (e.kind === 'ally') this.updateAlly(e, dt);
       else if (e.kind === 'escort') this.updateEscort(e, dt);
       if (!this.entities.includes(e)) continue;

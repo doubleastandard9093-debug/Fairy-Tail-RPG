@@ -12,9 +12,9 @@ import { WEAPON_ABILITIES } from '../data/abilities.js';
 import { derived, countItem, addItem, removeItem, skillLevel, totalLevel, guildRank, nextGuildRank, classRank, SKILLS, STAT_INFO, saveGame, saveSettings, SAVE_KEY, migrate, dayStamp, canAdd, freeSlots, INV_SIZE } from '../core/state.js';
 import { xpForLevel, levelForXp, progressToNext, charXpForLevel } from '../core/xp.js';
 import * as P from '../systems/progress.js';
-import { BOUNDS, TOWN, HALL, POND, roadX } from '../world/world.js';
+import { TOWN } from '../world/world.js';
 import { BOSS_ARENA } from '../data/mobs.js';
-import { POIS } from '../data/npcs.js';
+import { PLACES, PLACE, STATIONS, GW, GH, S as MAP_S, ORIGIN, toMap, biomeAt, mapHeight, ROADS, RAILS, FERRY, FERRY_COST, trainCost } from '../world/fiore.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
@@ -76,8 +76,9 @@ export class UI {
     this.el = { hud: $('#hud'), plate: $('#plate'), orbs: $('#orbs'), chat: $('#chat'), abar: $('#abar'), menu: $('#menu'), interact: $('#interact'), gather: $('#gather'), toasts: $('#toasts'), floaters: $('#floaters'), vig: $('#vignette'), panel: $('#panel'), dialog: $('#dialog'), target: $('#target'), boss: $('#boss'), map: $('#minimap'), zone: $('#zone'), buffs: $('#buffs') };
     this.el.panel.querySelector('.x').onclick = () => this.closePanel();
     this.el.chat.onclick = () => this.el.chat.classList.toggle('collapsed');
-    const menu = [['bag', '🎒', 'Bag (I)'], ['gear', '🛡️', 'Equipment (G)'], ['stats', '⭐', 'Stats (C)'], ['skills', '⛏️', 'Skills (K)'], ['quests', '📜', 'Quests & Jobs (J)'], ['tree', '🌳', 'Skill Tree (T)'], ['settings', '⚙️', 'Settings']];
-    for (const [id, ic, tip] of menu) { const b = h('button', 'mb', ic); b.title = tip; b.dataset.p = id; b.onclick = () => this.togglePanel(id); this.el.menu.appendChild(b); }
+    const menu = [['worldmap', '🗺️', 'World Map (M)'], ['bag', '🎒', 'Bag (I)'], ['gear', '🛡️', 'Equipment (G)'], ['stats', '⭐', 'Stats (C)'], ['skills', '⛏️', 'Skills (K)'], ['quests', '📜', 'Quests & Jobs (J)'], ['tree', '🌳', 'Skill Tree (T)'], ['settings', '⚙️', 'Settings']];
+    for (const [id, ic, tip] of menu) { const b = h('button', 'mb', ic); b.title = tip; b.dataset.p = id; b.onclick = () => (id === 'worldmap' ? this.toggleWorldMap() : this.togglePanel(id)); this.el.menu.appendChild(b); }
+    this.el.map.onclick = () => this.toggleWorldMap();
     this.el.interact.onclick = () => { const it = this.game && this.game.nearestInteractable(); if (it) this.game.interact(it); };
     for (let i = 0; i < 8; i++) {
       const b = h('button', 'ab'); b.dataset.slot = i; b.innerHTML = `<span class="ic"></span><span class="k">${KEYS[i]}</span><span class="c"></span><div class="cd"></div><div class="cdt"></div>`;
@@ -137,7 +138,7 @@ export class UI {
     // interact prompt
     const it = this.el.dialog.classList.contains('hidden') && !this.panel && !pl.gathering ? g.nearestInteractable() : null;
     const ib = this.el.interact;
-    if (it) { const verb = it.kind === 'npc' ? 'Talk to' : it.kind === 'node' ? { ore: 'Mine', wood: 'Chop', fibre: 'Pick' }[it.type] : 'Use'; const label = `<span class="key">E</span>${verb} ${esc(it.name.split(' (')[0])}`; if (ib.innerHTML !== label) ib.innerHTML = label; ib.classList.remove('hidden'); }
+    if (it) { const verb = it.kind === 'npc' ? 'Talk to' : it.kind === 'rail' ? 'Board the train at' : it.kind === 'ferry' ? 'Board the' : it.kind === 'node' ? { ore: 'Mine', wood: 'Chop', fibre: 'Pick' }[it.type] : 'Use'; const label = `<span class="key">E</span>${verb} ${esc(it.name.split(' (')[0])}`; if (ib.innerHTML !== label) ib.innerHTML = label; ib.classList.remove('hidden'); }
     else ib.classList.add('hidden');
     // target / boss
     if (this.target && !this.target.dead) { this.el.target.querySelector('i').style.width = (this.target.hp / this.target.maxHp * 100) + '%'; const fx = []; if (this.target.burn) fx.push('🔥 burning'); if (this.target.slow) fx.push('❄️ slowed'); if (this.target.stun > 0) fx.push('💫 stunned'); this.el.target.querySelector('.fx').textContent = fx.join('  ') || `${fmt(this.target.hp)} / ${fmt(this.target.maxHp)}`; }
@@ -182,31 +183,37 @@ export class UI {
 
   // ---------------------------------------------------------------- minimap
   buildMapBase() {
-    const S = 2; const w = (BOUNDS.maxX - BOUNDS.minX) * S, hh = (BOUNDS.maxZ - BOUNDS.minZ) * S;
-    const c = document.createElement('canvas'); c.width = w; c.height = hh; const x = c.getContext('2d'); this.mapBase = c; this.mapS = S;
-    const toX = (wx) => (wx - BOUNDS.minX) * S, toY = (wz) => (wz - BOUNDS.minZ) * S;
-    const grd = x.createLinearGradient(0, 0, 0, hh); grd.addColorStop(0, '#5aa04a'); grd.addColorStop(0.6, '#4a8a3a'); grd.addColorStop(1, '#2e5a2a'); x.fillStyle = grd; x.fillRect(0, 0, w, hh);
-    x.fillStyle = '#c8b898'; x.fillRect(toX(TOWN.minX), toY(TOWN.minZ), (TOWN.maxX - TOWN.minX) * S, (TOWN.maxZ - TOWN.minZ) * S);
-    x.strokeStyle = '#6a4a2a'; x.lineWidth = 2; x.strokeRect(toX(TOWN.minX), toY(TOWN.minZ), (TOWN.maxX - TOWN.minX) * S, (TOWN.maxZ - TOWN.minZ) * S);
-    x.strokeStyle = '#d8c090'; x.lineWidth = 5 * S / 2; x.beginPath(); x.moveTo(toX(0), toY(0)); for (let z = 0; z < 190; z += 2) x.lineTo(toX(roadX(z)), toY(z)); x.stroke();
-    x.fillStyle = '#4aa8e0'; x.beginPath(); x.arc(toX(POND.x), toY(POND.z), POND.r * S, 0, 7); x.fill();
-    x.fillStyle = '#8a7a6a'; x.beginPath(); x.arc(toX(BOSS_ARENA.x), toY(BOSS_ARENA.z), BOSS_ARENA.r * S, 0, 7); x.fill();
-    x.fillStyle = '#9af0ff'; x.beginPath(); x.arc(toX(POIS.shrine.pos[0]), toY(POIS.shrine.pos[1]), 3 * S, 0, 7); x.fill();
-    x.fillStyle = '#5ab8f0'; x.beginPath(); x.arc(toX(0), toY(2), 3.4 * S, 0, 7); x.fill();
+    // One pixel per traced cell (2 map px = 3.2 m): biome colours with hill shading, roads, railway, towns.
+    const c = document.createElement('canvas'); c.width = GW; c.height = GH; const x = c.getContext('2d'); this.mapBase = c;
+    const cell = 2 * MAP_S; this.mapS = 1 / cell;
+    const toX = (wx) => wx / cell + ORIGIN[0] / 2, toY = (wz) => wz / cell + ORIGIN[1] / 2;
+    const img = x.createImageData(GW, GH); const pal = { 0: [46, 104, 170], 1: [110, 170, 80], 2: [58, 118, 54], 3: [140, 124, 106], 4: [236, 240, 248], 5: [70, 140, 210], 7: [120, 100, 110] };
+    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) {
+      const wx = (i - ORIGIN[0] / 2 + 0.5) * cell, wz = (j - ORIGIN[1] / 2 + 0.5) * cell; const b = biomeAt(wx, wz); const h = mapHeight(wx, wz), hw = mapHeight(wx - cell, wz - cell);
+      const sh = b === 0 || b === 5 ? 1 : Math.max(0.65, Math.min(1.3, 1 + (h - hw) * 0.08)); const col = pal[b] || pal[1]; const k = (j * GW + i) * 4;
+      img.data[k] = col[0] * sh; img.data[k + 1] = col[1] * sh; img.data[k + 2] = col[2] * sh; img.data[k + 3] = 255;
+    }
+    x.putImageData(img, 0, 0);
+    x.lineCap = 'round'; x.lineJoin = 'round';
+    x.strokeStyle = '#e0c890'; x.lineWidth = 1.4; for (const l of ROADS) { x.beginPath(); l.forEach(([mx, my], k) => (k ? x.lineTo(mx / 2, my / 2) : x.moveTo(mx / 2, my / 2))); x.stroke(); }
+    x.strokeStyle = '#3a3040'; x.lineWidth = 1.2; x.setLineDash([2, 1.5]); for (const l of RAILS) { x.beginPath(); l.forEach(([mx, my], k) => (k ? x.lineTo(mx / 2, my / 2) : x.moveTo(mx / 2, my / 2))); x.stroke(); } x.setLineDash([]);
+    x.fillStyle = '#c8b898'; x.fillRect(toX(TOWN.minX), toY(TOWN.minZ), (TOWN.maxX - TOWN.minX) / cell, (TOWN.maxZ - TOWN.minZ) / cell);
+    x.fillStyle = '#8a7a6a'; x.beginPath(); x.arc(toX(BOSS_ARENA.x), toY(BOSS_ARENA.z), BOSS_ARENA.r / cell, 0, 7); x.fill();
     this._mapRectsDrawn = false; this.mapCtx = x; this.mapToX = toX; this.mapToY = toY;
   }
   drawMap() {
     const g = this.game; const cv = this.el.map; const x = cv.getContext('2d'); const W = cv.width; const S = this.mapS;
-    if (!this._mapRectsDrawn) { this._mapRectsDrawn = true; for (const r of g.world.map.rects) { this.mapCtx.fillStyle = r.color; this.mapCtx.fillRect(this.mapToX(r.x - r.w / 2), this.mapToY(r.z - r.d / 2), r.w * S, r.d * S); } }
-    const pl = g.player.pos; const scale = 1.7 * (W / 344) * 2 / S; // canvas px per base px
+    if (!this._mapRectsDrawn) { this._mapRectsDrawn = true; for (const r of g.world.map.rects) { this.mapCtx.fillStyle = r.color; this.mapCtx.fillRect(this.mapToX(r.x - r.w / 2), this.mapToY(r.z - r.d / 2), Math.max(1, r.w * S), Math.max(1, r.d * S)); } }
+    const pl = g.player.pos; const scale = 3.4 * (W / 344) / S * 0.5; // canvas px per base px (~1.7 canvas px per metre)
     x.save(); x.clearRect(0, 0, W, W); x.beginPath(); x.arc(W / 2, W / 2, W / 2, 0, 7); x.clip();
     x.fillStyle = '#20301c'; x.fillRect(0, 0, W, W);
     x.translate(W / 2, W / 2); x.rotate(g.cam.yaw + Math.PI); x.scale(-scale, scale);
     x.drawImage(this.mapBase, -this.mapToX(pl.x), -this.mapToY(pl.z));
-    const dot = (wx, wz, r, col, ring) => { x.fillStyle = col; x.beginPath(); x.arc(this.mapToX(wx) - this.mapToX(pl.x), this.mapToY(wz) - this.mapToY(pl.z), r, 0, 7); x.fill(); if (ring) { x.strokeStyle = ring; x.lineWidth = 1.5; x.stroke(); } };
+    const near = (wx, wz) => Math.abs(wx - pl.x) < 110 && Math.abs(wz - pl.z) < 110; const dot = (wx, wz, r, col, ring) => { if (!near(wx, wz)) return; r = r * 1.7 / scale; x.fillStyle = col; x.beginPath(); x.arc(this.mapToX(wx) - this.mapToX(pl.x), this.mapToY(wz) - this.mapToY(pl.z), r, 0, 7); x.fill(); if (ring) { x.strokeStyle = ring; x.lineWidth = 1.5 / scale; x.stroke(); } };
     for (const n of g.world.nodes) if (n.respawn <= 0) dot(n.x, n.z, 3, { ore: '#d0c0b0', wood: '#2a6a1a', fibre: '#ffffff' }[n.type]);
     for (const it of g.world.interactables) if (it.kind === 'npc') dot(it.x, it.z, 3.4, '#ffe060', '#000');
     for (const e of g.entities) { if (e.dead) continue; if (e.kind === 'mob') dot(e.pos.x, e.pos.z, e.tpl.boss ? 7 : 3, e.tpl.boss ? '#ff2a2a' : '#ff5a4a', '#000'); else dot(e.pos.x, e.pos.z, 3.4, e.kind === 'escort' ? '#ffa040' : '#5aff7a', '#000'); }
+    for (const it of g.world.interactables) if (it.kind === 'rail' || it.kind === 'ferry') dot(it.x, it.z, 4.4, it.kind === 'rail' ? '#7ad8ff' : '#ffffff', '#000');
     x.restore();
     // player arrow (camera-up)
     x.save(); x.translate(W / 2, W / 2); x.rotate(-(g.player.rot - g.cam.yaw)); x.fillStyle = '#fff'; x.strokeStyle = '#000'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, -11); x.lineTo(8, 9); x.lineTo(0, 4); x.lineTo(-8, 9); x.closePath(); x.fill(); x.stroke(); x.restore();
@@ -214,6 +221,72 @@ export class UI {
   }
 
   // ---------------------------------------------------------------- panels
+  // ---------------------------------------------------------------- arrival banner, fades, world map
+  arrive(place, first) {
+    let b = document.getElementById('arrive'); if (!b) { b = document.createElement('div'); b.id = 'arrive'; document.body.appendChild(b); }
+    b.innerHTML = `<div class="an">${esc(place.name)}</div><div class="as">${esc(place.banner || (place.minor ? 'A town of Fiore' : ''))}${first ? ' · <b>Discovered!</b>' : ''}</div>`;
+    b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
+    if (first) this.audio?.sfx('level');
+  }
+  fade(text, mid) {
+    let f = document.getElementById('fade'); if (!f) { f = document.createElement('div'); f.id = 'fade'; document.body.appendChild(f); }
+    f.textContent = text; f.classList.add('on'); this.closeWorldMap(); this.closePanel();
+    setTimeout(() => { mid(); setTimeout(() => f.classList.remove('on'), 500); }, 900);
+  }
+  questMarkers() {
+    const G = this.game.G; const out = [];
+    const JZ = { j_puff: 'eastforest', j_boar: 'kardia', j_cat: 'kardia', j_wisp: 'oshibana', j_lullaby: 'canyon' };
+    for (const a of G.jobs.active) { const j = JOBS.find((x) => x.id === a.id); const z = j && (j.zone || JZ[j.id]); if (z) out.push({ place: z, label: j.title }); }
+    const q = G.quests;
+    if (q.q_cake && q.q_cake.stage < 2) out.push({ place: 'eastforest', label: "Erza's Strawberry Cake" });
+    if (q.q_lullaby && q.q_lullaby.stage === 2) out.push({ place: 'oshibana', label: 'The Lullaby Incident' });
+    if (q.q_lullaby && q.q_lullaby.stage === 3) out.push({ place: 'canyon', label: 'The Lullaby Incident' });
+    return out;
+  }
+  toggleWorldMap(opts) { if (this.wm && !this.wm.classList.contains('hidden')) this.closeWorldMap(); else this.openWorldMap(opts); }
+  closeWorldMap() { if (this.wm) this.wm.classList.add('hidden'); this.wmOpts = null; }
+  openWorldMap(opts = {}) {
+    this.closePanel(); this.closeDialog(); this.wmOpts = opts;
+    if (!this.wm) {
+      const w = document.createElement('div'); w.id = 'worldmap'; w.className = 'hidden';
+      w.innerHTML = `<div class="wm-frame"><header><div class="title">Kingdom of Fiore</div><button class="x" aria-label="Close">✕</button></header><div class="wm-body"><div class="wm-mapbox"><img class="wm-img" alt="Fiore map" src="${import.meta.env.BASE_URL}maps/fiore_parchment.jpg"><div class="wm-layer"></div></div><div class="wm-side"></div></div></div>`;
+      document.body.appendChild(w); this.wm = w; w.querySelector('.x').onclick = () => this.closeWorldMap();
+      w.addEventListener('click', (e) => { const b = e.target.closest('[data-travel]'); if (b) { e.stopPropagation(); this.game.travel(b.dataset.travel, b.dataset.kind); } });
+    }
+    this.wm.classList.remove('hidden'); this.renderWorldMap();
+  }
+  renderWorldMap() {
+    const g = this.game, G = g.G; const layer = this.wm.querySelector('.wm-layer'); const side = this.wm.querySelector('.wm-side');
+    const here = g.placeId && PLACE[g.placeId]; const atStation = here && here.station && (!this.wmOpts.mode || this.wmOpts.mode === 'train');
+    const atPort = this.wmOpts.mode === 'boat' ? this.wmOpts.from : null;
+    const pct = ([mx, my]) => `left:${mx / 1024 * 100}%;top:${my / 687 * 100}%`;
+    let html = '';
+    const marks = this.questMarkers(); const marked = new Set(marks.map((m) => m.place));
+    for (const p of PLACES) {
+      const known = G.discovered[p.id]; const cls = ['wm-pin', p.station ? 'st' : '', p.minor ? 'minor' : '', known ? 'known' : 'unknown', g.placeId === p.id ? 'here' : ''].join(' ');
+      html += `<div class="${cls}" style="${pct(p.m)}" title="${esc(p.name)}"><i>${p.station ? '🚂' : p.island ? '🏝️' : p.id === 'hakobe' ? '🏔️' : '●'}</i><span>${known || p.minor ? esc(p.name) : '???'}</span>${marked.has(p.id) ? '<b class="qm">!</b>' : ''}</div>`;
+    }
+    const [mx, my] = toMap(g.player.pos.x, g.player.pos.z);
+    html += `<div class="wm-me" style="${pct([mx, my])};transform:translate(-50%,-50%) rotate(${-g.player.rot + Math.PI}rad)">➤</div>`;
+    layer.innerHTML = html;
+    let s = `<div class="wm-where">📍 ${esc(g.zone || '')}</div>`;
+    if (atPort && FERRY[atPort]) {
+      s += `<div class="wm-h">⛵ Ferry from ${esc(PLACE[atPort].name)}</div>`;
+      for (const d of FERRY[atPort]) s += `<button class="btn wm-go" data-travel="${d}" data-kind="boat">Sail to ${esc(PLACE[d].name)} <small>${FERRY_COST} J</small></button>`;
+    } else {
+      s += `<div class="wm-h">🚂 Magic Train</div>`;
+      if (!atStation) s += `<div class="muted">Walk to a station platform (or any town with a 🚂) to ride.</div>`;
+      for (const id of STATIONS) {
+        const p = PLACE[id]; const known = G.discovered[id]; if (id === g.placeId) continue;
+        const cost = trainCost(g.placeId || 'magnolia', id);
+        s += known ? `<button class="btn wm-go" ${atStation ? '' : 'disabled'} data-travel="${id}" data-kind="train">${esc(p.station.label)} <small>${cost} J</small></button>` : `<div class="muted">??? (undiscovered)</div>`;
+      }
+      s += `<div class="muted small">Boats to Galuna and Tenrou leave from the Hargeon Port pier.</div>`;
+    }
+    if (marks.length) s += `<div class="wm-h">❗ Objectives</div>` + marks.map((m) => `<div class="small">${esc(m.label)}: <b>${esc(PLACE[m.place].name)}</b></div>`).join('');
+    s += `<div class="muted small">Jewels: ${G.jewels.toLocaleString()}</div>`;
+    side.innerHTML = s;
+  }
   togglePanel(name) { if (this.panel === name) this.closePanel(); else this.openPanel(name); }
   openPanel(name, opts = {}) { this.closeDialog(); this.panel = name; this.popts = opts; this.sel = null; this.tab = opts.tab || this.tab0(name); this.el.panel.classList.remove('hidden'); this.renderPanel(); }
   tab0(name) { if (name === 'tree') return this.treeTab0(); return { shop: 'buy', quests: 'story', board: 'E' }[name] || null; }
@@ -441,6 +514,8 @@ export class UI {
     if (it.kind === 'board') return this.openPanel('board');
     if (it.kind === 'station') return this.openPanel('craft', { station: it.station });
     if (it.kind === 'shop') return this.openPanel('shop');
+    if (it.kind === 'rail') return this.openWorldMap({ mode: 'train', from: it.place });
+    if (it.kind === 'ferry') return this.openWorldMap({ mode: 'boat', from: it.place });
   }
   closeDialog() { this.el.dialog.classList.add('hidden'); this.dlg = null; }
   openDialogue(npcId) {

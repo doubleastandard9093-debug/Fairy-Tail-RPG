@@ -243,3 +243,44 @@ body.landscape.touch #title .mark { width: 22vmin; } body.landscape.touch #title
 .tnode.lock { filter: grayscale(.8) brightness(.6); } .tnode.open { border-color: #9ad0ff; box-shadow: 0 0 8px rgba(154,208,255,.5); }
 .tnode.have { border-color: #ffd76a; } .tnode.max { border-color: #ffd76a; background: #4a3a18; box-shadow: 0 0 10px rgba(255,215,106,.6); }
 .tnode.sel { outline: 3px solid #fff; }
+
+/* ---- v3 Fiore world: arrival banner, travel fade, world map ---- */
+#arrive { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); z-index: 30; pointer-events: none; text-align: center; opacity: 0; }
+#arrive.show { animation: arrive 4.2s ease forwards; }
+#arrive .an { font-family: var(--serif); font-size: clamp(26px, 5vw, 46px); color: #fff3d6; letter-spacing: 2px; text-shadow: 0 2px 4px #000, 0 0 18px #ffb04a99; white-space: nowrap; }
+#arrive .an::before, #arrive .an::after { content: '✦'; color: var(--gold); margin: 0 14px; font-size: 0.6em; vertical-align: middle; }
+#arrive .as { font-family: var(--serif); font-size: clamp(13px, 2.2vw, 18px); color: #ffe2a0; text-shadow: 0 1px 3px #000; margin-top: 4px; }
+#arrive .as b { color: #8affc0; }
+@keyframes arrive { 0% { opacity: 0; transform: translate(-50%, 10px); } 12% { opacity: 1; transform: translate(-50%, 0); } 78% { opacity: 1; } 100% { opacity: 0; } }
+body.touch.landscape #arrive { top: 10%; }
+#fade { position: fixed; inset: 0; z-index: 45; background: #0c0818; color: var(--gold); display: grid; place-items: center; font-family: var(--serif); font-size: 22px; opacity: 0; pointer-events: none; transition: opacity 0.45s; }
+#fade.on { opacity: 1; pointer-events: auto; }
+#worldmap { position: fixed; inset: 0; z-index: 35; background: #0a0612cc; display: grid; place-items: center; padding: calc(8px + var(--sat)) calc(8px + var(--sar)) calc(8px + var(--sab)) calc(8px + var(--sal)); }
+#worldmap.hidden { display: none; }
+#worldmap .wm-frame { width: min(1180px, 100%); max-height: 100%; display: flex; flex-direction: column; background: linear-gradient(180deg, #2a1a10, #1a0f08); border: 2px solid var(--gold); border-radius: 12px; box-shadow: 0 8px 40px #000; overflow: hidden; }
+#worldmap header { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid #c8904066; }
+#worldmap header .title { font-family: var(--serif); color: var(--gold); font-size: 20px; }
+#worldmap header .x { background: none; border: 1px solid var(--gold); color: #fff3d6; border-radius: 8px; width: 36px; height: 36px; font-size: 18px; }
+#worldmap .wm-body { display: flex; gap: 10px; padding: 10px; min-height: 0; overflow: auto; }
+#worldmap .wm-mapbox { position: relative; flex: 1 1 auto; aspect-ratio: 1024 / 687; max-height: calc(100vh - 90px); min-width: 0; align-self: flex-start; }
+#worldmap .wm-img { width: 100%; height: 100%; display: block; border-radius: 6px; }
+#worldmap .wm-layer { position: absolute; inset: 0; }
+.wm-pin { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+.wm-pin i { font-style: normal; font-size: 15px; filter: drop-shadow(0 1px 2px #000); }
+.wm-pin span { font-family: var(--serif); font-size: 11px; color: #fff3d6; background: #2a1a10cc; border: 1px solid #c89040aa; border-radius: 6px; padding: 0 4px; white-space: nowrap; margin-top: 1px; }
+.wm-pin.unknown { opacity: 0.55; } .wm-pin.unknown span { color: #c8b898; }
+.wm-pin.minor i { font-size: 9px; color: #3a2414; } .wm-pin.minor span { font-size: 9px; background: #2a1a1088; }
+.wm-pin.here span { background: #7a1a2acc; border-color: #ffd27a; }
+.wm-pin .qm { position: absolute; top: -12px; right: -8px; background: #ffd23a; color: #3a1a00; border-radius: 50%; width: 16px; height: 16px; font-size: 12px; display: grid; place-items: center; box-shadow: 0 0 8px #ffd23a; animation: qpulse 1.2s infinite; }
+@keyframes qpulse { 50% { transform: scale(1.25); } }
+.wm-me { position: absolute; font-size: 22px; color: #ff3a4a; text-shadow: 0 0 4px #fff, 0 0 8px #000; pointer-events: none; }
+#worldmap .wm-side { flex: 0 0 220px; display: flex; flex-direction: column; gap: 6px; color: #fff3d6; font-size: 14px; }
+#worldmap .wm-h { font-family: var(--serif); color: var(--gold); margin-top: 6px; font-size: 16px; }
+#worldmap .wm-where { font-family: var(--serif); font-size: 15px; }
+#worldmap .wm-go { text-align: left; display: flex; justify-content: space-between; gap: 8px; }
+#worldmap .wm-go[disabled] { opacity: 0.45; }
+#worldmap .small { font-size: 12px; } #worldmap .muted { color: #c8b898; }
+body.portrait #worldmap .wm-body { flex-direction: column; }
+body.portrait #worldmap .wm-side { flex: 0 0 auto; }
+body.landscape.touch #worldmap .wm-side { flex-basis: 180px; font-size: 12px; }
+body.landscape.touch #worldmap .wm-mapbox { max-height: calc(100vh - 70px); }

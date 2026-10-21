@@ -10,6 +10,7 @@ import { titleScreen } from './ui/title.js';
 import * as P from './systems/progress.js';
 import { SCHOOLS } from './data/schools.js';
 import { Audio } from './core/audio.js';
+import { loadFiore } from './world/fiore.js';
 
 const S = loadSettings();
 const qs = new URLSearchParams(location.search);
@@ -32,6 +33,7 @@ audio.play('hall');
 const loading = document.createElement('div'); loading.id = 'loading'; loading.textContent = 'Opening the guild doors…'; document.body.appendChild(loading);
 
 async function boot() {
+  await loadFiore();
   let G = loadGame();
   loading.remove();
   const choice = qs.has('skiptitle') ? (G ? 'continue' : 'new') : await titleScreen(!!G);
@@ -55,7 +57,7 @@ async function boot() {
   resize(); addEventListener('resize', resize);
   if (G.jobs.active.some((a) => a.id === 'j_cat' && a.prog < 1)) game.startEscort();
   const fresh = G._fresh; delete G._fresh;
-  ui.log('Welcome to Magnolia, home of the Fairy Tail guild!', 'lvl');
+  ui.log('Welcome to Magnolia, home of the Fairy Tail guild! Press M (or tap the minimap) for the map of Fiore.', 'lvl');
   if (fresh) {
     ui.log(`Your guild mark glows. You wield ${SCHOOLS[G.school].name} magic. Your gear decides your abilities: check the Equipment panel.`, 'info');
     ui.log('Tutorial: talk to Mirajane at the bar.', 'quest');

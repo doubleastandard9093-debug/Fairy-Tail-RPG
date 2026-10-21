@@ -44,6 +44,22 @@ export const MOBS = {
     drops: [{ id: 'tyrant_core', chance: 1 }, { id: 'ore_t3', chance: 1, min: 3, max: 5 }, { id: 'sword2h_t4', chance: 0.25 }, { id: 'stew', chance: 1, min: 2, max: 2 }], jewels: [300, 500],
     bark: ['I SHALL PLAY THE SONG OF DEATH!', 'Why are you not dead? My song is VERY good.', 'Fairy flies! I will devour your souls!'],
   },
+  bora_thug: {
+    name: "Bora's Smuggler", level: 5, hp: 140, dmg: 9, speed: 2.8, aggro: 10, range: 9, atkCd: 2.2, xp: 60, model: 'mage', opt: { robe: '#6a2a5a' }, scale: 1, ranged: true,
+    drops: [{ id: 'hide_t1', chance: 0.4 }, { id: 'tonic_hp', chance: 0.15 }], jewels: [10, 20],
+    bark: ['Bora of Prominence sends his regards!', 'Charm magic? Never heard of it. Hand over the jewels.'],
+  },
+  galuna_cultist: {
+    name: "Lyon's Cultist", level: 16, hp: 300, dmg: 18, speed: 3, aggro: 12, range: 10, atkCd: 2.0, xp: 220, model: 'mage', opt: { robe: '#2a4a7a' }, scale: 1, ranged: true,
+    drops: [{ id: 'fibre_t3', chance: 0.4 }, { id: 'tea_mp', chance: 0.25 }, { id: 'hide_t3', chance: 0.3 }], jewels: [24, 40],
+    bark: ['The Moon Drip must not be interrupted!', 'Reitei Lyon will surpass Ur!'],
+  },
+  tenrou_boar: {
+    name: 'Tenrou Wild Boar', level: 14, hp: 340, dmg: 17, speed: 4, aggro: 10, range: 2.4, atkCd: 1.9, xp: 190, model: 'boar', scale: 1.35,
+    charge: { cd: 6, speed: 14, dur: 0.7, dmg: 26 },
+    drops: [{ id: 'hide_t3', chance: 0.6 }, { id: 'hide_t2', chance: 0.5 }], jewels: [18, 32],
+    bark: ['*the sacred island snorts at you*'],
+  },
   eisen_summon: {
     name: 'Eisenwald Mage (summoned)', level: 12, hp: 160, dmg: 12, speed: 3, aggro: 30, range: 10, atkCd: 2.4, xp: 40, model: 'mage', scale: 1, ranged: true, temp: true,
     drops: [], jewels: [2, 6], bark: ['For Erigor!', 'Lullaby will play for us all!'],
@@ -57,13 +73,20 @@ export const ALLIES = {
   gm_wendy: { name: 'Wendy (party)', hp: 220, dmg: 8, speed: 5, range: 10, atkCd: 2.0, model: 'npc', role: 'healer', heal: 22, look: { preset: 'wendy', hair: 'twintails', hairColor: '#3a68d0', outfit: 'mage', outfitColor: '#f0f0ff', skin: '#fbe2d0', scale: 0.8 }, lines: ['I-I\'ll heal everyone! Sky Dragon\'s healing breath!'] },
   gm_erza: { name: 'Erza (party)', hp: 460, dmg: 20, speed: 5.4, range: 2.6, atkCd: 1.2, model: 'npc', role: 'tank', taunt: true, requip: true, look: { preset: 'erza', hair: 'long', hairColor: '#d0202a', outfit: 'adventurer', outfitColor: '#c8ccd8', skin: '#f6d8c0', eyeColor: '#4a2a1a', build: { w: 0.96 } }, weapon: 'sword1h', lines: ['Requip! Heart Kreuz Armor. Lullaby, your song ends here.'] },
 };
-// Spawn regions in the field. Field runs from z=46 (town gate) to z=200.
+// Spawn regions in the Fiore world (world units; Magnolia's guild hall is the origin, +z is south).
+// at: fixed point; c + r: random inside a circle.
 export const SPAWNS = [
-  { mob: 'puffcap', count: 9, x: [-45, 45], z: [52, 92] },
-  { mob: 'boar', count: 5, x: [-55, 55], z: [92, 130] },
-  { mob: 'hakobe_vulcan', count: 3, x: [-55, -20], z: [100, 130] },
-  { mob: 'wisp', count: 5, x: [-55, 55], z: [132, 162] },
-  { mob: 'lizardman', count: 3, x: [20, 55], z: [134, 162] },
-  { mob: 'grumblejaw', count: 1, at: [0, 182] },
+  { mob: 'puffcap', count: 10, c: [150, -78], r: 62 },          // East Forest
+  { mob: 'boar', count: 4, c: [105, -20], r: 26 },              // Kardia road
+  { mob: 'boar', count: 4, c: [-30, -115], r: 40 },             // fields below Lake Scilliora
+  { mob: 'bora_thug', count: 5, c: [-150, 110], r: 34 },        // Hargeon Port
+  { mob: 'hakobe_vulcan', count: 6, c: [-206, -515], r: 40 },   // Mt. Hakobe snowfield
+  { mob: 'hakobe_vulcan', count: 2, c: [-150, -440], r: 25 },   // Hakobe trail
+  { mob: 'wisp', count: 6, c: [-480, -262], r: 34 },            // Oshibana Station (Eisenwald)
+  { mob: 'lizardman', count: 5, c: [-385, -215], r: 32 },       // Oshibana rail line
+  { mob: 'boar', count: 3, c: [-330, -60], r: 20 },             // Clover outskirts
+  { mob: 'galuna_cultist', count: 6, c: [-640, 90], r: 50 },    // Galuna Island
+  { mob: 'tenrou_boar', count: 5, c: [-360, 225], r: 50 },      // Tenrou Island
+  { mob: 'grumblejaw', count: 1, at: [-363.2, -60.8] },          // Clover Canyon
 ];
-export const BOSS_ARENA = { x: 0, z: 182, r: 22 };
+export const BOSS_ARENA = { x: -363.2, z: -60.8, r: 22 }; // Clover Canyon (map px 470,382)

@@ -36,6 +36,7 @@ export function newGame(opts) {
     equip: { weapon: null, weapon2: null, armor: null, lacrima: SCHOOLS[school].lacrima },
     quests: {}, jobs: { active: [], done: {}, completed: 0 }, kills: {}, crafted: {},
     playTime: 0, day: dayStamp(), tree: {}, respecs: 0,
+    worldV: 3, discovered: { magnolia: true },
   };
   const start = { flame: ['knuckles_t1', 'jacket_t1'], ice: ['sword1h_t1', 'robe_t1'], celestial: ['staff_t1', 'robe_t1'] }[school] || ['sword1h_t1', 'jacket_t1'];
   G.equip.weapon = start[0]; G.equip.armor = start[1];
@@ -110,6 +111,12 @@ export function loadGame() {
 export function migrate(G) {
   if (!G || typeof G !== 'object' || !G.v || !Array.isArray(G.inv)) throw new Error('Not an Fairy Tail save');
   if (!G.tree) migrateTree(G, classRank);
+  if (!G.worldV) { // v3: the open Fiore world. Old field coordinates no longer exist, so park the player in Magnolia.
+    const [x, z] = G.pos || [0, 9];
+    if (!(x > -42 && x < 42 && z > -42 && z < 44)) G.pos = [0, 9];
+    if (G.quests && G.quests.q_lullaby && G.quests.q_lullaby.stage >= 2) G.quests.q_lullaby.stage++; // new Oshibana stage inserted before the boss
+    G.worldV = 3; G.discovered = { magnolia: true };
+  }
   const base = newGame({ name: G.name, look: G.look || {}, school: G.school });
   for (const k of Object.keys(base)) if (G[k] === undefined) G[k] = base[k];
   while (G.inv.length < INV_SIZE) G.inv.push(null);
