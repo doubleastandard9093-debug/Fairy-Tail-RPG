@@ -2,20 +2,30 @@
 // attacks: list of { type: 'melee'|'proj'|'charge'|telegraph shape, ... } chosen by AI.
 export const MOBS = {
   puffcap: {
-    name: 'Puffcap', level: 2, hp: 70, dmg: 5, speed: 2.4, aggro: 7, range: 1.8, atkCd: 1.6, xp: 30, model: 'puffcap', scale: 1,
+    name: 'Forest Vulcan', level: 2, hp: 70, dmg: 5, speed: 2.4, aggro: 7, range: 1.8, atkCd: 1.6, xp: 30, model: 'vulcan', opt: { fur: '#7a6a42', face: '#c8a080' }, scale: 0.8,
     drops: [{ id: 'spore', chance: 0.9, min: 1, max: 2 }, { id: 'tonic_hp', chance: 0.12 }], jewels: [3, 8],
-    bark: ['*angry squeak*', 'Puff! Puff!', '*spores menacingly*'],
+    bark: ['Ooh ooh! Shiny wizard!', '*beats chest*', 'Woman? WOMAN?! ...No? Then FIGHT!'],
   },
   boar: {
-    name: 'Magnolia Wild Boar', level: 6, hp: 180, dmg: 11, speed: 3.6, aggro: 9, range: 2.2, atkCd: 2.0, xp: 75, model: 'boar', scale: 1,
+    name: 'Wild Boar', level: 6, hp: 180, dmg: 11, speed: 3.6, aggro: 9, range: 2.2, atkCd: 2.0, xp: 75, model: 'boar', scale: 1,
     charge: { cd: 7, speed: 13, dur: 0.7, dmg: 18 },
     drops: [{ id: 'hide_t1', chance: 0.8, min: 1, max: 2 }, { id: 'hide_t2', chance: 0.35 }], jewels: [8, 16],
     bark: ['SNORT.', '*paws ground dramatically*'],
   },
   wisp: {
-    name: 'Dark Guild Wisp', level: 10, hp: 150, dmg: 13, speed: 2.8, aggro: 13, range: 11, atkCd: 2.2, xp: 120, model: 'wisp', scale: 1, ranged: true, float: 1.4,
+    name: 'Eisenwald Mage', level: 10, hp: 150, dmg: 13, speed: 2.8, aggro: 13, range: 11, atkCd: 2.2, xp: 120, model: 'mage', scale: 1, ranged: true,
     drops: [{ id: 'wisp_ember', chance: 0.8 }, { id: 'hide_t3', chance: 0.25 }, { id: 'tea_mp', chance: 0.2 }], jewels: [12, 24],
-    bark: ['oooOOOooo', '*flickers sadly*'],
+    bark: ['Eisenwald will not be stopped by flies!', 'For Erigor, the Reaper!'],
+  },
+  hakobe_vulcan: {
+    name: 'Vulcan', level: 8, hp: 240, dmg: 14, speed: 3.2, aggro: 10, range: 2.2, atkCd: 1.8, xp: 110, model: 'vulcan', opt: { fur: '#f2f2f6', face: '#e8b0b0' }, scale: 1.15,
+    drops: [{ id: 'spore', chance: 0.9, min: 2, max: 3 }, { id: 'hide_t2', chance: 0.4 }], jewels: [10, 20],
+    bark: ['WOMAN! ...Oh. Wizard. FIGHT!', '*Mt. Hakobe howling*'],
+  },
+  lizardman: {
+    name: 'Lizardman', level: 12, hp: 220, dmg: 16, speed: 3.4, aggro: 11, range: 2.6, atkCd: 1.7, xp: 150, model: 'lizard', scale: 1,
+    drops: [{ id: 'hide_t3', chance: 0.5 }, { id: 'tonic_hp', chance: 0.2 }], jewels: [14, 26],
+    bark: ['Hssss! The rail line is ours!', '*tail thwack*'],
   },
   grumblejaw: {
     name: 'Lullaby, Demon of Zeref', level: 18, hp: 2600, dmg: 18, speed: 2.4, aggro: 16, range: 4.6, atkCd: 2.4, xp: 1500, model: 'lullaby', scale: 1, boss: true, leash: 26, radius: 2.6,
@@ -50,8 +60,10 @@ export const ALLIES = {
 // Spawn regions in the field. Field runs from z=46 (town gate) to z=200.
 export const SPAWNS = [
   { mob: 'puffcap', count: 9, x: [-45, 45], z: [52, 92] },
-  { mob: 'boar', count: 7, x: [-55, 55], z: [92, 130] },
-  { mob: 'wisp', count: 6, x: [-55, 55], z: [130, 160] },
+  { mob: 'boar', count: 5, x: [-55, 55], z: [92, 130] },
+  { mob: 'hakobe_vulcan', count: 3, x: [-55, -20], z: [100, 130] },
+  { mob: 'wisp', count: 5, x: [-55, 55], z: [132, 162] },
+  { mob: 'lizardman', count: 3, x: [20, 55], z: [134, 162] },
   { mob: 'grumblejaw', count: 1, at: [0, 182] },
 ];
 export const BOSS_ARENA = { x: 0, z: 182, r: 22 };

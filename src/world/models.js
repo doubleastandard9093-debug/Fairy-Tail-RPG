@@ -300,6 +300,34 @@ export function buildMob(model, opt = {}) {
     const c = buildCharacter({ hair: 'long', hairColor: '#3ab8f0', outfit: 'mage', outfitColor: '#2a8ac0', skin: '#e0f0ff' });
     g.add(c.group); parts.char = c;
     const ring = mesh(new THREE.TorusGeometry(0.7, 0.05, 6, 24), glow('#7ad8ff', 0.7), 0, 0.2, 0); ring.rotation.x = Math.PI / 2; g.add(ring); parts.ring = ring;
+  } else if (model === 'vulcan') {
+    // Vulcan: hulking ape (white on Mt. Hakobe, mossy brown in the East Forest)
+    const b = new THREE.Group(); g.add(b); parts.body = b;
+    const fur = toon(opt.fur || '#f2f2f6'), fur2 = toon(shade(opt.fur || '#f2f2f6', 0.8)), face = toon(opt.face || '#d8a0a0');
+    const torso = mesh(G.sph(0.62, 14, 12), fur, 0, 1.45, 0); torso.scale.set(1.15, 1.1, 0.9); b.add(torso);
+    const belly = mesh(G.sph(0.42, 12, 10), face, 0, 1.3, 0.32); belly.scale.set(1, 1.1, 0.5); b.add(belly);
+    for (let i = 0; i < 10; i++) { const a = i * 0.63; const tf = mesh(G.cone(0.1, 0.3, 5), fur2, Math.sin(a) * 0.62, 1.8 + (i % 3) * 0.12, Math.cos(a) * 0.5 - 0.1); tf.rotation.set(-Math.cos(a) * 0.8, 0, Math.sin(a) * 0.8); b.add(tf); }
+    const head = new THREE.Group(); head.position.set(0, 2.25, 0.18); b.add(head); parts.head = head;
+    head.add(mesh(G.sph(0.34, 12, 10), fur));
+    const muz = mesh(G.sph(0.22, 10, 8), face, 0, -0.08, 0.24); muz.scale.set(1.1, 0.8, 0.8); head.add(muz);
+    eyes(head, 0.08, 0.3, 0.12, 0.05);
+    const tuft = mesh(G.cone(0.14, 0.32, 6), fur2, 0, 0.36, 0); head.add(tuft);
+    for (const s of [-1, 1]) { const ear = mesh(G.sph(0.08, 8, 6), face, s * 0.32, 0.02, 0); head.add(ear); }
+    parts.arms = [];
+    for (const s of [-1, 1]) { const a = new THREE.Group(); a.position.set(s * 0.72, 1.85, 0); b.add(a);
+      a.add(mesh(G.cap(0.17, 0.7), fur, 0, -0.45, 0)); a.add(mesh(G.sph(0.2, 10, 8), face, 0, -1.0, 0.05)); a.rotation.z = s * 0.15; parts.arms.push(a); }
+    parts.legs = [];
+    for (const s of [-1, 1]) { const l = new THREE.Group(); l.position.set(s * 0.3, 0.9, 0); b.add(l); l.add(mesh(G.cap(0.17, 0.45, 0), fur, 0, -0.4, 0)); l.add(mesh(G.box(0.26, 0.12, 0.36), face, 0, -0.84, 0.06)); parts.legs.push(l); }
+  } else if (model === 'lizard') {
+    // Lizardman: scaly humanoid with a snout, tail and spear
+    const c = buildCharacter({ hair: 'short', hairColor: '#2a6a3a', outfit: 'brawler', outfitColor: '#6a4a2a', skin: '#5aa05a', eyeColor: '#f0d020' });
+    g.add(c.group); parts.char = c;
+    const sk = toon('#4a8a4a'), belly = toon('#c8d890');
+    const snout = mesh(G.cone(0.2, 0.45, 8), sk, 0, -0.08, 0.38); snout.rotation.x = Math.PI / 2; c.parts.head.add(snout);
+    for (let i = 0; i < 4; i++) c.parts.head.add(mesh(G.cone(0.05, 0.18, 4), toon('#c04a2a'), 0, 0.3 - i * 0.1, -0.2 - i * 0.07));
+    const tail = mesh(G.cone(0.16, 1.1, 8), sk, 0, 0.75, -0.55); tail.rotation.x = -1.9; c.parts.body.add(tail); parts.tail = tail;
+    const bl = mesh(G.sph(0.17, 10, 8), belly, 0, 1.15, 0.12); bl.scale.set(1, 1.4, 0.6); c.parts.body.add(bl);
+    const spear = new THREE.Group(); spear.add(mesh(G.cyl(0.025, 0.025, 1.8, 6), toon('#6a4a2a'), 0, 0.4, 0)); spear.add(mesh(G.cone(0.06, 0.25, 4), toon('#c0c4cc'), 0, 1.4, 0)); c.parts.armR.userData.grip.add(spear); spear.rotation.x = Math.PI / 2;
   } else if (model === 'plue') {
     // Plue (Nikora): little white snowman-dog with a carrot nose
     const b = new THREE.Group(); g.add(b); parts.body = b;
@@ -428,6 +456,8 @@ export function animateMob(m, model, t, move, atk) {
   else if (model === 'maiden') { animateCharacter(p.char, { t, move: 0, atk: -1, cast: atk > 0 ? 1 : 0.3 }); p.char.group.position.y = 0.3 + Math.sin(t * 2) * 0.1; p.ring.rotation.z = t; }
   else if (model === 'lullaby') animateLullaby(p, t, move, atk);
   else if (model === 'mage') animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: atk > 0 ? 0.8 : 0 });
+  else if (model === 'vulcan') { p.legs.forEach((l, i) => { l.rotation.x = Math.sin(t * 8 + i * Math.PI) * 0.5 * move; }); p.arms.forEach((a, i) => { a.rotation.x = Math.sin(t * 8 + i * Math.PI + Math.PI) * 0.5 * move - (atk > 0 ? Math.sin(atk * Math.PI) * 2.2 : 0); }); p.body.position.y = Math.abs(Math.sin(t * 8)) * 0.08 * move; p.head.rotation.z = Math.sin(t * 1.5) * 0.08; }
+  else if (model === 'lizard') { animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: 0 }); p.tail.rotation.z = Math.sin(t * 3) * 0.3; }
   else if (model === 'plue') { p.body.position.x = Math.sin(t * 40) * 0.012; p.body.position.y = Math.abs(Math.sin(t * 8)) * 0.05 * move; p.body.rotation.z = Math.sin(t * 33) * 0.04; p.tail.rotation.z = Math.sin(t * 20) * 0.3; }
   else if (model === 'cat') { p.body.position.y = Math.abs(Math.sin(t * 10)) * 0.05 * move; p.tail.rotation.z = Math.sin(t * 3) * 0.4; }
 }

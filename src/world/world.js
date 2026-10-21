@@ -27,9 +27,9 @@ export function height(x, z) {
 export function zoneAt(x, z) {
   if (x > HALL.minX && x < HALL.maxX && z > HALL.minZ && z < HALL.maxZ) return 'Fairy Tail Guild Hall';
   if (z < 44) return 'Magnolia';
-  if (z < 92) return 'Sneezewort Meadow';
-  if (z < 132) return 'Bristleback Hills';
-  if (z < 166) return 'Gloamwood Edge';
+  if (z < 92) return 'East Forest';
+  if (z < 132) return 'Mt. Hakobe Foothills';
+  if (z < 166) return 'Oshibana Rail Line';
   return "Clover Canyon";
 }
 

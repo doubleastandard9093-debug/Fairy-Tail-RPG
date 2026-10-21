@@ -155,7 +155,7 @@ export class Game {
     }
   }
   makeMob(id, x, z) {
-    const tpl = MOBS[id]; const m = buildMob(tpl.model);
+    const tpl = MOBS[id]; const m = buildMob(tpl.model, tpl.opt || {}); if (tpl.scale && tpl.scale !== 1) m.group.scale.setScalar(tpl.scale);
     const e = { kind: 'mob', id, tpl, obj: m.group, model: m, pos: new THREE.Vector3(x, groundAt(x, z), z), home: new THREE.Vector3(x, 0, z), rot: this.rand() * 6,
       hp: tpl.hp, maxHp: tpl.hp, aggro: false, atkCd: 1, atk: -1, stun: 0, slow: 0, slowT: 0, burn: null, dead: false, respawn: 0, wander: null, radius: tpl.radius || (tpl.boss ? 2.2 : 0.7), temp: !!tpl.temp,
       teleCds: {}, castLock: 0, chargeCd: 3, charge: null, bark: 4 + this.rand() * 10 };
@@ -715,7 +715,7 @@ export class Game {
       if (p.faction === 'mob') {
         const pl = this.player;
         if (!pl.dead && Math.hypot(pl.pos.x - p.pos.x, pl.pos.z - p.pos.z) < 0.8 && Math.abs(pl.pos.y + 1 - p.pos.y) < 1.6) { this.hurt('player', p.dmg, p.src || 'dark magic'); done = true; }
-        for (const a of this.entities) if (!done && a.kind === 'ally' && dist2(a.pos, p.pos) < 0.8) { this.hurt(a, p.dmg, 'wisp'); done = true; }
+        for (const a of this.entities) if (!done && a.kind === 'ally' && dist2(a.pos, p.pos) < 0.8) { this.hurt(a, p.dmg, 'dark magic'); done = true; }
       } else {
         for (const m of this.entities) {
           if (m.kind !== 'mob' || m.dead || p.hits.has(m)) continue;

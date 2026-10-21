@@ -62,8 +62,8 @@ add({ id: 'tea_mp', name: 'Starmilk Tea', icon: '🍵', kind: 'consumable', mana
 add({ id: 'stew', name: "Mira's Special Stew", icon: '🍲', kind: 'consumable', heal: 120, mana: 40, value: 30 });
 
 // ---- Drops / quest items ----
-add({ id: 'spore', name: 'Puffcap Spore', icon: '🍄', kind: 'resource', value: 3 });
-add({ id: 'wisp_ember', name: 'Wisp Ember', icon: '🕯️', kind: 'resource', value: 18 });
+add({ id: 'spore', name: 'Vulcan Fur Tuft', icon: '🦍', kind: 'resource', value: 3 });
+add({ id: 'wisp_ember', name: 'Eisenwald Emblem', icon: '💀', kind: 'resource', value: 18 });
 add({ id: 'pudding', name: "Erza's Strawberry Cake", icon: '🍮', kind: 'quest', value: 0 });
 add({ id: 'tyrant_core', name: 'Broken Lullaby Flute', icon: '💎', kind: 'quest', value: 500 });
 add({ id: 'mayor_hat', name: "Plue's Spare Lollipop", icon: '🎩', kind: 'quest', stack: false, value: 0 });
