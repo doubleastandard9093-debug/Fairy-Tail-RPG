@@ -83,7 +83,10 @@ export function zoneAt(x, z) {
 /** Ground height at (x,z), accounting for the guild hall floor and piers. */
 export function groundAt(x, z) {
   if (x > HALL.minX && x < HALL.maxX && z > HALL.minZ && z < HALL.maxZ + 0.3) return 0.5;
-  for (const d of DECKS) if (x > d.minX && x < d.maxX && z > d.minZ && z < d.maxZ) return d.y;
+  for (const d of DECKS) {
+    if (d.dir) { const rx = x - d.cx, rz = z - d.cz; if (Math.abs(rx * d.dir[0] + rz * d.dir[1]) < d.hl && Math.abs(-rx * d.dir[1] + rz * d.dir[0]) < d.hw) return d.y; }
+    else if (x > d.minX && x < d.maxX && z > d.minZ && z < d.maxZ) return d.y;
+  }
   return height(x, z);
 }
 /** True where a walker may not stand (deep water, foreign border, off the map). */
@@ -429,13 +432,17 @@ export function buildWorld(scene) {
     return g;
   };
   const pier = (parent, place, from, dir, len = 16) => {
+    { // pick the nearest shoreline within +-90 degrees of the requested heading
+      const a0 = Math.atan2(dir[0], dir[1]); let best = null;
+      for (const da of [0, 0.5, -0.5, 1, -1, 1.5, -1.5]) { const dx0 = Math.sin(a0 + da), dz0 = Math.cos(a0 + da); const [qx, qz] = findShore(from[0], from[1], dx0, dz0); const dd = Math.hypot(qx - from[0], qz - from[1]) * (1 + Math.abs(da) * 0.15); if (!best || dd < best.d) best = { d: dd, dir: [dx0, dz0] }; }
+      dir = best.dir;
+    }
     const [sx, sz] = findShore(from[0], from[1], dir[0], dir[1]); const l = Math.hypot(dir[0], dir[1]); const dx = dir[0] / l, dz = dir[1] / l;
     const ex = sx + dx * len, ez = sz + dz * len; const y = Math.max(WATER_Y + 0.7, yAt(sx, sz) + 0.1);
     const g = new THREE.Group(); parent.add(g);
     const cx = (sx + ex) / 2 - dx * 1.5, cz = (sz + ez) / 2 - dz * 1.5; const deck = mesh(new THREE.BoxGeometry(3.2, 0.3, len + 3), toon('#9a7048'), cx, y - 0.15, cz); deck.rotation.y = Math.atan2(dx, dz); g.add(deck);
     for (let s = 0; s <= len; s += 4) for (const o of [-1.5, 1.5]) g.add(mesh(new THREE.CylinderGeometry(0.15, 0.15, 3, 6), woodD, sx + dx * s - dz * o, y - 1.4, sz + dz * s + dx * o));
-    const hw = 1.6, ax = Math.abs(dx) > Math.abs(dz);
-    DECKS.push(ax ? { minX: Math.min(sx, ex) - 1.5, maxX: Math.max(sx, ex), minZ: cz - hw, maxZ: cz + hw, y } : { minX: cx - hw, maxX: cx + hw, minZ: Math.min(sz, ez) - 1.5, maxZ: Math.max(sz, ez), y });
+    DECKS.push({ cx, cz, dir: [dx, dz], hl: (len + 3) / 2, hw: 1.6, y });
     W.docks[place] = { x: ex - dx * 2, z: ez - dz * 2, rot: Math.atan2(-dx, -dz), boat: [ex + dx * 3, ez + dz * 3, Math.atan2(dx, dz)] };
     const fb = boat(g, ex + dx * 1 - dz * 3.4, ez + dz * 1 + dx * 3.4, Math.atan2(dx, dz), 1.15, '#f4f0e0', '#5a3a22');
     const it = { kind: 'ferry', place, name: place === 'hargeon' ? 'Hargeon Ferry' : 'Ferry to Hargeon', x: ex - dx * 1.5, z: ez - dz * 1.5, r: 4.2, obj: fb };

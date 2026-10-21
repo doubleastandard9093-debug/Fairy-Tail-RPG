@@ -602,6 +602,7 @@ export class Game {
     m.moving = 0;
     if (m.stun > 0) { m.stun -= dt; return; }
     const homeD = dist2(m.pos, m.home);
+    if (m.aggro && (pl.dead || dist2(pl.pos, m.pos) > 90)) { m.aggro = false; m.hp = m.maxHp; m.burn = null; if (m.form) this.resetBoss(m); }
     const pd = pl.dead ? 1e9 : dist2(pl.pos, m.pos);
     if (!m.aggro) {
       const canSee = tpl.boss ? Math.hypot(pl.pos.x - BOSS_ARENA.x, pl.pos.z - BOSS_ARENA.z) < BOSS_ARENA.r : pd < tpl.aggro;

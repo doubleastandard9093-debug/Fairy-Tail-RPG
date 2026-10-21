@@ -51,6 +51,9 @@ export function abilityDesc(id) {
   return parts.join(' · ');
 }
 
+// Places whose names are already printed on the parchment map (pins there show an icon only)
+const PRINTED = new Set(['magnolia', 'scilliora', 'hargeon', 'crocus', 'hakobe', 'oshibana', 'clover', 'galuna', 'tenrou', 'onibus', 'shirotsume', 'bluepegasus', 'lamiascale']);
+
 export class UI {
   constructor() {
     this.game = null; this.panel = null; this.dirty = true; this.shakeAmt = 0; this.floaters = []; this.sel = null;
@@ -263,8 +266,9 @@ export class UI {
     let html = '';
     const marks = this.questMarkers(); const marked = new Set(marks.map((m) => m.place));
     for (const p of PLACES) {
-      const known = G.discovered[p.id]; const cls = ['wm-pin', p.station ? 'st' : '', p.minor ? 'minor' : '', known ? 'known' : 'unknown', g.placeId === p.id ? 'here' : ''].join(' ');
-      html += `<div class="${cls}" style="${pct(p.m)}" title="${esc(p.name)}"><i>${p.station ? '🚂' : p.island ? '🏝️' : p.id === 'hakobe' ? '🏔️' : '●'}</i><span>${known || p.minor ? esc(p.name) : '???'}</span>${marked.has(p.id) ? '<b class="qm">!</b>' : ''}</div>`;
+      const known = G.discovered[p.id]; const printed = PRINTED.has(p.id); const cls = ['wm-pin', p.station ? 'st' : '', p.minor ? 'minor' : '', known ? 'known' : 'unknown', g.placeId === p.id ? 'here' : ''].join(' ');
+      const label = g.placeId === p.id ? `<span>${esc(p.name)}</span>` : printed ? '' : `<span>${known ? esc(p.name) : '???'}</span>`;
+      html += `<div class="${cls}" style="${pct(p.m)}" title="${esc(p.name)}"><i>${p.station ? '🚂' : p.island ? '🏝️' : p.id === 'hakobe' ? '🏔️' : p.minor ? '' : '●'}</i>${label}${marked.has(p.id) ? '<b class="qm">!</b>' : ''}</div>`;
     }
     const [mx, my] = toMap(g.player.pos.x, g.player.pos.z);
     html += `<div class="wm-me" style="${pct([mx, my])};transform:translate(-50%,-50%) rotate(${-g.player.rot + Math.PI}rad)">➤</div>`;
