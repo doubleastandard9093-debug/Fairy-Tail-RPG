@@ -102,7 +102,8 @@ export class UI {
   shake(a) { if (this.game && this.game.S.shake === false) return; this.shakeAmt = Math.max(this.shakeAmt, a); }
   abilityFired(slot) { const b = this.el.abar.children[slot]; b.classList.remove('fired'); void b.offsetWidth; b.classList.add('fired'); }
   setTarget(m) { this.target = m; this.el.target.classList.toggle('hidden', !m || (m.tpl && m.tpl.boss)); if (m) this.el.target.querySelector('.nm').textContent = `${m.tpl.name} · Lv ${m.tpl.level}`; }
-  boss(m) { if (m === this.bossEnt) return; this.bossEnt = m; this.el.boss.classList.toggle('hidden', !m); if (m) this.el.boss.querySelector('.nm').textContent = `☠ ${m.tpl.name} · Lv ${m.tpl.level}`; }
+  boss(m) { if (m === this.bossEnt) return; this.bossEnt = m; this.el.boss.classList.toggle('hidden', !m); if (m) this.bossPhase(m); }
+  bossPhase(m) { this.el.boss.querySelector('.nm').textContent = `☠ ${m.tpl.name} · Lv ${m.tpl.level}${m.phase ? ` · Phase ${m.phase}/3` : ''}`; }
   bossCast(name, t) { this.bossCastName = name; this.bossCastUntil = performance.now() + t * 1000; }
   gatherBar(p, name) {
     const g = this.el.gather; if (p === null) { if (!g.classList.contains('hidden')) g.classList.add('hidden'); return; }

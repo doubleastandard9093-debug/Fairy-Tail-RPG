@@ -306,6 +306,81 @@ export function buildMob(model, opt = {}) {
     if (opt.bag) { const bag = mesh(G.box(0.22, 0.2, 0.12), toon(opt.bag), 0, 0.36, -0.24); b.add(bag); const st = mesh(G.box(0.04, 0.04, 0.5), toon(opt.bag), 0, 0.48, 0); st.rotation.z = 0.7; b.add(st); }
     if (opt.wings) { for (const s of [-1, 1]) { const w = mesh(G.box(0.36, 0.02, 0.2), toon('#ffffff'), s * 0.28, 0.48, -0.08); w.rotation.z = s * 0.5; b.add(w); parts['wing' + s] = w; } }
     for (const [x, z] of [[-0.1, 0.18], [0.1, 0.18], [-0.1, -0.18], [0.1, -0.18]]) b.add(mesh(G.cyl(0.045, 0.045, 0.2, 6), fur2, x, 0.1, z));
+  } else if (model === 'lullaby') {
+    // Lullaby: cursed flute of Zeref (form 1) that becomes a towering wooden demon (form 2).
+    const wood = toon('#5a3a22'), wood2 = toon('#3e2616'), bark = toon('#7a5232'), hole = toon('#120806');
+    const eyeM = new THREE.MeshBasicMaterial({ color: '#b8ff6a' }); parts.eyeM = eyeM;
+    const holeGlow = new THREE.MeshBasicMaterial({ color: '#8affc0', transparent: true, opacity: 0.85, depthWrite: false }); parts.holeGlow = holeGlow;
+    // --- flute form: a floating three-eyed skull flute
+    const flute = new THREE.Group(); g.add(flute); parts.flute = flute;
+    const pipe = mesh(G.cyl(0.16, 0.2, 2.6, 12), wood2, 0, 0, 0); flute.add(pipe);
+    for (let i = 0; i < 4; i++) { const hl = mesh(G.cyl(0.06, 0.06, 0.06, 8), hole, 0, -0.8 + i * 0.4, 0.17); hl.rotation.x = Math.PI / 2; flute.add(hl); }
+    const skullF = mesh(G.sph(0.42, 14, 10), toon('#d8ccb0'), 0, 1.55, 0); skullF.scale.set(1, 1.1, 0.95); flute.add(skullF);
+    for (const [x, y] of [[-0.15, 1.6], [0.15, 1.6], [0, 1.78]]) { const e = mesh(G.sph(0.08, 8, 6), eyeM, x, y, 0.36); e.scale.z = 0.4; flute.add(e); }
+    const fluteRing = mesh(new THREE.TorusGeometry(0.9, 0.04, 6, 32), holeGlow, 0, 0, 0); fluteRing.rotation.x = Math.PI / 2; flute.add(fluteRing); parts.fluteRing = fluteRing;
+    flute.position.y = 2.2;
+    // --- demon form
+    const demon = new THREE.Group(); g.add(demon); parts.demon = demon; parts.body = demon;
+    const hipY = 5.2;
+    const pelvis = mesh(G.sph(1.0, 12, 10), wood, 0, hipY, 0); pelvis.scale.set(1.2, 0.7, 0.9); demon.add(pelvis);
+    const trunk = mesh(G.cyl(1.15, 0.85, 4.6, 14), wood, 0, hipY + 2.4, 0); demon.add(trunk); // pipe-like torso
+    const chest = mesh(G.sph(1.35, 14, 10), bark, 0, hipY + 4.6, 0.1); chest.scale.set(1.25, 0.9, 0.9); demon.add(chest);
+    // bark ridges
+    for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2; const r = mesh(G.box(0.14, 4.2, 0.18), wood2, Math.sin(a) * 1.04, hipY + 2.4, Math.cos(a) * 1.04); r.rotation.y = a; r.rotation.z = Math.sin(a * 3) * 0.06; demon.add(r); }
+    // flute holes down the front and back, each with a ghostly inner glow
+    parts.holes = [];
+    for (let i = 0; i < 6; i++) for (const s of [1, -1]) {
+      const y = hipY + 0.7 + i * 0.7, x = (i % 2 ? 0.25 : -0.25);
+      const hl = mesh(G.cyl(0.2, 0.2, 0.12, 12), hole, x, y, s * 1.05); hl.rotation.x = Math.PI / 2; demon.add(hl);
+      const gl = mesh(G.cyl(0.12, 0.12, 0.13, 10), holeGlow, x, y, s * 1.06); gl.rotation.x = Math.PI / 2; gl.userData.noOutline = true; demon.add(gl); parts.holes.push(gl);
+    }
+    // head: long skull-like wooden mask with three glowing eye holes and a gaping mouth
+    const head = new THREE.Group(); head.position.set(0, hipY + 6.2, 0.4); demon.add(head); parts.head = head;
+    const skull = mesh(G.sph(1.0, 16, 12), bark); skull.scale.set(0.95, 1.25, 0.9); head.add(skull);
+    for (const [x, y, r] of [[-0.38, 0.2, 0.22], [0.38, 0.2, 0.22], [0, 0.62, 0.17]]) {
+      const sock = mesh(G.sph(r * 1.35, 10, 8), hole, x, y, 0.74); sock.scale.z = 0.4; head.add(sock);
+      const e = mesh(G.sph(r * 0.8, 10, 8), eyeM, x, y, 0.82); e.scale.z = 0.4; e.userData.noOutline = true; head.add(e);
+    }
+    const mouth = mesh(G.sph(0.42, 12, 8), hole, 0, -0.55, 0.62); mouth.scale.set(1.2, 0.6, 0.5); head.add(mouth); parts.mouth = mouth;
+    for (let i = 0; i < 5; i++) { const tth = mesh(G.cone(0.07, 0.25, 4), toon('#d8ccb0'), -0.36 + i * 0.18, -0.36, 0.78); tth.rotation.x = Math.PI; head.add(tth); }
+    // branch horns
+    for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {
+      const br = mesh(G.cone(0.14 - i * 0.03, 1.6 - i * 0.3, 6), wood2, s * (0.55 + i * 0.25), 1.0 + i * 0.25, -0.1 - i * 0.15);
+      br.rotation.z = -s * (0.5 + i * 0.25); br.rotation.x = -0.25; head.add(br);
+    }
+    // long limbs with twig claws (shoulder pivots)
+    parts.arms = [];
+    for (const s of [-1, 1]) {
+      const a = new THREE.Group(); a.position.set(s * 1.7, hipY + 4.9, 0); demon.add(a);
+      a.add(mesh(G.sph(0.55, 10, 8), bark));
+      const up = mesh(G.cyl(0.38, 0.3, 3.6, 10), wood, 0, -1.8, 0); a.add(up);
+      const fore = new THREE.Group(); fore.position.set(0, -3.6, 0); a.add(fore);
+      fore.add(mesh(G.sph(0.36, 10, 8), wood2));
+      fore.add(mesh(G.cyl(0.3, 0.2, 3.4, 10), wood, 0, -1.7, 0));
+      for (let i = 0; i < 4; i++) { const c = mesh(G.cone(0.1, 1.1, 5), wood2, (i - 1.5) * 0.18, -3.8, 0.1); c.rotation.x = Math.PI + (i - 1.5) * 0.15; c.rotation.z = (i - 1.5) * 0.2; fore.add(c); }
+      for (let i = 0; i < 2; i++) { const hl = mesh(G.cyl(0.11, 0.11, 0.1, 8), hole, 0, -0.9 - i * 1.0, 0.33); hl.rotation.x = Math.PI / 2; up.add(hl); }
+      a.rotation.z = s * 0.25; a.userData.fore = fore; fore.rotation.x = -0.35;
+      parts.arms.push(a);
+    }
+    // long legs ending in root feet
+    parts.legs = [];
+    for (const s of [-1, 1]) {
+      const l = new THREE.Group(); l.position.set(s * 0.85, hipY, 0); demon.add(l);
+      l.add(mesh(G.cyl(0.42, 0.32, 2.8, 10), wood, 0, -1.4, 0));
+      const shin = new THREE.Group(); shin.position.set(0, -2.8, 0); l.add(shin); shin.add(mesh(G.sph(0.36, 10, 8), wood2));
+      shin.add(mesh(G.cyl(0.32, 0.45, 2.3, 10), wood, 0, -1.15, 0));
+      for (let i = 0; i < 4; i++) { const rt = mesh(G.cone(0.16, 1.0, 5), wood2, Math.sin(i * 1.6) * 0.4, -2.3, Math.cos(i * 1.6) * 0.4 + 0.2); rt.rotation.x = Math.PI / 2 + Math.cos(i * 1.6) * 0.6; rt.rotation.z = Math.sin(i * 1.6) * 0.8; shin.add(rt); }
+      l.userData.shin = shin; parts.legs.push(l);
+    }
+    demon.visible = false;
+  } else if (model === 'mage') {
+    // Eisenwald dark-guild mage: hooded, cloaked humanoid with a scythe-staff
+    const c = buildCharacter({ hair: 'short', hairColor: '#1a1a22', outfit: 'mage', outfitColor: opt.robe || '#2a2236', skin: '#d8b8a0', eyeColor: '#c02a2a' });
+    g.add(c.group); parts.char = c;
+    const hood = mesh(new THREE.SphereGeometry(0.36, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), toon('#1a1424'), 0, 0.05, -0.03); hood.scale.set(1.05, 1.1, 1.1); c.parts.head.add(hood);
+    const st = buildWeapon('staff', 1); c.parts.armR.userData.grip.add(st);
+    const blade = mesh(G.cone(0.1, 0.7, 4), toon('#b0b4c0'), 0.25, 1.1, 0); blade.rotation.z = -1.9; st.add(blade);
+    const mark = mesh(G.sph(0.05, 6, 4), glow('#9a3aff'), 0.12, 1.25, 0.2); c.group.add(mark);
   }
   addOutlines(g); shadowAll(g, true, false);
   return { group: g, parts };
@@ -321,6 +396,8 @@ export function animateMob(m, model, t, move, atk) {
     p.body.position.y = Math.abs(Math.sin(t * 3)) * 0.15 * move; p.jaw.position.y = -0.45 - Math.max(0, Math.sin(t * 1.3)) * 0.12;
   } else if (model === 'ram') { p.body.position.y = Math.abs(Math.sin(t * 8)) * 0.15 * move; p.body.rotation.x = atk > 0 ? Math.sin(atk * Math.PI) * 0.4 : 0; }
   else if (model === 'maiden') { animateCharacter(p.char, { t, move: 0, atk: -1, cast: atk > 0 ? 1 : 0.3 }); p.char.group.position.y = 0.3 + Math.sin(t * 2) * 0.1; p.ring.rotation.z = t; }
+  else if (model === 'lullaby') animateLullaby(p, t, move, atk);
+  else if (model === 'mage') animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: atk > 0 ? 0.8 : 0 });
   else if (model === 'cat') { p.body.position.y = Math.abs(Math.sin(t * 10)) * 0.05 * move; p.tail.rotation.z = Math.sin(t * 3) * 0.4; }
 }
 
@@ -351,4 +428,35 @@ export function buildNode(type, tier) {
   }
   addOutlines(g); shadowAll(g, true, false);
   return g;
+}
+
+function animateLullaby(p, t, move, atk) {
+  const st = p.st || {};
+  const tr = st.transform ?? (st.form === 'demon' ? 1 : 0);
+  // flute form floats and spins; during transform it rises and the demon grows out of it
+  p.flute.visible = tr < 0.75; p.demon.visible = tr > 0.35;
+  p.flute.position.y = 2.2 + Math.sin(t * 2) * 0.25 + tr * 6; p.flute.rotation.y = t * (0.6 + tr * 6);
+  p.fluteRing.scale.setScalar(1 + Math.sin(t * 4) * 0.15 + tr * 3);
+  const g = Math.min(1, Math.max(0, (tr - 0.35) / 0.65)); p.demon.scale.setScalar(Math.max(0.05, g));
+  const phase = st.phase || 1;
+  p.eyeM.color.set(phase >= 3 ? '#ff3a2a' : phase === 2 ? '#ffd23a' : '#b8ff6a');
+  const singing = st.singing || 0;
+  p.holeGlow.opacity = 0.5 + 0.4 * Math.sin(t * (singing ? 14 : 3)) * (singing ? 1 : 0.5);
+  p.holeGlow.color.set(phase >= 3 ? '#ff7a6a' : '#8affc0');
+  p.holes.forEach((h, i) => { h.scale.setScalar(1 + (singing ? Math.sin(t * 12 + i) * 0.4 : 0)); });
+  p.mouth.scale.y = 0.6 + (singing ? 0.5 + Math.sin(t * 20) * 0.15 : Math.max(0, Math.sin(t * 1.2)) * 0.2);
+  p.head.rotation.x = singing ? -0.35 : Math.sin(t * 0.8) * 0.05; p.head.rotation.z = Math.sin(t * 0.6) * 0.06;
+  // slam: right arm lifts during windup (st.slam 0..1) then crashes down
+  const sl = st.slam ?? -1;
+  p.arms.forEach((a, i) => {
+    const s = i ? 1 : -1;
+    let rx = Math.sin(t * 1.4 + i * Math.PI) * 0.12 + Math.sin(t * 3 + i * Math.PI) * 0.3 * move;
+    if (sl >= 0) rx = sl < 1 ? -2.6 * sl : -2.6 + Math.min(1, (sl - 1) * 6) * 3.4;
+    if (singing) rx = -1.2 + Math.sin(t * 6 + i) * 0.15;
+    if (atk > 0 && sl < 0 && !singing) rx -= Math.sin(atk * Math.PI) * 1.6;
+    a.rotation.x = rx; a.rotation.z = s * (0.25 + (singing ? 0.6 : 0));
+  });
+  p.legs.forEach((l, i) => { l.rotation.x = Math.sin(t * 3 + i * Math.PI) * 0.35 * move; l.userData.shin.rotation.x = Math.max(0, Math.sin(t * 3 + i * Math.PI - 0.5)) * 0.4 * move; });
+  p.demon.position.y = Math.abs(Math.sin(t * 3)) * 0.2 * move;
+  p.demon.rotation.x = phase >= 3 ? 0.12 : 0;
 }

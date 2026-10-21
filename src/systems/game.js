@@ -155,8 +155,9 @@ export class Game {
   makeMob(id, x, z) {
     const tpl = MOBS[id]; const m = buildMob(tpl.model);
     const e = { kind: 'mob', id, tpl, obj: m.group, model: m, pos: new THREE.Vector3(x, groundAt(x, z), z), home: new THREE.Vector3(x, 0, z), rot: this.rand() * 6,
-      hp: tpl.hp, maxHp: tpl.hp, aggro: false, atkCd: 1, atk: -1, stun: 0, slow: 0, slowT: 0, burn: null, dead: false, respawn: 0, wander: null, radius: tpl.boss ? 2.2 : 0.7,
+      hp: tpl.hp, maxHp: tpl.hp, aggro: false, atkCd: 1, atk: -1, stun: 0, slow: 0, slowT: 0, burn: null, dead: false, respawn: 0, wander: null, radius: tpl.radius || (tpl.boss ? 2.2 : 0.7), temp: !!tpl.temp,
       teleCds: {}, castLock: 0, chargeCd: 3, charge: null, bark: 4 + this.rand() * 10 };
+    if (tpl.model === 'lullaby') { e.form = 'flute'; e.phase = 1; e.transform = 0; e.slam = -1; e.singing = 0; m.parts.st = e; }
     m.group.userData.entity = e; m.group.traverse((o) => { o.userData.entity = e; });
     this.scene.add(m.group); this.entities.push(e); return e;
   }
@@ -172,10 +173,11 @@ export class Game {
   }
   damageMob(m, amt, ab, from = 'player') {
     if (m.dead) return;
+    if (m.form === 'flute') { if (from === 'player') this.ui.floatText(m.pos, 3, 'Immune', 'heal'); return; }
     const d = derived(this.G); const crit = from === 'player' && this.rand() < d.crit;
     let dmg = Math.max(1, Math.round(amt * (0.9 + this.rand() * 0.2) * (crit ? 1.6 : 1)));
     m.hp -= dmg; m.aggro = true; if (from === 'player') this.player.combatT = 6;
-    this.ui.floatText(m.pos, m.tpl.boss ? 4.8 : 1.8, (crit ? '✦' : '') + dmg, crit ? 'crit' : from === 'ally' ? 'ally' : 'dmg');
+    this.ui.floatText(m.pos, m.tpl.boss ? 9 : 1.8, (crit ? '✦' : '') + dmg, crit ? 'crit' : from === 'ally' ? 'ally' : 'dmg');
     const ef = ab && ab.effect;
     if (ef) {
       if (ef.burn) m.burn = { dps: ef.burn.dps * (1 + this.G.stats.INT * 0.03), until: this.t + ef.burn.dur, tick: 1 };
@@ -183,8 +185,18 @@ export class Game {
       if (ef.stun && !m.tpl.boss) m.stun = Math.max(m.stun, ef.stun);
       else if (ef.stun && m.tpl.boss) m.stun = Math.max(m.stun, ef.stun * 0.25);
     }
+    if (m.tpl.phases && m.hp > 0) this.bossPhaseCheck(m);
     if (m.hp <= 0) this.killMob(m);
   }
+  bossPhaseCheck(m) {
+    for (const ph of m.tpl.phases) if (m.phase < ph.n && m.hp / m.maxHp <= ph.at) {
+      m.phase = ph.n; this.ui.toast('☠ ' + ph.line); this.ui.log(ph.line, 'warn'); this.ui.shake(0.6);
+      this.fxRing(m.pos, 8, ph.n >= 3 ? '#ff4a2a' : '#ffd23a', true); this.ui.bossPhase?.(m);
+      for (const k in m.teleCds) m.teleCds[k] = Math.min(m.teleCds[k], 1.5);
+    }
+  }
+  clearSummons() { for (const e of [...this.entities]) if (e.temp) this.removeEntity(e); }
+  resetBoss(m) { m.form = 'flute'; m.phase = 1; m.transform = 0; m.transforming = 0; m.slam = -1; m.singing = 0; m.castLock = 0; this.clearSummons(); }
   killMob(m) {
     const G = this.G; m.dead = true; m.hp = 0; m.respawn = m.tpl.boss ? 120 : 22; m.obj.visible = false; m.charge = null; m.castLock = 0;
     this.teles = this.teles.filter((t) => { if (t.owner === m) { this.scene.remove(t.group); return false; } return true; });
@@ -199,11 +211,12 @@ export class Game {
     P.giveItems(G, loot);
     P.onKill(G, m.id);
     if (this.player.target === m) this.setTarget(null);
-    if (m.tpl.boss) { this.ui.toast('🏆 Lullaby shatters! The Song of Death is cancelled due to fairies.'); this.ui.boss(null); for (const e of this.entities) if (e.kind === 'ally' && e.guildmate) e.until = this.t + 6; }
+    if (m.temp) { this.removeEntity(m); this.ui.refresh(); return; }
+    if (m.tpl.boss) { this.clearSummons(); this.ui.toast('🏆 Lullaby shatters! The Song of Death is cancelled due to fairies.'); this.ui.boss(null); for (const e of this.entities) if (e.kind === 'ally' && e.guildmate) e.until = this.t + 6; }
     this.ui.refresh();
   }
   respawnMob(m) {
-    m.dead = false; m.hp = m.maxHp; m.pos.copy(m.home); m.pos.y = groundAt(m.home.x, m.home.z); m.obj.visible = true; m.aggro = false; m.burn = null; m.stun = 0; m.teleCds = {};
+    m.dead = false; m.hp = m.maxHp; m.pos.copy(m.home); m.pos.y = groundAt(m.home.x, m.home.z); m.obj.visible = true; m.aggro = false; m.burn = null; m.stun = 0; m.teleCds = {}; if (m.tpl.model === 'lullaby') this.resetBoss(m);
   }
 
   // ------------------------------------------------------------------ allies & escort
@@ -252,6 +265,16 @@ export class Game {
     const f = new THREE.Mesh(fgeo, fmat); f.rotation.x = -Math.PI / 2; f.position.y = 0.02; f.scale.setScalar(0.01); g.add(f);
     const edgeGeo = t.shape === 'rect' ? new THREE.EdgesGeometry(geo) : new THREE.EdgesGeometry(new THREE.RingGeometry(t.radius - 0.08, t.radius, 48));
     const edge = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: col })); edge.rotation.x = -Math.PI / 2; g.add(edge);
+    if (t.song) { // charge-up rings that contract toward the boss as the song builds
+      t.rings = [];
+      for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 64), new THREE.MeshBasicMaterial({ color: '#8affc0', transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide })); r.rotation.x = -Math.PI / 2; r.position.y = 0.05 + i * 0.01; g.add(r); t.rings.push(r); }
+    }
+    if (t.magic) { // rotating magic circle with a hexagram
+      const mm = new THREE.MeshBasicMaterial({ color: t.color, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide });
+      const glyph = new THREE.Group(); glyph.rotation.x = -Math.PI / 2; glyph.position.y = 0.06; g.add(glyph);
+      for (const off of [0, Math.PI]) { const tri = new THREE.Mesh(new THREE.RingGeometry(t.radius * 0.72, t.radius * 0.8, 3, 1, off), mm); glyph.add(tri); }
+      glyph.add(new THREE.Mesh(new THREE.RingGeometry(t.radius * 0.84, t.radius * 0.9, 40), mm)); t.glyph = glyph;
+    }
     this.scene.add(g); t.group = g; t.fill = f; t.age = 0; this.teles.push(t); return t;
   }
   addTrap(at, ab, dmg, color) {
@@ -329,7 +352,7 @@ export class Game {
     const G = this.G, pl = this.player; const d = derived(G);
     G.hp = d.maxHp; G.mp = d.maxMp; G.adr = 0; pl.dead = 0; pl.pos.set(0, 0, 9); pl.buffs = [];
     for (const e of [...this.entities]) if (e.kind === 'ally') this.removeEntity(e);
-    for (const e of this.entities) if (e.kind === 'mob' && e.aggro) { e.aggro = false; e.hp = e.maxHp; }
+    for (const e of this.entities) if (e.kind === 'mob' && e.aggro) { e.aggro = false; e.hp = e.maxHp; if (e.form) this.resetBoss(e); }
     this.ui.boss(null);
     this.ui.log('Mirajane has Elfman carry you back to the fountain. "Again? I am starting a punch card for you."', 'npc');
   }
@@ -534,7 +557,7 @@ export class Game {
         m.pos.y = groundAt(m.pos.x, m.pos.z); return;
       }
     }
-    if (homeD > (tpl.leash || 32) || pl.dead) { m.aggro = false; m.hp = m.maxHp; m.wander = m.home.clone(); m.castLock = 0; return; }
+    if (homeD > (tpl.leash || 32) || pl.dead) { if (m.temp) { this.removeEntity(m); return; } m.aggro = false; m.hp = m.maxHp; m.wander = m.home.clone(); m.castLock = 0; if (m.form) this.resetBoss(m); return; }
     // choose a victim: taunting ally near the mob, else player
     let victim = { ref: 'player', pos: pl.pos };
     let best = pd;
@@ -577,9 +600,18 @@ export class Game {
   }
   bossThink(m, dt, victim) {
     const tpl = m.tpl;
+    if (m.slam >= 1) { m.slam += dt * 2; if (m.slam > 1.7) m.slam = -1; }
+    if (m.form === 'flute') {
+      // Transformation: the flute rises, plays, and the wooden demon grows out of it.
+      if (!m.transforming) { m.transforming = 3.6; this.ui.log('🎵 The cursed flute floats up and begins to play... Lullaby awakens!', 'warn'); this.ui.bossCast('Awakening', 3.6); this.ui.toast('🎵 Lullaby is transforming!'); }
+      m.transforming -= dt; m.transform = Math.min(1, 1 - m.transforming / 3.6); m.singing = 1;
+      if (m.transforming <= 0) { m.form = 'demon'; m.transform = 1; m.singing = 0; this.ui.shake(0.8); this.fxRing(m.pos, 10, '#8affc0', true); this.ui.log(`${tpl.name}: "${tpl.bark[0]}"`, 'npc'); }
+      return true;
+    }
     for (const t of tpl.telegraphs) m.teleCds[t.id] = (m.teleCds[t.id] ?? t.cd * 0.4) - dt;
     if (m.castLock > 0) {
-      m.castLock -= dt; m.atk = m.castLock < 0.4 ? 0.5 : -1;
+      m.castLock -= dt; m.atk = m.castLock < 0.4 && !m.castT.slam ? 0.5 : -1;
+      if (m.castT.slam) m.slam = Math.min(0.999, 1 - m.castLock / m.castT.windup); if (m.castLock <= 0 && m.castT.slam) m.slam = 1;
       if (m.bossCharge && m.castLock <= 0) { m.bossCharge.go = true; }
       return true;
     }
@@ -587,18 +619,23 @@ export class Game {
       const c = m.bossCharge; const s = 22 * dt; c.left -= s; this.moveBy(m.pos, Math.sin(c.rot) * s, Math.cos(c.rot) * s, m.radius); m.moving = 1;
       if (c.left <= 0) m.bossCharge = null; return true;
     }
-    const ready = tpl.telegraphs.filter((t) => m.teleCds[t.id] <= 0);
+    const ph = tpl.phases ? [...tpl.phases].reverse().find((p) => m.phase >= p.n) : null; const cdMul = ph ? ph.cdMul : 1;
+    const ready = tpl.telegraphs.filter((t) => m.teleCds[t.id] <= 0 && (t.phase || 1) <= (m.phase || 1));
     if (ready.length && dist2(victim.pos, m.pos) < 20) {
-      const t = ready[Math.floor(this.rand() * ready.length)]; m.teleCds[t.id] = t.cd;
+      const t = ready[Math.floor(this.rand() * ready.length)]; m.teleCds[t.id] = t.cd * cdMul; m.castT = t;
       const rot = Math.atan2(victim.pos.x - m.pos.x, victim.pos.z - m.pos.z); m.rot = rot;
-      this.ui.log(`⚠️ Lullaby prepares ${t.name}!`, 'warn'); this.ui.bossCast(t.name, t.windup);
-      if (t.at === 'targets') {
+      this.ui.log(`⚠️ Lullaby prepares ${t.name}!`, 'warn'); this.ui.sfx?.('warn'); this.ui.bossCast(t.name, t.windup);
+      if (t.song) m.singing = 1;
+      if (t.at === 'summon') {
+        for (let i = 0; i < t.count; i++) { const a = rot + (i ? 1.3 : -1.3); const x = m.pos.x + Math.sin(a) * 5, z = m.pos.z + Math.cos(a) * 5;
+          this.addTele({ shape: 'circle', x, z, radius: t.radius, windup: t.windup, friendly: true, color: '#9a3aff', magic: true, owner: m, onHit: () => { if (m.dead) return; const e = this.makeMob(t.mob, x, z); e.aggro = true; this.fxBurst(e.pos, '#b070ff', 20); } }); }
+      } else if (t.at === 'targets') {
         const victims = this.allyTargets().filter((v) => !v.dead).slice(0, t.count);
         for (const v of victims) this.addTele({ shape: 'circle', x: v.pos.x, z: v.pos.z, radius: t.radius, windup: t.windup, dmg: t.dmg, owner: m, name: t.name });
       } else if (t.shape === 'rect') {
         this.addTele({ shape: 'rect', x: m.pos.x, z: m.pos.z, rot, length: t.length, width: t.width, windup: t.windup, dmg: t.dmg, owner: m, name: t.name });
-        m.bossCharge = { rot, left: t.length - 2, go: false };
-      } else this.addTele({ shape: t.shape, x: m.pos.x, z: m.pos.z, radius: t.radius, inner: t.inner, windup: t.windup, dmg: t.dmg, owner: m, name: t.name });
+      } else this.addTele({ shape: t.shape, x: m.pos.x, z: m.pos.z, radius: t.radius, inner: t.inner, windup: t.windup, dmg: t.dmg, owner: m, name: t.name, song: t.song });
+      if (t.song) { this.ui.toast('🎵 Song of Death! Get close to Lullaby to escape the sound!'); }
       m.castLock = t.windup; return true;
     }
     return false;
@@ -657,7 +694,7 @@ export class Game {
       let done = p.life <= 0;
       if (p.faction === 'mob') {
         const pl = this.player;
-        if (!pl.dead && Math.hypot(pl.pos.x - p.pos.x, pl.pos.z - p.pos.z) < 0.8 && Math.abs(pl.pos.y + 1 - p.pos.y) < 1.6) { this.hurt('player', p.dmg, 'a Gloom Wisp'); done = true; }
+        if (!pl.dead && Math.hypot(pl.pos.x - p.pos.x, pl.pos.z - p.pos.z) < 0.8 && Math.abs(pl.pos.y + 1 - p.pos.y) < 1.6) { this.hurt('player', p.dmg, p.src || 'dark magic'); done = true; }
         for (const a of this.entities) if (!done && a.kind === 'ally' && dist2(a.pos, p.pos) < 0.8) { this.hurt(a, p.dmg, 'wisp'); done = true; }
       } else {
         for (const m of this.entities) {
@@ -676,6 +713,8 @@ export class Game {
     for (const t of [...this.teles]) {
       t.age += dt; const k = Math.min(1, t.age / t.windup); t.fill.scale.setScalar(Math.max(0.01, k));
       if (t.shape === 'rect') { t.fill.scale.set(1, Math.max(0.01, k), 1); }
+      if (t.rings) t.rings.forEach((r, i) => { const f = ((t.age * 0.9 + i / 4) % 1); const rad = t.radius - (t.radius - t.inner) * f; r.scale.setScalar(rad); r.material.opacity = 0.25 + 0.6 * f * (0.5 + k / 2); });
+      if (t.glyph) { t.glyph.rotation.z += dt * 2.5; t.glyph.scale.setScalar(0.5 + k * 0.6); }
       if (t.age >= t.windup) {
         if (t.onHit) t.onHit();
         else if (!t.visualOnly) {
@@ -684,6 +723,7 @@ export class Game {
           for (const a of [...this.entities]) if (a.kind === 'ally' && this.inTele(t, a.pos)) this.hurt(a, t.dmg * 0.6, t.name);
           this.fxBurst(new THREE.Vector3(t.x, groundAt(t.x, t.z), t.z), '#ff8a4a', 18); this.ui.shake(0.35);
         }
+        if (t.song && t.owner) { t.owner.singing = 0; this.ui.shake(0.7); }
         this.scene.remove(t.group); this.teles.splice(this.teles.indexOf(t), 1);
       }
     }

@@ -18,16 +18,25 @@ export const MOBS = {
     bark: ['oooOOOooo', '*flickers sadly*'],
   },
   grumblejaw: {
-    name: 'Lullaby, Demon of Zeref', level: 18, hp: 2600, dmg: 18, speed: 2.6, aggro: 16, range: 3.6, atkCd: 2.4, xp: 1500, model: 'golem', scale: 1, boss: true, leash: 26,
-    // Telegraphed attacks: shape decal fills for `windup` seconds, then deals dmg to anyone inside.
+    name: 'Lullaby, Demon of Zeref', level: 18, hp: 2600, dmg: 18, speed: 2.4, aggro: 16, range: 4.6, atkCd: 2.4, xp: 1500, model: 'lullaby', scale: 1, boss: true, leash: 26, radius: 2.6,
+    // Starts as the cursed flute; transforms when you enter the arena. Phases at 60% and 30% HP.
+    // Telegraphs: decal fills for `windup` seconds, then hits anyone inside. `phase` = first phase it is used.
     telegraphs: [
-      { id: 'slam', name: 'Death Song Stomp', shape: 'circle', radius: 7, windup: 1.6, dmg: 55, cd: 9, at: 'self' },
-      { id: 'charge', name: 'Cursed Flute Charge', shape: 'rect', length: 18, width: 4.5, windup: 1.4, dmg: 50, cd: 12, at: 'self', moves: true },
-      { id: 'ring', name: 'Lullaby Ring', shape: 'ring', inner: 5, radius: 12, windup: 1.8, dmg: 45, cd: 14, at: 'self' },
-      { id: 'rocks', name: 'Falling Timber', shape: 'circle', radius: 3.5, windup: 1.3, dmg: 40, cd: 8, at: 'targets', count: 3 },
+      { id: 'song', name: 'Song of Death', shape: 'ring', inner: 4.8, radius: 17, windup: 3.0, dmg: 70, cd: 16, at: 'self', song: true, phase: 1 },
+      { id: 'slam', name: 'Limb Slam', shape: 'rect', length: 13, width: 4, windup: 1.5, dmg: 55, cd: 8, at: 'self', slam: true, phase: 1 },
+      { id: 'notes', name: 'Cursed Notes', shape: 'circle', radius: 3.4, windup: 1.4, dmg: 40, cd: 9, at: 'targets', count: 3, phase: 1 },
+      { id: 'summon', name: 'Magic Circle: Eisenwald Summon', shape: 'circle', radius: 2.4, windup: 2.0, dmg: 0, cd: 22, at: 'summon', count: 2, mob: 'eisen_summon', phase: 2 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, line: 'The flute holes shriek! Lullaby is getting angry (phase 2).' },
+      { at: 0.3, n: 3, cdMul: 0.6, line: 'Lullaby\'s eyes turn red. The Song of Death plays faster (final phase)!' },
     ],
     drops: [{ id: 'tyrant_core', chance: 1 }, { id: 'ore_t3', chance: 1, min: 3, max: 5 }, { id: 'sword2h_t4', chance: 0.25 }, { id: 'stew', chance: 1, min: 2, max: 2 }], jewels: [300, 500],
-    bark: ['I SHALL PLAY THE SONG OF DEATH!', 'Why are you not dead? My song is VERY good.', 'Fairy flies! Buzz off!'],
+    bark: ['I SHALL PLAY THE SONG OF DEATH!', 'Why are you not dead? My song is VERY good.', 'Fairy flies! I will devour your souls!'],
+  },
+  eisen_summon: {
+    name: 'Eisenwald Mage (summoned)', level: 12, hp: 160, dmg: 12, speed: 3, aggro: 30, range: 10, atkCd: 2.4, xp: 40, model: 'mage', scale: 1, ranged: true, temp: true,
+    drops: [], jewels: [2, 6], bark: ['For Erigor!', 'Lullaby will play for us all!'],
   },
 };
 // Ally templates (celestial spirits and boss-party guildmates)
