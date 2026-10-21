@@ -38,14 +38,16 @@ let outlineMat;
 function getOutlineMat() {
   if (outlineMat) return outlineMat;
   outlineMat = new THREE.ShaderMaterial({
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uColor: { value: new THREE.Color('#1a1020') }, uThick: { value: 0.028 } }]),
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uColor: { value: new THREE.Color('#1a1020') }, uThick: { value: 0.0032 } }]),
     vertexShader: `
       uniform float uThick;
       #include <common>
       #include <fog_pars_vertex>
       void main(){
-        vec3 p = position + normalize(normal) * uThick;
-        vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
+        // constant on-screen width: push along the view-space normal, scaled by depth
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        vec3 n = normalize(normalMatrix * normal);
+        mvPosition.xyz += n * uThick * clamp(-mvPosition.z, 1.0, 60.0);
         gl_Position = projectionMatrix * mvPosition;
         #include <fog_vertex>
       }`,
@@ -68,7 +70,7 @@ export function addOutlines(obj, thick = 1) {
   obj.traverse((o) => { if (o.isMesh && !o.userData.noOutline && !o.material.transparent && !(o.material.isMeshBasicMaterial)) meshes.push(o); });
   for (const m of meshes) {
     const mat = thick === 1 ? getOutlineMat() : getOutlineMat().clone();
-    if (thick !== 1) mat.uniforms.uThick.value = 0.028 * thick;
+    if (thick !== 1) mat.uniforms.uThick.value = 0.0032 * thick;
     const o = new THREE.Mesh(m.geometry, mat);
     o.userData.noOutline = true; o.userData.isOutline = true; o.raycast = () => {};
     o.castShadow = false; o.receiveShadow = false;

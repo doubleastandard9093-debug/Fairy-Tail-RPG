@@ -56,7 +56,7 @@ export function characterCreation() {
     const t0 = performance.now();
     const loop = () => {
       if (!alive) return; requestAnimationFrame(loop);
-      const w = cv.clientWidth, hh = cv.clientHeight; if (cv.width !== Math.floor(w * renderer.getPixelRatio())) { renderer.setSize(w, hh, false); cam.aspect = w / hh; cam.updateProjectionMatrix(); }
+      const w = cv.clientWidth, hh = cv.clientHeight; if (cv.width !== Math.floor(w * renderer.getPixelRatio())) { renderer.setSize(w, hh, false); cam.aspect = w / hh; const wide = cam.aspect > 1.1; cam.fov = wide ? 26 : 32; cam.position.set(0, wide ? 1.15 : 1.35, wide ? 5.2 : 4.6); cam.lookAt(0, wide ? 1.05 : 1.0, 0); cam.updateProjectionMatrix(); }
       const t = (performance.now() - t0) / 1000; if (drag === null) rot += 0.004; char.group.rotation.y = rot;
       animateCharacter(char, { t, move: 0, atk: -1, cast: 0 }); renderer.render(scene, cam);
     };

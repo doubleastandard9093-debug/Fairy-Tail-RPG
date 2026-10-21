@@ -36,7 +36,7 @@ async function boot() {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: GFX.high, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, GFX.high ? 2.5 : 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
-  if (GFX.shadows) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
+  if (GFX.shadows) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; }
   const ui = new UI();
   Object.assign(P.hooks, { log: (m, c) => ui.log(m, c), toast: (m) => ui.toast(m), refresh: () => ui.refresh(), levelUp: () => ui.refresh(), jobDone: () => {} });
   const game = new Game(renderer, G, S, ui);
