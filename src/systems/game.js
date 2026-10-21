@@ -708,7 +708,7 @@ export class Game {
   updateCamera(dt) {
     const c = this.cam, pl = this.player;
     const inside = pl.pos.x > HALL.minX && pl.pos.x < HALL.maxX && pl.pos.z > HALL.minZ && pl.pos.z < HALL.maxZ;
-    const dist = inside ? Math.min(c.dist, 10) : c.dist; const pitch = inside ? Math.max(c.pitch, 0.85) : c.pitch;
+    const dist = inside ? Math.min(c.dist, 7.5) : c.dist; const pitch = inside ? Math.max(c.pitch, 0.42) : c.pitch;
     const k = Math.min(1, dt * 10);
     c.tx += (pl.pos.x - c.tx) * k; c.ty += (pl.pos.y + 1.4 - c.ty) * k; c.tz += (pl.pos.z - c.tz) * k;
     const shake = this.ui.shakeAmt ? (this.rand() - 0.5) * this.ui.shakeAmt : 0;

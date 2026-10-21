@@ -34,7 +34,7 @@ export const QUESTS = [
       { desc: "Recover Erza's Strawberry Cake (a Puffcap has it).", obj: { type: 'item', id: 'pudding', n: 1, take: true }, turnIn: 'erza',
         done: [['erza', 'My cake! It has... a small bite missing. And a spore on the strawberry.'], ['erza', '...It is still perfect. Thank you. You have the heart of a Fairy Tail wizard. Take these. I insist.'], ['happy', 'Erza is smiling. Everyone hide, this never happens.']] },
     ],
-    questDrops: { puffcap: { stage: 1, item: 'pudding', chance: 0.5 } },
+    questDrops: { puffcap: { stage: 1, item: 'pudding', chance: 0.7 } },
     reward: { jewels: 120, xp: 300, items: { stew: 3 } },
   },
   {
