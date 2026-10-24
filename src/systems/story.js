@@ -5,6 +5,11 @@ import { QUEST_BY_ID, questStatus, questEvent } from './progress.js';
 import { PLACE } from '../world/fiore.js';
 import { MOBS } from '../data/mobs.js';
 
+/** Two-way Anima rifts: Magnolia's south field <-> the Edolas sky-island. */
+export const RIFTS = [
+  { at: [-30, 62], to: [-900, 282], msg: '🌀 The Anima swallows you… Edolas' },
+  { at: [-900, 288], to: [-30, 68], msg: '🌀 Back through the Anima… Magnolia' },
+];
 const live = () => ARCS.filter((a) => a.status === 'live' && a.quests.length);
 export function arcDone(G, id) { const a = ARC_BY_ID[id]; if (!a || a.status !== 'live' || !a.quests.length) return false; return questStatus(G, a.quests[a.quests.length - 1]) === 'done'; }
 /** An arc is open when it is the first one, the previous live arc is done, or you already started any of its quests (old saves). */

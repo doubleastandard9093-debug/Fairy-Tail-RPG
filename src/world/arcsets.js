@@ -29,6 +29,45 @@ export function buildArcSets({ zoneGroup, W, R, sign, groundAt }) {
 }
 
 const SETS = {
+  edolas({ g, W, R, A, bx, bz, by, y0 }) {
+    // Edolas Royal City: a floating sky-island of red stone, upside-down spires and the giant Magnolia lacrima
+    const rock = toon('#7a4a3a'), rockD = toon('#4a2a22'), top = toon('#8a6a5a'), spire = toon('#c8a060'), lac = glow('#7ad8ff');
+    const slab = mesh(new THREE.BoxGeometry(70, 3, 96), top, -900, y0 - 1.5, 244); g.add(slab);
+    const under = mesh(new THREE.ConeGeometry(46, 40, 9), rockD, -900, y0 - 23, 244); under.rotation.x = Math.PI; under.scale.z = 1.3; g.add(under);
+    for (let k = 0; k < 9; k++) { const x = -900 + (R() - 0.5) * 140, z = 244 + (R() - 0.5) * 160, y = y0 - 10 + R() * 30; if (Math.abs(x + 900) < 40 && Math.abs(z - 244) < 52) continue;
+      const isl = mesh(new THREE.ConeGeometry(4 + R() * 6, 8 + R() * 8, 7), rock, x, y, z); isl.rotation.x = Math.PI; g.add(isl); g.add(mesh(new THREE.CylinderGeometry(4.5, 4.5, 1, 7), top, x, y + 4.5, z)); }
+    for (let k = 0; k < 5; k++) { const x = bx + (k - 2) * 7, h = 16 + (k % 2) * 8; g.add(mesh(new THREE.CylinderGeometry(1.6, 2.2, h, 8), spire, x, y0 + h / 2, bz - 4)); g.add(mesh(new THREE.ConeGeometry(2.4, 6, 8), rockD, x, y0 + h + 3, bz - 4)); W.circles.push({ x, z: bz - 4, r: 2.4 }); }
+    const crys = mesh(new THREE.OctahedronGeometry(7, 0), lac, bx, y0 + 26, bz - 4); crys.scale.y = 1.8; g.add(crys);
+    // railings so the edge reads as an edge
+    for (const [x0, z0, x1, z1] of [[-935, 196, -865, 196], [-935, 292, -865, 292], [-935, 196, -935, 292], [-865, 196, -865, 292]]) { const L = Math.hypot(x1 - x0, z1 - z0); const r = mesh(new THREE.BoxGeometry(L, 1, 0.4), rockD, (x0 + x1) / 2, y0 + 0.5, (z0 + z1) / 2); r.rotation.y = -Math.atan2(z1 - z0, x1 - x0); g.add(r); }
+  },
+  tenrou({ g, W, R, bx, bz, by }) {
+    // Tenrou holy ground: First Master Mavis's grave and Grimoire Heart's airship looming offshore
+    const stone = toon('#b8b0a0'), hull = toon('#2a1a1a'), red = toon('#8a1a1a'), sail = toon('#3a2a2a'), gl = glow('#ff5a5a');
+    g.add(mesh(new THREE.BoxGeometry(2, 3, 0.6), stone, bx, by + 1.5, bz)); g.add(mesh(new THREE.BoxGeometry(3.2, 0.3, 1.6), stone, bx, by + 0.15, bz + 0.6));
+    const sx = bx + 40, sz = bz + 10, sy = by + 26;
+    const ship = mesh(new THREE.CylinderGeometry(5, 2.5, 34, 10), hull, sx, sy, sz); ship.rotation.z = Math.PI / 2; ship.scale.z = 0.7; g.add(ship);
+    g.add(mesh(new THREE.BoxGeometry(22, 5, 7), red, sx, sy + 5, sz));
+    for (const dx of [-8, 0, 8]) { g.add(mesh(new THREE.CylinderGeometry(0.4, 0.4, 14, 6), hull, sx + dx, sy + 13, sz)); g.add(mesh(new THREE.BoxGeometry(0.3, 8, 9), sail, sx + dx, sy + 14, sz)); }
+    for (let k = 0; k < 6; k++) g.add(mesh(new THREE.SphereGeometry(0.6, 8, 6), gl, sx - 15 + k * 6, sy - 1, sz + 3.4));
+    W.circles.push({ x: bx, z: bz, r: 1.5 });
+  },
+  ogre({ g, W, R, A, bx, bz, by }) {
+    // Twilight Ogre's yard: crooked fence, a loud guild shack and a stack of unpaid bills
+    const wood = toon('#6a4a2a'), woodD = toon('#4a2a1a'), roof = toon('#8a3a2a'), paper = toon('#f0e8d0');
+    const shack = mesh(new THREE.BoxGeometry(14, 7, 9), wood, bx, by + 3.5, bz); g.add(shack); { const rf = mesh(new THREE.ConeGeometry(10, 4, 4), roof, bx, by + 9, bz); rf.rotation.y = Math.PI / 4; g.add(rf); }
+    for (let k = 0; k < 7; k++) g.add(mesh(new THREE.BoxGeometry(0.8, 0.05, 1), paper, bx + 4 + R() * 3, by + 0.05 + k * 0.06, bz + 6 + R()));
+    W.circles.push({ x: bx, z: bz, r: 8 });
+  },
+  clock({ g, W, R, bx, bz, by, face }) {
+    // Infinity Clock: a giant bronze clock face, hands frozen, with gears half-buried in the ruins
+    const bronze = toon('#a8803a', { metal: 0.6 }), dark = toon('#3a3024'), gl = glow('#9affd8');
+    const fc = mesh(new THREE.CylinderGeometry(9, 9, 1.2, 40), bronze, bx, by + 10, bz); fc.rotation.x = Math.PI / 2; fc.rotation.z = 0; fc.rotation.y = face; g.add(fc);
+    const ring = mesh(new THREE.TorusGeometry(7.8, 0.25, 6, 40), gl, bx, by + 10, bz); ring.rotation.y = face; g.add(ring);
+    for (const [L, a] of [[6, 0.6], [4, 2.2]]) { const hnd = mesh(new THREE.BoxGeometry(0.5, L, 0.3), dark, bx, by + 10, bz); hnd.rotation.y = face; hnd.rotateZ(a); hnd.translateY(L / 2); g.add(hnd); }
+    for (let k = 0; k < 4; k++) { const gx = bx + (R() - 0.5) * 18, gz = bz + (R() - 0.5) * 8; const gr = mesh(new THREE.TorusGeometry(2 + R() * 1.5, 0.5, 6, 12), bronze, gx, by + 1.2, gz); gr.rotation.x = 1.2 + R() * 0.6; g.add(gr); }
+    g.add(mesh(new THREE.BoxGeometry(4, 10, 2), dark, bx, by + 5, bz)); W.circles.push({ x: bx, z: bz, r: 4 });
+  },
   icecave({ g, W, R, bx, bz, by, gap }) {
     // The Vulcans' den: a frozen cave mouth flanked by icicle spires
     const ice = toon('#d8ecf8'), deep = toon('#1a2a3a'), blue = glow('#8acaff');
@@ -76,6 +115,13 @@ const SETS = {
   },
 };
 
+/** Swirling Anima rifts (Edolas chapter): two-way portals. */
+export function buildRifts({ zoneGroup, groundAt, rifts }) {
+  for (const r of rifts) { const [x, z] = r.at; const y = groundAt(x, z); const g = zoneGroup(x, z, 60);
+    const c1 = glow('#ff7aff', 0.7), c2 = glow('#7ad8ff', 0.6);
+    for (let i = 0; i < 3; i++) { const t = mesh(new THREE.TorusGeometry(1.6 + i * 0.5, 0.12, 6, 32), i % 2 ? c2 : c1, x, y + 2.2, z); t.rotation.x = 0.2 * i; t.userData.spin = 0.6 + i * 0.4; g.add(t); }
+    const d = mesh(new THREE.CircleGeometry(1.5, 24), glow('#2a0a3a', 0.8), x, y + 2.2, z); g.add(d); }
+}
 /** Karen Lilica's grave on the hill east of Magnolia (Loke chapter). */
 export function buildKarenGrave({ zoneGroup, W, groundAt }) {
   const x = 58, z = 18, y = groundAt(x, z); const g = zoneGroup(x, z, 40);

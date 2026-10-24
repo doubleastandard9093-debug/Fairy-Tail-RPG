@@ -624,12 +624,24 @@ export class Game {
     G.pos = [pl.pos.x, pl.pos.z]; G.rot = pl.rot;
     this.saveT += dt; if (this.saveT > 15) { this.saveT = 0; saveGame(G); }
     this.zone = zoneAt(pl.pos.x, pl.pos.z);
-    this._storyT = (this._storyT || 0) - dt; if (this._storyT <= 0) { this._storyT = 0.4; this._arcC = {}; STORY.tickStory(G, pl.pos.x, pl.pos.z, this.ui); }
+    this._storyT = (this._storyT || 0) - dt; if (this._storyT <= 0) { this._storyT = 0.4; this._arcC = {}; STORY.tickStory(G, pl.pos.x, pl.pos.z, this.ui); this.checkRifts(); }
     const place = placeAt(pl.pos.x, pl.pos.z); const pid = place ? place.id : null;
     if (pid !== this.placeId) { this.placeId = pid; if (place) { const first = !G.discovered[pid]; G.discovered[pid] = true; this.ui.arrive(place, first); if (first && place.station) this.ui.log(`Discovered ${place.station.label}: fast travel unlocked on the World Map (M).`, 'lvl'); } }
   }
   // ------------------------------------------------------------------ travel
   /** Teleport with a fade. kind: 'train' | 'boat' | 'debug' */
+  /** Anima rifts between Magnolia and Edolas (open once the Edolas chapter does). */
+  checkRifts() {
+    const pl = this.player; if (this.travelling || pl.dead || (this._riftCd ?? -1e9) > this.t || !this.arcOpenC('a_edolas')) return;
+    for (const r of STORY.RIFTS) if (Math.hypot(pl.pos.x - r.at[0], pl.pos.z - r.at[1]) < 2.2) {
+      if (this.entities.some((e) => e.kind === 'mob' && e.aggro && !e.dead)) return;
+      this._riftCd = this.t + 6; this.travelling = true; const [tx, tz] = r.to;
+      this.ui.fade(r.msg, () => { pl.pos.set(tx, groundAt(tx, tz), tz); pl.moveTo = null; pl.follow = null; this.setTarget(null); this.cam.tx = tx; this.cam.tz = tz; this.cam.ty = pl.pos.y + 1.4;
+        for (const e of this.entities) if (e.kind === 'escort' || e.kind === 'ally') e.pos.set(tx + 1.5, groundAt(tx + 1.5, tz), tz);
+        this.world.flush(tx, tz); this.travelling = false; });
+      return;
+    }
+  }
   arcOpenC(id) { const c = this._arcC ||= {}; return c[id] ?? (c[id] = STORY.arcOpen(this.G, id)); }
   travel(dest, kind = 'train') {
     const G = this.G, pl = this.player; const p = PLACE[dest]; if (!p || pl.dead || this.travelling) return false;

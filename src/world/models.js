@@ -534,6 +534,23 @@ export function buildMob(model, opt = {}) {
       const beard = mesh(G.cone(0.16, 0.55, 8), toon('#f0f0f0'), 0, -0.32, 0.18); beard.rotation.x = Math.PI + 0.25; c.parts.head.add(beard);
       const ep = mesh(new THREE.BoxGeometry(0.1, 0.08, 0.02), toon('#111111'), 0.1, 0.06, 0.31); c.parts.head.add(ep);
     }
+    if (opt.body === 'sting') {
+      // Sting: sleeveless dark vest over a fur-trimmed half cape and the Sabertooth mark on his shoulder
+      const vest = toon('#3a3a4a'), fur = toon('#e8e0d0', { rough: 0.95 });
+      const cape = mesh(new THREE.CylinderGeometry(0.34, 0.5, 0.9, 14, 1, true, Math.PI * 0.5, Math.PI), vest, 0, 1.0, 0); cape.material = vest.clone(); cape.material.side = THREE.DoubleSide; cape.rotation.y = Math.PI; c.group.add(cape);
+      const fc = mesh(new THREE.TorusGeometry(0.28, 0.08, 8, 18), fur, 0, 1.42, -0.02); fc.rotation.x = Math.PI / 2; c.group.add(fc);
+    } else if (opt.body === 'byro') {
+      // Byro: long scholar's coat, pale headwrap and a floating clock-hand staff
+      const coat = toon('#3a4a3a'), cream = toon('#d8d8c8');
+      const sk = mesh(new THREE.CylinderGeometry(0.3, 0.55, 1.1, 14, 1, true), coat, 0, 0.5, 0); sk.material = coat.clone(); sk.material.side = THREE.DoubleSide; c.group.add(sk); parts.skirt = sk;
+      const wrap = mesh(new THREE.TorusGeometry(0.27, 0.07, 6, 16), cream, 0, 0.12, 0); wrap.rotation.x = Math.PI / 2; c.parts.head.add(wrap);
+    } else if (opt.body === 'teebo') {
+      // Teebo: a sleeveless brute with a studded belt and a spiked shoulder guard
+      const iron = toon('#5a5a62', { metal: 0.5 }), belt = toon('#3a2a1a');
+      const b = mesh(new THREE.TorusGeometry(0.34, 0.06, 6, 18), belt, 0, 0.9, 0); b.rotation.x = Math.PI / 2; c.group.add(b);
+      const pad = mesh(new THREE.SphereGeometry(0.2, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), iron, -0.36, 1.32, 0); c.group.add(pad);
+      for (let k = 0; k < 3; k++) { const sp = mesh(G.cone(0.04, 0.16, 4), iron, -0.36 + (k - 1) * 0.08, 1.48, 0); c.group.add(sp); }
+    }
     const aura = mesh(new THREE.SphereGeometry(1.1, 16, 12), glow(opt.aura || '#ffffff'), 0, 1, 0); aura.material = aura.material.clone(); aura.material.transparent = true; aura.material.opacity = 0.12; aura.material.depthWrite = false; aura.scale.set(1, 1.5, 1); g.add(aura); parts.aura = aura;
   } else if (model === 'mage') {
     // Eisenwald dark-guild mage: hooded, cloaked humanoid with a scythe-staff

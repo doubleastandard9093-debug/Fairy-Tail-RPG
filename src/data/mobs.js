@@ -251,6 +251,129 @@ export const MOBS = {
     bark: ['Light guilds. How very bright. How very breakable.', 'Nirvana will be the end of your kind of justice.', 'I have six faces. You have seen only one.'],
   },
   oracion_mage_s: { name: 'Oración Seis Scout (summoned)', level: 34, hp: 400, dmg: 22, speed: 3.6, aggro: 40, range: 10, atkCd: 2.2, xp: 60, model: 'mage', opt: { robe: '#1e3a2a' }, scale: 1, ranged: true, temp: true, projColor: '#5aff8a', drops: [], jewels: [4, 8], bark: ['For Master Brain!'] },
+  // ===================== Batch 2: Edolas, Tenrou, X791, Key of the Starry Sky, Grand Magic Games =====================
+  royal_soldier: {
+    name: 'Royal Army Soldier (Edolas)', level: 42, hp: 1500, dmg: 34, speed: 3.2, aggro: 12, range: 9, atkCd: 2, xp: 700, model: 'mage', opt: { robe: '#c8a040' }, scale: 1.05, ranged: true, projColor: '#ff8a5a',
+    drops: [{ id: 'lacrima_shard', chance: 0.3 }, { id: 'ore_t5', chance: 0.3 }, { id: 'tea_mp', chance: 0.2 }], jewels: [60, 90],
+    bark: ['Earthland wizards! Seize their magic for the king!', 'Our weapons run on stolen magic. Yours will do nicely.'],
+  },
+  royal_soldier_s: { name: 'Royal Army Lancer (summoned)', level: 42, hp: 900, dmg: 26, speed: 3.6, aggro: 40, range: 2.4, atkCd: 1.6, xp: 90, model: 'mage', opt: { robe: '#a8802a' }, temp: true, drops: [], jewels: [6, 10], bark: ['For King Faust!'] },
+  faust: {
+    name: 'Dorma Anim (King Faust)', short: 'Dorma Anim', level: 47, hp: 52000, dmg: 66, speed: 2.8, aggro: 20, range: 12, atkCd: 2.2, xp: 9000, model: 'golem', ranged: true, boss: true, leash: 26, radius: 2.2, scale: 1.5,
+    opt: { stone: '#3a3a4a', rune: '#ff5a3a', bossAura: ['#ff7a3a', '#ff3a3a', '#ffd06a'] }, arena: 'edolas', projColor: '#ff8a4a',
+    defeat: '🏆 Dorma Anim\'s armour splits open and King Faust tumbles out. Edolas\'s skies stop falling.',
+    // Phase 1: missile barrage and cannon. Phase 2 (60%): calls the Royal Army. Phase 3 (25%): Dragon Chaser.
+    telegraphs: [
+      { id: 'missiles', name: 'Missile Barrage', shape: 'circle', radius: 3.2, windup: 1.3, dmg: 80, cd: 8, at: 'targets', count: 5, phase: 1 },
+      { id: 'cannon', name: 'Magic Cannon', shape: 'rect', length: 26, width: 5, windup: 1.6, dmg: 100, cd: 9, at: 'self', phase: 1 },
+      { id: 'army', name: 'Royal Army', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 2, mob: 'royal_soldier_s', phase: 2 },
+      { id: 'stomp', name: 'Armoured Stomp', shape: 'circle', radius: 7, windup: 1.2, dmg: 90, cd: 10, at: 'self', phase: 2 },
+      { id: 'chaser', name: 'Dragon Chaser', shape: 'ring', inner: 6, radius: 21, windup: 3.2, dmg: 160, cd: 17, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, shield: 0.12, line: 'Faust: "Royal Army, to me! Bring me their magic!" (phase 2)' },
+      { at: 0.25, n: 3, cdMul: 0.6, trans: 3, line: 'The armour glows black: Dorma Anim Dragon Chaser mode! It locks onto everything with magic (final phase).' },
+    ],
+    drops: [{ id: 'lacrima_shard', chance: 1, min: 4, max: 5 }, { id: 'ore_t5', chance: 1, min: 4, max: 6 }], jewels: [1400, 2000],
+    party: { jobs: [], quest: ['q_edolas', 2], ids: ['gm_natsu', 'gm_wendy', 'gm_erza'], line: '⚔️ Natsu, Wendy and Erza leap onto the war machine with you!' },
+    bark: ['Magic is a resource, and I will have all of it.', 'Edolas will be eternal!', 'Crush the Earthlanders!'],
+  },
+  grimoire_soldier: {
+    name: 'Grimoire Heart Mage', level: 50, hp: 2100, dmg: 40, speed: 3.3, aggro: 13, range: 9, atkCd: 2, xp: 950, model: 'mage', opt: { robe: '#3a1a1a' }, scale: 1.05, ranged: true, projColor: '#ff5a5a',
+    drops: [{ id: 'lacrima_shard', chance: 0.3 }, { id: 'ore_t5', chance: 0.35 }, { id: 'tea_mp', chance: 0.2 }], jewels: [80, 120],
+    bark: ['Master Hades wants Zeref. You are in the way.', 'The Seven Kin of Purgatory send their regards.'],
+  },
+  grimoire_soldier_s: { name: 'Grimoire Heart Grunt (summoned)', level: 50, hp: 1100, dmg: 30, speed: 3.8, aggro: 40, range: 2.4, atkCd: 1.6, xp: 110, model: 'mage', opt: { robe: '#5a1a1a' }, temp: true, drops: [], jewels: [8, 12], bark: ['For the Great Magic World!'] },
+  hades: {
+    name: 'Hades, Master of Grimoire Heart', short: 'Hades', level: 55, hp: 70000, dmg: 74, speed: 3.4, aggro: 20, range: 11, atkCd: 2, xp: 13000, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.5, scale: 1.7,
+    opt: { look: { hair: 'beard', hairColor: '#f2f2f2', outfit: 'mage', outfitColor: '#2a1a1a', skin: '#e0c0a0', eyeColor: '#c02a2a', build: { w: 1.15 } }, body: 'hades' }, arena: 'tenrou', projColor: '#ff5a5a',
+    defeat: '🏆 Hades falls on the holy ground of Tenrou. Grimoire Heart\'s airship burns on the horizon.',
+    // Phase 1: magic chains and Amaterasu. Phase 2 (60%): summons and Bullet sorcery. Phase 3 (25%): the Devil's Eye opens.
+    telegraphs: [
+      { id: 'chain', name: 'Magic Chain', shape: 'rect', length: 22, width: 3, windup: 1.0, dmg: 80, cd: 7, at: 'self', dash: true, phase: 1 },
+      { id: 'amaterasu', name: 'Amaterasu Formula', shape: 'circle', radius: 3.4, windup: 1.5, dmg: 95, cd: 9, at: 'targets', count: 4, phase: 1 },
+      { id: 'kin', name: 'Call of Purgatory', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 2, mob: 'grimoire_soldier_s', phase: 2 },
+      { id: 'bullets', name: 'Magic Bullets', shape: 'circle', radius: 2.6, windup: 0.9, dmg: 70, cd: 6, at: 'victim', count: 3, phase: 2 },
+      { id: 'abyss', name: 'Devil\'s Eye: Abyss', shape: 'ring', inner: 5, radius: 22, windup: 3.4, dmg: 170, cd: 16, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, line: 'Hades: "Makarov\'s children. Let me show you the abyss of magic." (phase 2)' },
+      { at: 0.25, n: 3, cdMul: 0.55, trans: 3.2, heal: 0.05, line: 'He tears off his eyepatch. The Devil\'s Eye opens and the air turns black (final phase)!' },
+    ],
+    drops: [{ id: 'lacrima_shard', chance: 1, min: 5, max: 6 }, { id: 'ore_t5', chance: 1, min: 6, max: 8 }, { id: 'tea_mp', chance: 1, min: 3, max: 3 }], jewels: [2000, 2800],
+    party: { jobs: [], quest: ['q_tenrou', 2], ids: ['gm_natsu', 'gm_erza', 'gm_wendy'], line: '⚔️ The Tenrou team stands together against Hades!' },
+    bark: ['Magic is the abyss. Will you look into it?', 'Makarov raised soft children.', 'The Great Magic World is near.'],
+  },
+  ogre_thug: {
+    name: 'Twilight Ogre Debt Collector', level: 55, hp: 2400, dmg: 42, speed: 3.4, aggro: 12, range: 2.4, atkCd: 1.6, xp: 1000, model: 'mage', opt: { robe: '#5a3a1a' }, scale: 1.15,
+    drops: [{ id: 'ore_t5', chance: 0.35 }, { id: 'hide_t5', chance: 0.3 }, { id: 'tonic_hp', chance: 0.2 }], jewels: [90, 130],
+    bark: ['Fairy Tail owes us rent. Seven years of it.', 'Pay up, fairies!'],
+  },
+  teebo: {
+    name: 'Teebo, Twilight Ogre Boss', short: 'Teebo', level: 57, hp: 42000, dmg: 70, speed: 3.6, aggro: 18, range: 3, atkCd: 1.7, xp: 9000, model: 'wizard', boss: true, leash: 24, radius: 1.6, scale: 1.9,
+    opt: { look: { hair: 'short', hairColor: '#2a2a2a', outfit: 'brawler', outfitColor: '#5a3a1a', skin: '#c89070', eyeColor: '#2a2a2a', build: { w: 1.5, arm: 1.3 } }, body: 'teebo' }, arena: 'ogre',
+    defeat: '🏆 Teebo crashes through his own fence. Fairy Tail\'s debt is settled, Fairy Tail style.',
+    telegraphs: [
+      { id: 'slam', name: 'Ogre Slam', shape: 'circle', radius: 5.5, windup: 1.2, dmg: 90, cd: 7, at: 'self', phase: 1 },
+      { id: 'charge', name: 'Debt Collection', shape: 'rect', length: 20, width: 4, windup: 1.1, dmg: 85, cd: 9, at: 'self', dash: true, phase: 1 },
+      { id: 'goons', name: 'Call the Boys', shape: 'circle', radius: 2.4, windup: 1.4, dmg: 0, cd: 18, at: 'summon', count: 2, mob: 'ogre_thug_s', phase: 2 },
+      { id: 'quake', name: 'Ground Breaker', shape: 'ring', inner: 4, radius: 18, windup: 2.6, dmg: 120, cd: 14, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.55, n: 2, cdMul: 0.8, trans: 2, line: 'Teebo: "Boys! Get out here!" (phase 2)' },
+      { at: 0.25, n: 3, cdMul: 0.6, trans: 2.4, line: 'Teebo stops grinning and starts swinging for real (final phase)!' },
+    ],
+    drops: [{ id: 'ore_t5', chance: 1, min: 4, max: 6 }, { id: 'hide_t5', chance: 1, min: 3, max: 5 }], jewels: [3000, 4000],
+    party: { jobs: [], quest: ['q_x791', 2], ids: ['gm_natsu', 'gm_erza'], line: '⚔️ Natsu and Erza crack their knuckles. Back from Tenrou, and in a mood.' },
+    bark: ['Your guild is a joke now!', 'Seven years and you came back broke!', 'I collect. I always collect.'],
+  },
+  ogre_thug_s: { name: 'Twilight Ogre Goon (summoned)', level: 55, hp: 1200, dmg: 32, speed: 3.8, aggro: 40, range: 2.4, atkCd: 1.6, xp: 100, model: 'mage', opt: { robe: '#6a4a2a' }, temp: true, drops: [], jewels: [8, 12], bark: ['Boss says pay!'] },
+  clock_sentinel: { name: 'Infinity Clock Sentinel', level: 57, hp: 2000, dmg: 40, speed: 0.8, aggro: 12, range: 10, atkCd: 2.2, xp: 950, model: 'wisp', opt: { color: '#e0c070' }, scale: 1.2, ranged: true, projColor: '#ffe8a0',
+    drops: [{ id: 'lacrima_shard', chance: 0.4 }, { id: 'ore_t5', chance: 0.3 }], jewels: [80, 120], bark: ['*tick*', '*tock*'] },
+  clock_sentinel_s: { name: 'Clock Gear (summoned)', level: 57, hp: 900, dmg: 28, speed: 0.6, aggro: 40, range: 10, atkCd: 2.4, xp: 80, model: 'wisp', opt: { color: '#c8a050' }, ranged: true, temp: true, projColor: '#ffe8a0', drops: [], jewels: [6, 10], bark: ['*clank*'] },
+  byro: {
+    name: 'Byro Cracy, Reborn Oración Seis', short: 'Byro', level: 60, hp: 60000, dmg: 72, speed: 3.4, aggro: 20, range: 11, atkCd: 2, xp: 11000, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.4, scale: 1.6,
+    opt: { look: { hair: 'long', hairColor: '#d8d8c8', outfit: 'mage', outfitColor: '#3a4a3a', skin: '#e0c8b0', eyeColor: '#5a8a5a' }, body: 'byro' }, arena: 'clock', projColor: '#9affd8',
+    defeat: '🏆 Byro\'s formula unravels. The Infinity Clock grinds to a halt, and time in Fiore starts moving again.',
+    telegraphs: [
+      { id: 'analysis', name: 'Magic Analysis', shape: 'circle', radius: 3, windup: 1.2, dmg: 80, cd: 8, at: 'targets', count: 4, phase: 1 },
+      { id: 'seal', name: 'Formula Seal', shape: 'rect', length: 22, width: 4, windup: 1.4, dmg: 90, cd: 9, at: 'self', phase: 1 },
+      { id: 'gears', name: 'Clockwork', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 2, mob: 'clock_sentinel_s', phase: 2 },
+      { id: 'stop', name: 'Time Stop', shape: 'circle', radius: 2.8, windup: 0.9, dmg: 70, cd: 6, at: 'victim', count: 3, phase: 2 },
+      { id: 'reverse', name: 'Infinity Reversal', shape: 'ring', inner: 5, radius: 21, windup: 3.2, dmg: 160, cd: 16, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, shield: 0.1, line: 'Byro: "I have analysed your magic. It is beneath me." (phase 2)' },
+      { at: 0.25, n: 3, cdMul: 0.55, trans: 3, line: 'The clock hands behind him spin backwards: Infinity Reversal (final phase)!' },
+    ],
+    drops: [{ id: 'lacrima_shard', chance: 1, min: 5, max: 6 }, { id: 'ore_t5', chance: 1, min: 5, max: 7 }], jewels: [2200, 3000],
+    party: { jobs: [], quest: ['q_keys', 2], ids: ['gm_natsu', 'gm_wendy'], line: '⚔️ Natsu and Wendy arrive at the clock tower with you!' },
+    bark: ['Every spell has a formula.', 'Your magic has already been read.', 'Time belongs to the Reborn Oración Seis.'],
+  },
+  sabertooth_mage: { name: 'Sabertooth Mage', level: 60, hp: 2600, dmg: 44, speed: 3.4, aggro: 13, range: 9, atkCd: 1.9, xp: 1100, model: 'mage', opt: { robe: '#e8e8f0' }, scale: 1.05, ranged: true, projColor: '#ffffff',
+    drops: [{ id: 'lacrima_shard', chance: 0.35 }, { id: 'ore_t6', chance: 0.25 }, { id: 'tea_mp', chance: 0.2 }], jewels: [100, 150],
+    bark: ['Sabertooth is the strongest guild in Fiore.', 'Weakness is not allowed in our guild.'] },
+  sabertooth_mage_s: { name: 'Sabertooth Reserve (summoned)', level: 60, hp: 1300, dmg: 34, speed: 3.8, aggro: 40, range: 9, atkCd: 2, xp: 120, model: 'mage', opt: { robe: '#d8d8e0' }, ranged: true, temp: true, projColor: '#ffffff', drops: [], jewels: [8, 12], bark: ['For Sabertooth!'] },
+  sting: {
+    name: 'Sting Eucliffe, White Dragon Slayer', short: 'Sting', level: 66, hp: 76000, dmg: 78, speed: 4, aggro: 20, range: 10, atkCd: 1.8, xp: 14000, model: 'wizard', ranged: true, boss: true, leash: 22, radius: 1.4, scale: 1.6,
+    opt: { look: { hair: 'spiky', hairColor: '#f0e0a0', outfit: 'brawler', outfitColor: '#3a3a4a', skin: '#f0d0b0', eyeColor: '#3a6ad0' }, body: 'sting' }, arena: 'domus', projColor: '#ffffff',
+    defeat: '🏆 Sting stays down. The crowd at Domus Flau is on its feet chanting "Fairy Tail!"',
+    telegraphs: [
+      { id: 'roar', name: 'White Dragon\'s Roar', shape: 'rect', length: 22, width: 5, windup: 1.3, dmg: 95, cd: 7, at: 'self', phase: 1 },
+      { id: 'claw', name: 'Holy Claw', shape: 'circle', radius: 3, windup: 1.0, dmg: 80, cd: 8, at: 'targets', count: 3, phase: 1 },
+      { id: 'reserve', name: 'Sabertooth Reserves', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 2, mob: 'sabertooth_mage_s', phase: 2 },
+      { id: 'flash', name: 'Holy Ray', shape: 'rect', length: 18, width: 3.5, windup: 0.8, dmg: 85, cd: 8, at: 'self', dash: true, phase: 2 },
+      { id: 'nova', name: 'Holy Nova', shape: 'ring', inner: 3, radius: 9, windup: 3, dmg: 170, cd: 15, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.2, line: 'Sting: "Is that all Fairy Tail has?" White light pours off him (phase 2).' },
+      { at: 0.25, n: 3, cdMul: 0.55, trans: 3, heal: 0.05, line: 'White Drive! Dragon Force markings cover his skin (final phase)!' },
+    ],
+    drops: [{ id: 'lacrima_shard', chance: 1, min: 6, max: 7 }, { id: 'ore_t6', chance: 1, min: 4, max: 6 }, { id: 'tea_mp', chance: 1, min: 3, max: 3 }], jewels: [3000, 4000],
+    party: { jobs: [], quest: ['q_gmg', 2], ids: ['gm_natsu', 'gm_erza', 'gm_wendy'], line: '⚔️ Team Fairy Tail takes the arena floor beside you!' },
+    bark: ['I wanted to fight Natsu. You will do.', 'Sabertooth does not lose.', 'The crowd came for a show!'],
+  },
+
 };
 // Ally templates (celestial spirits and boss-party guildmates)
 export const ALLIES = {
@@ -295,6 +418,17 @@ export const SPAWNS = [
   { mob: 'laxus', count: 1, at: [78, -54] },                     // behind Kardia Cathedral
   { mob: 'oracion_mage', count: 6, c: [40, -365], r: 26, arc: 'a_oracion' }, // deep Worth Woodsea
   { mob: 'brain', count: 1, at: [22, -392] },                    // Nirvana ruins
+  // batch 2
+  { mob: 'royal_soldier', count: 6, c: [-900, 262], r: 18, arc: 'a_edolas' },   // Edolas: Royal City sky-islands
+  { mob: 'faust', count: 1, at: [-900, 236] },
+  { mob: 'grimoire_soldier', count: 6, c: [-335, 250], r: 26, arc: 'a_tenrou' }, // Tenrou Island
+  { mob: 'hades', count: 1, at: [-288, 262] },
+  { mob: 'ogre_thug', count: 5, c: [10, -80], r: 14, arc: 'a_x791' },             // Twilight Ogre's yard, north of Magnolia
+  { mob: 'teebo', count: 1, at: [28, -96] },
+  { mob: 'clock_sentinel', count: 5, c: [-158, -14], r: 12, arc: 'a_keys' },       // Infinity Clock ruins, west of Magnolia
+  { mob: 'byro', count: 1, at: [-137, -27] },
+  { mob: 'sabertooth_mage', count: 5, c: [-300, -132], r: 14, arc: 'a_gmg' },     // Crocus, outside Domus Flau
+  { mob: 'sting', count: 1, at: [-313.6, -116.8] },
 ];
 export const BOSS_ARENA = { x: -363.2, z: -60.8, r: 22 }; // Clover Canyon (map px 470,382)
 // Every story boss fights inside its own arena. gate = the side the entrance faces (world x,z of the approach).
@@ -308,5 +442,10 @@ export const BOSS_ARENAS = {
   moon: { x: -690, z: 92, r: 18, name: 'Galuna Western Ruins', pillar: '#a8a090', gem: '#b8a0ff', floor: '#8a8478', gate: [-651, 96], set: 'ruins' },
   kardia: { x: 78, z: -54, r: 18, name: 'Kardia Cathedral Grounds', pillar: '#d8d0c0', gem: '#ffe24a', floor: '#b8b0a0', gate: [74, -24], set: 'storm' },
   nirvana: { x: 22, z: -392, r: 20, name: 'Nirvana Ruins, Worth Woodsea', pillar: '#4a5a48', gem: '#5aff8a', floor: '#5a6a58', gate: [60, -360], set: 'nirvana' },
+  edolas: { x: -900, z: 236, r: 18, name: 'Royal City Sky-Island, Edolas', pillar: '#6a3a2a', gem: '#ff7a3a', floor: '#8a6a5a', gate: [-900, 262], set: 'edolas', noFlat: true, h: 60.6 },
+  tenrou: { x: -288, z: 262, r: 18, name: 'Tenrou Island, Holy Ground', pillar: '#7a6a4a', gem: '#ff5a5a', floor: '#8a8a6a', gate: [-310, 254], set: 'tenrou' },
+  ogre: { x: 28, z: -96, r: 16, name: 'Twilight Ogre Yard', pillar: '#6a4a2a', gem: '#ffb05a', floor: '#8a7a5a', gate: [12, -74], set: 'ogre' },
+  clock: { x: -137, z: -27, r: 18, name: 'Infinity Clock Ruins', pillar: '#8a8070', gem: '#9affd8', floor: '#9a9080', gate: [-122, -8], set: 'clock' },
+  domus: { x: -313.6, z: -116.8, r: 9, name: 'Domus Flau Arena Floor', pillar: '#8a7a6a', gem: '#ffffff', floor: '#c8b898', gate: [-313.6, -106], noFlat: true },
 };
 export const arenaOf = (tpl) => BOSS_ARENAS[tpl.arena || 'canyon'];

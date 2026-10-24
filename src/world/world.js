@@ -10,7 +10,8 @@ import { createSea, buildFountain, riverMesh, addWake } from './water.js';
 import { planRivers, riverCarve, riverNear, RIVERS } from './rivers.js';
 import { mapHeight, biomeAt, PLACES, PLACE, WORLD, WATER_Y, RAILS_W, ROADS_W, distToLines, toWorld } from './fiore.js';
 import { Terrain } from './terrain.js';
-import { buildArcSets, buildKarenGrave } from './arcsets.js';
+import { buildArcSets, buildKarenGrave, buildRifts } from './arcsets.js';
+import { RIFTS } from '../systems/story.js';
 import { buildRegions, SITE_FLATS, WOODSEA_CLEARING } from './regions.js';
 import { Grass } from './foliage.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -34,7 +35,10 @@ function initFlat() {
   if (flatReady) return; flatReady = true;
   FLAT.push({ rect: TOWN, r: 0, blend: 30, h: 0 });
   FLAT.push({ x: CATHEDRAL.x, z: CATHEDRAL.z, r: 17, blend: 16, h: 0.3 });
+  // Edolas: a floating Royal City sky-island over the western sea (reached through the Anima rift)
+  DECKS.push({ minX: -935, maxX: -865, minZ: 196, maxZ: 292, y: 60.6, edolas: true });
   for (const A of Object.values(BOSS_ARENAS)) {
+    if (A.noFlat) continue;
     if (A.h == null) { let sum = mapHeight(A.x, A.z), n = 1; for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; sum += mapHeight(A.x + Math.cos(a) * A.r, A.z + Math.sin(a) * A.r); n++; } A.h = Math.max(WATER_Y + 1.2, sum / n); }
     FLAT.push({ x: A.x, z: A.z, r: A.r + 1, blend: A.set ? 16 : 5, h: A.h });
     if (A.causeway) { const [gx, gz] = A.gate; for (let k = 0; k <= 8; k++) { const t = k / 8; FLAT.push({ x: gx + (A.x - gx) * t, z: gz + (A.z - gz) * t, r: 4, blend: 3, h: A.h }); } }
@@ -55,6 +59,7 @@ function initFlat() {
   for (const f of SITE_FLATS) FLAT.push({ ...f, h: Math.max(WATER_Y + 1.6, height(f.x, f.z)) });
   CARVE.push({ a: PLACE.clover.pos, b: [BOSS_ARENA.x, BOSS_ARENA.z], w: 5, blend: 9, h: 3 });
   planRivers(height);
+  for (const A of Object.values(BOSS_ARENAS)) if (A.noFlat && A.h == null) A.h = height(A.x, A.z);
 }
 function rawHeight(x, z) {
   let h = mapHeight(x, z);
@@ -634,7 +639,7 @@ export function buildWorld(scene) {
       const p = mesh(new THREE.CylinderGeometry(0.9, 1.3, 5 + R() * 4, 6), toon('#7a7068'), x, height(x, z) + 2.5, z); p.rotation.z = (R() - 0.5) * 0.2; g.add(p);
       const cr = mesh(new THREE.OctahedronGeometry(0.5, 0), glow('#ff8a3a'), x, height(x, z) + 6.8, z); g.add(cr); W.circles.push({ x, z, r: 1.2 }); }
     addOutlines(g); shadowAll(g); }
-  buildArcSets({ zoneGroup, W, R, sign, groundAt: height }); buildKarenGrave({ zoneGroup, W, groundAt: height });
+  buildArcSets({ zoneGroup, W, R, sign, groundAt }); buildKarenGrave({ zoneGroup, W, groundAt: height }); buildRifts({ zoneGroup, groundAt, rifts: RIFTS });
   // Story-boss arenas: Phantom Lord's guild (Oak Town) and the Tower of Heaven (off Akane Beach)
   for (const key of ['phantom', 'heaven']) {
     const A = BOSS_ARENAS[key]; const g = zoneGroup(A.x, A.z, 70); const [gx, gz] = A.gate; const gap = Math.atan2(gz - A.z, gx - A.x);
