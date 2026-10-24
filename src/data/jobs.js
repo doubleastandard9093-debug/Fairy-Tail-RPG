@@ -51,4 +51,27 @@ export const JOBS = [
     desc: 'PLEASE DESTROY THE MOON. ...Fine, start with the masked cultists chanting at the temple every night. (The full Galuna Island arc is coming in the next build. Take the ferry from Hargeon.)', reward: { jewels: 1100, gp: 250, xp: 1800, items: { tea_mp: 3 } } },
   { id: 'j_lullaby', rank: 'S', type: 'boss', mob: 'grumblejaw', n: 1, title: 'S-Class: Silence Lullaby', client: 'Master Makarov',
     desc: 'Eisenwald has awoken Lullaby, a demon of Zeref, in Clover Canyon. Natsu, Wendy and Erza will join you as a party. Do NOT let it finish its song.', reward: { jewels: 1500, gp: 300, xp: 2500, items: { stew: 3 } } },
+  // ---- Rival-contested requests: finish before the rival guild does ----
+  { id: 'j_rv_phantom', rank: 'C', type: 'kill', mob: 'bora_thug', n: 6, title: 'Contested: Hargeon Docks', client: 'Hargeon Merchants\' Union', zone: 'hargeon', rival: 'phantom',
+    desc: 'Phantom Lord posted that THEY will clean up the docks. The merchants would really rather it was not Phantom Lord.', reward: { jewels: 300, gp: 70, xp: 460 } },
+  { id: 'j_rv_lamia', rank: 'B', type: 'kill', mob: 'hakobe_vulcan', n: 6, title: 'Contested: The Hakobe Pass', client: 'Hakobe Mountain Lodge', zone: 'hakobe', rival: 'lamia',
+    desc: 'Lyon of Lamia Scale says he will clear the pass "before Gray even gets his shirt off". That is not much time.', reward: { jewels: 420, gp: 95, xp: 700 } },
+  { id: 'j_rv_pegasus', rank: 'B', type: 'gather', item: 'fibre_t2', n: 6, title: 'Contested: Parfum Flax', client: 'Ichiya (Blue Pegasus)', zone: 'clover', rival: 'pegasus',
+    desc: 'Men~! Ichiya will pay double if Fairy Tail beats his own Trimens to it. He says it builds character. Theirs.', reward: { jewels: 380, gp: 85, xp: 620 } },
+  { id: 'j_rv_saber', rank: 'A', type: 'kill', mob: 'lizardman', n: 8, title: 'Contested: Sabertooth\'s Boast', client: 'Fiore Railways', zone: 'oshibana', rival: 'sabertooth',
+    desc: 'Sabertooth say the strongest guild will clear the Oshibana line. Fiore Railways does not care who, only that it is soon.', reward: { jewels: 600, gp: 130, xp: 980 } },
+  { id: 'j_rv_cerberus', rank: 'D', type: 'kill', mob: 'boar', n: 6, title: 'Contested: WILD... BOARS!', client: 'Clover Farmers', zone: 'clover', rival: 'cerberus',
+    desc: 'Quatro Cerberus want this one for the slogan. Get there first.', reward: { jewels: 200, gp: 45, xp: 300 } },
+  // ---- The S-Class Promotion Trial (canon: held on Tenrou Island) ----
+  { id: 'j_trial', rank: 'A', type: 'kill', mob: 'tenrou_boar', n: 8, title: 'S-Class Promotion Trial', client: 'Master Makarov', zone: 'tenrou', trial: true,
+    desc: 'Every year Master Makarov picks candidates for S-Class. Take the ferry to Tenrou Island and prove yourself against its guardians. Gildarts may or may not be behind the next tree.', reward: { jewels: 800, gp: 200, xp: 1500 } },
+  // ---- S-Class missions (need the S-Class title) ----
+  { id: 'j_s_deliora', rank: 'S', type: 'kill', mob: 'galuna_cultist', n: 10, title: 'S-Class: Deliora\'s Shadow', client: 'Galuna Village', zone: 'galuna', sclass: true,
+    desc: 'The Moon Drip ritual is melting the Iced Shell. Lyon\'s followers must be stopped before Deliora wakes.', reward: { jewels: 2000, gp: 400, xp: 3200, items: { lacrima_shard: 2 } } },
+  { id: 'j_s_vulcan', rank: 'S', type: 'kill', mob: 'hakobe_vulcan', n: 12, title: 'S-Class: The Vulcan Horde', client: 'Magic Council', zone: 'hakobe', sclass: true,
+    desc: 'A Vulcan horde is taking over bodies on Mt. Hakobe. Macao barely got out. Clear the mountain.', reward: { jewels: 1800, gp: 380, xp: 3000, items: { lacrima_shard: 1 } } },
+  { id: 'j_s_tower', rank: 'S', type: 'kill', mob: 'wisp', n: 10, title: 'S-Class: Whispers of the Tower', client: 'Erza', zone: 'oshibana', sclass: true,
+    desc: 'Dark mages with the Tower of Heaven\'s mark are gathering near Oshibana. Erza will not say why. Do not ask her why.', reward: { jewels: 2200, gp: 420, xp: 3400, items: { lacrima_shard: 2 } } },
+  { id: 'j_s_ore', rank: 'S', type: 'deliver', item: 'bar_t4', n: 3, title: 'S-Class: Adamantine for Crocus', client: 'Royal Army of Fiore', zone: 'crocus', sclass: true,
+    desc: 'The palace wants Adamantine bars for the Eclipse project. They will not say what Eclipse is. It is probably fine.', reward: { jewels: 2400, gp: 450, xp: 3000 } },
 ];

@@ -111,6 +111,7 @@ export function loadGame() {
 export function migrate(G) {
   if (!G || typeof G !== 'object' || !G.v || !Array.isArray(G.inv)) throw new Error('Not an Fairy Tail save');
   if (!G.tree) migrateTree(G, classRank);
+  if (!G.bornDay) G.bornDay = Math.floor(Date.now() / 864e5); G.rivals ||= {};
   if (!G.worldV) { // v3: the open Fiore world. Old field coordinates no longer exist, so park the player in Magnolia.
     const [x, z] = G.pos || [0, 9];
     if (!(x > -42 && x < 42 && z > -42 && z < 44)) G.pos = [0, 9];

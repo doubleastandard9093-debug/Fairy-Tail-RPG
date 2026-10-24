@@ -537,7 +537,7 @@ export class Game {
     animateCharacter(pl.char, { t: this.t, move: mv, atk: pl.atk, kind: pl.atkKind, cast: pl.cast > 0 ? Math.min(1, pl.cast * 3) : 0, dead: !!pl.dead, emote: pl.emote && this.t < pl.emote.until && mv < 0.1 ? pl.emote.kind : null });
     if (pl.iframes > 0 && pl.dash) g.rotation.x = 0; // roll is implied by the dash burst
     // world systems
-    this.updateEntities(dt); this.updateProjectiles(dt); this.updateTeles(dt); this.updateTraps(dt); this.updateFx(dt); this.magic.update(dt);
+    this.updateEntities(dt); this.updateProjectiles(dt); this.updateTeles(dt); this.updateTraps(dt); this.updateFx(dt); this.magic.update(dt); P.tickRivals(this.G, dt);
     for (const n of this.world.nodes) if (n.respawn > 0) { n.respawn -= dt; if (n.respawn <= 0) { n.respawn = 0; n.uses = NODE_TIERS[n.tier].uses; n.obj.scale.setScalar(1); } }
     // boss party: guildmates join on the S-rank job or the final quest stage
     const inArena = Math.hypot(pl.pos.x - BOSS_ARENA.x, pl.pos.z - BOSS_ARENA.z) < BOSS_ARENA.r + 6;

@@ -1,6 +1,7 @@
 // Pure game-progress logic on the save object G. UI feedback goes through `hooks`.
 import { ITEMS, itemName } from '../data/items.js';
 import { JOBS, RANK_ORDER } from '../data/jobs.js';
+import { RANK_PERKS, RIVALS, FAIRY_FAME_BASE, CONTEST_TIME } from '../data/guilds.js';
 import { QUESTS } from '../data/quests.js';
 import { MOBS } from '../data/mobs.js';
 import { NPCS } from '../data/npcs.js';
@@ -12,6 +13,28 @@ export const hooks = { log: () => {}, toast: () => {}, refresh: () => {}, levelU
 export const JOB_BY_ID = Object.fromEntries(JOBS.map((j) => [j.id, j]));
 export const QUEST_BY_ID = Object.fromEntries(QUESTS.map((q) => [q.id, q]));
 export const MAX_ACTIVE_JOBS = 3;
+export const maxJobs = (G) => (RANK_PERKS[guildRank(G)] || RANK_PERKS.E).jobs;
+const today = () => Math.floor(Date.now() / 864e5);
+/** Fiore guild standings: your fame vs each rival guild. */
+export function guildStandings(G) {
+  G.rivals ||= {}; const born = G.bornDay || today(); const days = Math.max(0, today() - born);
+  const list = [{ id: 'fairy', name: 'Fairy Tail', icon: '🧚', color: '#e0303a', fame: FAIRY_FAME_BASE + G.gp * 2 + (G.contestWins || 0) * 120 + (G.sclass ? 500 : 0), you: true }];
+  for (const [id, r] of Object.entries(RIVALS)) { const st = G.rivals[id] || {}; list.push({ id, name: r.name, icon: r.icon, color: r.color, fame: r.fame + r.perDay * days + (st.wins || 0) * 120 - (st.losses || 0) * 60, wins: st.wins || 0, losses: st.losses || 0 }); }
+  return list.sort((a, b) => b.fame - a.fame);
+}
+/** Contested jobs: the rival guild is racing you. Called every frame with dt in seconds. */
+export function tickRivals(G, dt) {
+  for (const a of [...G.jobs.active]) {
+    if (a.left == null) continue; const j = JOB_BY_ID[a.id]; if (!j || !j.rival) continue;
+    if (jobReady(G, a)) continue; // finished the objective: the rival can no longer beat you, just hand it in
+    const before = a.left; a.left -= dt; const R = RIVALS[j.rival];
+    if (before > 60 && a.left <= 60) hooks.toast(`${R.icon} ${R.name} is almost done with "${j.title}"!`);
+    if (a.left <= 0) {
+      G.jobs.active = G.jobs.active.filter((x) => x !== a); G.rivals ||= {}; const st = (G.rivals[j.rival] ||= {}); st.wins = (st.wins || 0) + 1;
+      hooks.toast(`${R.icon} ${R.name} beat you to "${j.title}".`); hooks.log(`${R.name} completed "${j.title}" first. Their fame rises. Natsu is already planning revenge.`, 'warn'); hooks.refresh();
+    }
+  }
+}
 
 // ---------- XP ----------
 export function grantSkillXp(G, skill, xp) {
@@ -66,15 +89,19 @@ export function jobState(G, id) {
 }
 export function canTakeJob(G, job) {
   const my = RANK_ORDER.indexOf(guildRank(G)), need = RANK_ORDER.indexOf(job.rank);
+  if (job.sclass && !G.sclass) return 'S-Class wizards only. Pass the S-Class Promotion Trial first (guild rank A).';
+  if (job.trial && G.sclass) return 'You are already an S-Class wizard.';
+  if (job.trial && my < RANK_ORDER.indexOf('A')) return 'Master Makarov only nominates rank A wizards for the Trial.';
   if (need > my + 1) return `Requires guild rank ${RANK_ORDER[need - 1]} or higher.`;
   if (G.jobs.active.some((a) => a.id === job.id)) return 'Already taken.';
-  if (G.jobs.active.length >= MAX_ACTIVE_JOBS) return `You can carry ${MAX_ACTIVE_JOBS} jobs at once.`;
+  if (G.jobs.active.length >= maxJobs(G)) return `You can carry ${maxJobs(G)} jobs at once at rank ${guildRank(G)}.`;
   if (job.daily && G.jobs.done[job.id] === dayStamp()) return 'Done for today. Come back tomorrow!';
   return null;
 }
 export function takeJob(G, id) {
   const job = JOB_BY_ID[id]; const why = canTakeJob(G, job); if (why) { hooks.toast(why); return false; }
-  G.jobs.active.push({ id, prog: 0 });
+  const a = { id, prog: 0 }; if (job.rival) { a.left = CONTEST_TIME; const R = RIVALS[job.rival]; hooks.toast(`${R.icon} Contested! ${R.name} took this job too. Beat them to it.`); }
+  G.jobs.active.push(a);
   hooks.log(`Job taken: ${job.title} (${job.rank}).`, 'quest'); hooks.refresh(); return true;
 }
 export function abandonJob(G, id) { G.jobs.active = G.jobs.active.filter((a) => a.id !== id); hooks.refresh(); }
@@ -99,6 +126,8 @@ export function turnInJob(G, id) {
   G.jobs.done[id] = dayStamp(); G.jobs.completed++;
   hooks.log(`Job complete: ${job.title}! *stamp*`, 'quest');
   giveReward(G, job.reward, ' (job reward)');
+  if (job.rival && a.left > 0) { G.rivals ||= {}; const st = (G.rivals[job.rival] ||= {}); st.losses = (st.losses || 0) + 1; G.contestWins = (G.contestWins || 0) + 1; const R = RIVALS[job.rival]; hooks.toast(`🏆 You beat ${R.name}! Fairy Tail's fame rises.`); hooks.log(`Contest won against ${R.name} with ${Math.ceil(a.left)}s to spare.`, 'lvl'); }
+  if (job.trial && !G.sclass) { G.sclass = true; hooks.toast('⭐ You passed the S-Class Promotion Trial!'); hooks.log('Master Makarov: "From today, you are an S-Class wizard of Fairy Tail. Upstairs is yours. Try not to break it."', 'lvl'); }
   questEvent(G, { type: 'job' });
   hooks.jobDone(job); hooks.refresh(); return true;
 }

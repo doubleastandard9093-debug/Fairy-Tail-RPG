@@ -15,6 +15,7 @@ import * as P from '../systems/progress.js';
 import { TOWN } from '../world/world.js';
 import { BOSS_ARENA } from '../data/mobs.js';
 import { PARTY, unisonFor } from '../data/combos.js';
+import { RANK_PERKS, MEMBERS, RIVALS } from '../data/guilds.js';
 import { PLACES, PLACE, STATIONS, GW, GH, S as MAP_S, ORIGIN, toMap, biomeAt, mapHeight, ROADS, RAILS, FERRY, FERRY_COST, trainCost } from '../world/fiore.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -406,21 +407,42 @@ export class UI {
     let html = head;
     if (this.tab === 'story') html += QUESTS.map((q) => { const s = P.questStatus(G, q.id); return `<div class="row"><div class="ic">${s === 'done' ? '✅' : s === 'active' ? '📜' : '❔'}</div><div class="grow"><div class="nm">${esc(q.name)} <span class="muted">${q.qp} QP</span></div><div class="ds">${s === 'new' ? `Start: talk to ${esc(NPCS[q.start].name.split(' (')[0])}` : s === 'done' ? 'Completed' : esc(P.stageText(G, q.id))}</div></div></div>`; }).join('');
     else html += G.jobs.active.length ? G.jobs.active.map((a) => { const j = P.JOB_BY_ID[a.id]; const r = P.jobReady(G, a); return `<div class="row"><div class="rk ${j.rank}">${j.rank}</div><div class="grow"><div class="nm">${esc(j.title)}</div><div class="ds">${esc(P.jobProgressText(G, a))}${r ? ' — <b style="color:#7aff9a">ready! Hand in to Mirajane</b>' : ''}</div></div><button class="btn small" data-act="abandon" data-arg="${a.id}">Abandon</button></div>`; }).join('') : '<div class="muted">No active jobs. Visit the request board in the Fairy Tail guild hall.</div>';
-    return { title: '📜 Quests & Jobs', tabs: [['story', 'Story quests'], ['jobs', `Jobs (${G.jobs.active.length}/${P.MAX_ACTIVE_JOBS})`]], html };
+    return { title: '📜 Quests & Jobs', tabs: [['story', 'Story quests'], ['jobs', `Jobs (${G.jobs.active.length}/${P.maxJobs(G)})`]], html };
   }
   p_board() {
     const G = this.game.G; const my = guildRank(G);
+    const tabs = [...RANK_ORDER].map((r) => [r, `${r === 'S' ? 'S-Class' : r} (${JOBS.filter((j) => j.rank === r).length})`]); tabs.push(['guild', '🛡️ Guild']);
+    const title = `📋 Request Board <span class="muted">Your rank <span class="rankbadge">${my}</span>${G.sclass ? ' <span class="rankbadge s">S-Class</span>' : ''} · jobs ${G.jobs.active.length}/${P.maxJobs(G)}</span>`;
+    if (this.tab === 'guild') return { title, tabs, html: this.guildCard() };
     const list = JOBS.filter((j) => j.rank === this.tab);
     const rows = list.map((j) => {
       const st = P.jobState(G, j.id); const why = P.canTakeJob(G, j); const rw = j.reward;
       const rewards = [`💎${rw.jewels}`, `+${rw.gp} GP`, `${rw.xp} XP`, ...Object.entries(rw.items || {}).map(([id, n]) => `${n}× ${ITEMS[id].name}`)].join(' · ');
-      const btn = st.active ? (st.ready ? `<button class="btn small gold" data-act="turnin" data-arg="${j.id}">Hand in</button>` : `<span class="muted">${esc(P.jobProgressText(G, st.active))}</span>`)
+      const R = j.rival && RIVALS[j.rival];
+      const timer = st.active && st.active.left != null && !st.ready ? ` · <b style="color:#ffb080">${R.icon} ${Math.floor(st.active.left / 60)}:${String(Math.floor(st.active.left % 60)).padStart(2, '0')} left</b>` : '';
+      const btn = st.active ? (st.ready ? `<button class="btn small gold" data-act="turnin" data-arg="${j.id}">Hand in</button>` : `<span class="muted">${esc(P.jobProgressText(G, st.active))}${timer}</span>`)
         : st.doneToday ? '<span class="muted">Done today</span>' : `<button class="btn small" data-act="take" data-arg="${j.id}" ${why ? 'disabled' : ''} title="${esc(why || '')}">Take</button>`;
-      return `<div class="row"><div class="rk ${j.rank}">${j.rank}</div><div class="grow"><div class="nm">${esc(j.title)} <span class="muted">${j.type}${j.daily ? ' · daily' : ''}</span></div><div class="ds">"${esc(j.desc)}" — ${esc(j.client)}</div><div class="reward">${rewards}</div>${why && !st.active && !st.doneToday ? `<div class="ds" style="color:#ff9a8a">${esc(why)}</div>` : ''}</div>${btn}</div>`;
+      const tag = j.sclass ? '<span class="tag s">S-CLASS</span>' : j.trial ? '<span class="tag trial">TRIAL</span>' : R ? `<span class="tag rv" style="background:${R.color}">${R.icon} vs ${esc(R.name)}</span>` : '';
+      return `<div class="row${j.sclass ? ' srow' : ''}"><div class="rk ${j.rank}">${j.rank}</div><div class="grow"><div class="nm">${tag}${esc(j.title)} <span class="muted">${j.type}${j.daily ? ' · daily' : ''}</span></div><div class="ds">"${esc(j.desc)}" — ${esc(j.client)}</div><div class="reward">${rewards}</div>${why && !st.active && !st.doneToday ? `<div class="ds" style="color:#ff9a8a">${esc(why)}</div>` : ''}</div>${btn}</div>`;
     }).join('') || '<div class="muted">No requests at this rank.</div>';
     const ready = G.jobs.active.filter((a) => P.jobReady(G, a));
     const quick = ready.length ? `<div class="row" style="border-color:#7aff9a"><div class="ic">✅</div><div class="grow"><div class="nm">Ready to hand in</div><div class="ds">${ready.map((a) => esc(P.JOB_BY_ID[a.id].title)).join(', ')}</div></div><button class="btn small gold" data-act="turninAll">Hand in all</button></div>` : '';
-    return { title: `📋 Request Board <span class="muted">Your rank <span class="rankbadge">${my}</span> · jobs ${G.jobs.active.length}/${P.MAX_ACTIVE_JOBS}</span>`, tabs: [...RANK_ORDER].map((r) => [r, `${r === 'S' ? 'S-Class' : r} (${JOBS.filter((j) => j.rank === r).length})`]), html: quick + rows };
+    const sInfo = this.tab === 'S' ? `<div class="row srow"><div class="ic">⭐</div><div class="grow"><div class="nm">The S-Class board (second floor)</div><div class="ds">${G.sclass ? 'You are an S-Class wizard. Mirajane hands you the key to the upstairs board with a smile that is only slightly terrifying.' : 'Only S-Class wizards may take these. Reach guild rank A, then take the S-Class Promotion Trial (A tab) on Tenrou Island.'}</div></div></div>` : '';
+    const rvInfo = this.tab !== 'S' && list.some((j) => j.rival) ? '<div class="muted" style="margin:4px 0">Contested jobs: a rival guild takes the same request. Finish the objective within 10 minutes of play or they claim it, and their fame grows.</div>' : '';
+    return { title, tabs, html: quick + sInfo + rvInfo + rows };
+  }
+  guildCard() {
+    const G = this.game.G; const my = guildRank(G); const perk = RANK_PERKS[my]; const nx = nextGuildRank(G);
+    const ranks = [...RANK_ORDER].map((r) => `<div class="rkstep${r === my ? ' on' : ''}${RANK_ORDER.indexOf(r) < RANK_ORDER.indexOf(my) ? ' done' : ''}"><div class="rk ${r}">${r}</div><div class="ds">${esc(RANK_PERKS[r].perk)}</div></div>`).join('');
+    const me = { name: `${G.name} (you)`, rank: G.sclass ? 'S' : my, gp: G.gp, note: perk.title, you: true };
+    const board = [...MEMBERS, me].sort((a, b) => b.gp - a.gp).map((m, i) => `<div class="row lb${m.you ? ' you' : ''}"><div class="ic">${i + 1}</div><div class="rk ${m.rank}">${m.rank}</div><div class="grow"><div class="nm">${esc(m.name)}</div><div class="ds">${esc(m.note)}</div></div><div class="muted">${m.gp} GP</div></div>`).join('');
+    const stand = P.guildStandings(G);
+    const top = stand[0].fame;
+    const rivals = stand.map((r, i) => `<div class="row lb${r.you ? ' you' : ''}"><div class="ic">${i + 1}</div><div class="ic">${r.icon}</div><div class="grow"><div class="nm" style="color:${r.color === '#4a3a6a' ? '#b8a0ff' : r.color}">${esc(r.name)}</div><div class="bar"><i style="width:${(r.fame / top) * 100}%;background:${r.color}"></i></div><div class="ds">${r.you ? `Contests won: ${G.contestWins || 0}` : `${esc(RIVALS[r.id].blurb)} · contests: you ${r.losses}–${r.wins} them`}</div></div><div class="muted">${r.fame} fame</div></div>`).join('');
+    return `<div class="sec">Guild card</div><div class="row guildcard"><div class="rk ${G.sclass ? 'S' : my}">${G.sclass ? 'S' : my}</div><div class="grow"><div class="nm">${esc(G.name)} · ${G.sclass ? 'S-Class Wizard' : esc(perk.title)}</div><div class="ds">${G.gp} guild points${nx ? ` · ${nx.gp - G.gp} to rank ${nx.r}` : ''} · ${G.jobs.completed} jobs done · carry ${P.maxJobs(G)} at once</div></div></div>
+      <div class="sec">Ranks</div><div class="rksteps">${ranks}</div>
+      <div class="sec">Fairy Tail member standings</div>${board}
+      <div class="sec">Fiore guild standings (rivalries)</div>${rivals}`;
   }
   p_bank() {
     const G = this.game.G; const used = G.bank.filter(Boolean).length;
