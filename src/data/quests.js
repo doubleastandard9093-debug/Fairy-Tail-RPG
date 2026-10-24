@@ -87,4 +87,47 @@ export const QUESTS = [
     ],
     reward: { jewels: 1800, xp: 6000, items: { lacrima_shard: 3, sword1h_t4: 1 } },
   },
+  // ---- Life-skill quests (each one walks a skill chain) ----
+  {
+    id: 'q_fish', name: 'Aye, Fish Feast!', qp: 1, start: 'happy',
+    intro: [['happy', 'Psst. Hey. You. Do you like fish? I LOVE fish. Natsu ate all of mine.'], ['happy', 'There are fishing ponds just outside the south gate. Catch some, cook them into snacks at the Arcane Workshop kitchen, and feed me. For science. Aye!']],
+    stages: [
+      { desc: 'Catch 4 Magnolia Minnows at the ponds outside Magnolia\'s south gate (Fishing).', obj: { type: 'item', id: 'fish_t1', n: 4 } },
+      { desc: 'Cook 2 Fish Snacks at the Guild Kitchen in the Arcane Workshop (Cooking).', obj: { type: 'craft', id: 'fish_snack', n: 2 } },
+      { desc: 'Feed Happy 2 times (bag item → Feed Happy, or Skills → Exceed Bonding), then talk to him.', obj: { type: 'craft', id: 'feed_happy', n: 2 }, turnIn: 'happy',
+        done: [['happy', 'Mmmmf! You\'re officially my second-best friend. Partner Exceeds help out, you know. I\'ll spot fish for you and fly you places cheaper!']] },
+    ],
+    reward: { jewels: 200, xp: 300, skillXp: { exceed: 400, fishing: 250, cooking: 250 }, items: { fish_t1: 3 } },
+  },
+  {
+    id: 'q_script', name: "Levy's Solid Script", qp: 1, start: 'levy',
+    intro: [['levy', 'Solid Script turns letters into magic. And books into teachers! Want to learn?'], ['levy', 'Make parchment from planks and ink from fibre and a lacrima cell, then write me a Fishing Tome. Every Tome teaches another skill.']],
+    stages: [
+      { desc: 'Write 3 Archive Parchment at the Script Desk (needs Birch Planks from the Workbench).', obj: { type: 'craft', id: 'parchment', n: 3 } },
+      { desc: 'Make 3 Solid Script Ink (needs a Dim Lacrima Cell from the Lacrima Bench and Lacrima Solvent from Alchemy).', obj: { type: 'craft', id: 'ink', n: 3 } },
+      { desc: 'Write Happy\'s Fishing Diary (a Tome) at Script level 8, then show Levy.', obj: { type: 'craft', id: 'tome_fishing', n: 1 }, turnIn: 'levy',
+        done: [['levy', 'Perfect handwriting! See? Smithing, Alchemy, Requip... there is a Tome for everything. Script magic connects all your skills.']] },
+    ],
+    reward: { jewels: 300, xp: 500, skillXp: { script: 600, lacrima: 200 }, items: { ink: 3, parchment: 4 } },
+  },
+  {
+    id: 'q_stars', name: 'A Contract with the Stars', qp: 2, start: 'lucy', requires: 'q_script',
+    intro: [['lucy', 'Gate keys are not just bought, you know. A real celestial wizard can forge one, with stardust, ink and silver.'], ['lucy', 'Grind stardust at the Star Circle, then forge the Gate Key of Taurus. He will... appreciate you. A lot. Ugh.']],
+    stages: [
+      { desc: 'Grind 2 Stardust at the Star Circle (Foraging fibre + Alchemy solvent).', obj: { type: 'craft', id: 'stardust', n: 2 } },
+      { desc: 'Forge the Gate Key: Taurus at Celestial Contracts 6, then show Lucy.', obj: { type: 'craft', id: 'key_ram', n: 1 }, turnIn: 'lucy',
+        done: [['lucy', 'You made a gate key! The contract is yours. Every Celestial level makes your spirits hit harder, so keep going!']] },
+    ],
+    reward: { jewels: 500, xp: 900, skillXp: { celestial: 900 }, items: { stardust: 2 } },
+  },
+  {
+    id: 'q_requip', name: "Titania's Armory", qp: 3, start: 'erza', requires: 'q_cake',
+    intro: [['erza', 'A Requip mage must forge her own armory. Steel from the forge, runes from the circle, lacrima to bind them.'], ['erza', 'Carve a Rune-Etched Plate, then forge Heaven\'s Wheel Armor at the Requip Altar. I will inspect it personally.']],
+    stages: [
+      { desc: 'Etch a Rune-Etched Plate at the Rune Circle (Rune Enchanting 20).', obj: { type: 'craft', id: 'rune_plate', n: 1 } },
+      { desc: 'Forge Heaven\'s Wheel Armor at the Requip Altar (Requip Forging 10), then show Erza.', obj: { type: 'craft', id: 'rq_heaven', n: 1 }, turnIn: 'erza',
+        done: [['erza', 'Hm. The balance is good. The edges are clean. ...This is fine work. You may call it yours.']] },
+    ],
+    reward: { jewels: 1500, xp: 2500, skillXp: { requip: 1500, enchanting: 800 }, items: { lacrima_shard: 1 } },
+  },
 ];

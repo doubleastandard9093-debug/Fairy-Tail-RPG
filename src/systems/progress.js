@@ -8,6 +8,7 @@ import { NPCS } from '../data/npcs.js';
 import { SCHOOLS } from '../data/schools.js';
 import { addItem, removeItem, countItem, skillLevel, guildRank, classRank, dayStamp, SKILLS, derived } from '../core/state.js';
 import { charLevelForXp } from '../core/xp.js';
+import { skillBonus, globalSkillFx, SYNERGIES, PERKS, SETS, setTier } from '../data/skills.js';
 
 export const hooks = { log: () => {}, toast: () => {}, refresh: () => {}, levelUp: () => {}, jobDone: () => {} };
 export const JOB_BY_ID = Object.fromEntries(JOBS.map((j) => [j.id, j]));
@@ -37,12 +38,18 @@ export function tickRivals(G, dt) {
 }
 
 // ---------- XP ----------
-export function grantSkillXp(G, skill, xp) {
+export function grantSkillXp(G, skill, xp, raw = false) {
+  if (!SKILLS[skill]) return; if (!raw) xp *= 1 + skillBonus(G, skill).xp;
+  const setsBefore = SETS.map((st) => setTier(G, st));
   const before = skillLevel(G, skill);
   G.skills[skill] = Math.min(200000000, (G.skills[skill] || 0) + xp);
   const after = skillLevel(G, skill);
   hooks.log(`+${Math.round(xp)} ${SKILLS[skill].name} XP`, 'xp');
-  if (after > before) { hooks.toast(`${SKILLS[skill].icon} ${SKILLS[skill].name} level ${after}!`); hooks.log(`Congratulations! Your ${SKILLS[skill].name} level is now ${after}.`, 'lvl'); hooks.levelUp(); }
+  if (after > before) { hooks.toast(`${SKILLS[skill].icon} ${SKILLS[skill].name} level ${after}!`); hooks.log(`Congratulations! Your ${SKILLS[skill].name} level is now ${after}.`, 'lvl'); hooks.levelUp();
+    for (const sy of SYNERGIES) if (sy.from === skill && before < sy.lv && after >= sy.lv) { hooks.toast(`🔗 Synergy unlocked: ${sy.desc}`); hooks.log(`🔗 ${SKILLS[skill].name} ${sy.lv} → ${sy.desc}`, 'lvl'); }
+    for (const p of PERKS[skill] || []) if (before < p.lv && after >= p.lv && !p.per) hooks.log(`⭐ New perk: ${p.desc}`, 'lvl');
+    SETS.forEach((st, i) => { const t = setTier(G, st); if (t > setsBefore[i]) { hooks.toast(`${st.icon} Skill set ${st.name} tier ${t}!`); hooks.log(`${st.icon} ${st.name} reached tier ${t}: ${st.desc}`, 'lvl'); } });
+  }
 }
 export function grantCharXp(G, xp) {
   const before = charLevelForXp(G.xp); G.xp += Math.round(xp); const after = charLevelForXp(G.xp);
@@ -77,6 +84,7 @@ export function giveReward(G, r, why) {
   }
   if (r.xp) grantCharXp(G, r.xp);
   if (r.items) giveItems(G, r.items, why);
+  if (r.skillXp) for (const [k, x] of Object.entries(r.skillXp)) grantSkillXp(G, k, x, true);
 }
 
 // ---------- Jobs (request board) ----------
@@ -235,12 +243,13 @@ export function recipeBlock(G, r) {
 }
 export function craft(G, r) {
   const why = recipeBlock(G, r); if (why) { hooks.toast(why); return false; }
-  const ab = artisanBonus(G); let saved = 0;
-  for (const [id, n] of Object.entries(r.in)) { let use = n; for (let i = 0; i < n; i++) if (id !== 'lacrima_shard' && Math.random() < Math.min(0.4, 0.08 + ab.refund)) { use--; saved++; } removeItem(G, id, use); }
+  const ab = artisanBonus(G); const sb = skillBonus(G, r.skill); let saved = 0;
+  for (const [id, n] of Object.entries(r.in)) { let use = n; for (let i = 0; i < n; i++) if (id !== 'lacrima_shard' && !/^(rq_|plate_|jacket_|robe_)/.test(id) && Math.random() < Math.min(0.5, 0.08 + ab.refund + sb.save)) { use--; saved++; } removeItem(G, id, use); }
   for (const [id0, n0] of Object.entries(r.out)) {
     let id = id0, n = n0;
-    if (r.gear) { const q = rollQuality(skillLevel(G, r.skill) - r.level, ab.quality); id = id0 + QUALITIES[q - 1].sfx; if (q >= 3) hooks.toast(`✨ ${QUALITIES[q - 1].name} quality!`); }
+    if (r.gear) { const q = rollQuality(skillLevel(G, r.skill) - r.level, ab.quality + sb.quality); id = id0 + QUALITIES[q - 1].sfx; if (q >= 3) hooks.toast(`✨ ${QUALITIES[q - 1].name} quality!`); }
     else if (r.group === 'Refine' && Math.random() < ab.refineX) n++;
+    else if (!/Refine/.test(r.group) && ITEMS[id0].stack && Math.random() < sb.yield) n++;
     addItem(G, id, n); hooks.log(`You make ${n}× ${itemName(id)}.${saved ? ` (${saved} material${saved > 1 ? 's' : ''} saved)` : ''}`, 'loot'); onCraft(G, id0, n);
   }
   grantSkillXp(G, r.skill, r.xp);
@@ -248,3 +257,41 @@ export function craft(G, r) {
   return true;
 }
 export { RECIPES };
+
+// ---------- Life-skill item use (meals, potions, sigils, tomes, Exceed food) ----------
+/** Strength multiplier for a consumable, from the skill that makes it. */
+export function potencyOf(G, it) { return 1 + (it.skill ? skillBonus(G, it.skill).potency : 0); }
+/** Uses one item. `game` (optional) receives timed buffs. Returns a log line or null. */
+export function useItem(G, id, game) {
+  const it = ITEMS[id]; if (!it || countItem(G, id) < 1) return null; const d = derived(G); const pot = potencyOf(G, it);
+  if (it.kind === 'tome') {
+    const x = Math.round(it.teachXp * (1 + skillBonus(G, 'script').potency)); removeItem(G, id, 1); grantSkillXp(G, it.teach, x);
+    return `You study ${it.name}. ${SKILLS[it.teach].icon} ${SKILLS[it.teach].name} grows.`;
+  }
+  if (it.kind === 'food') return feedExceed(G, id);
+  if (it.kind !== 'consumable') return null;
+  if (it.heal) G.hp = Math.min(d.maxHp, G.hp + Math.round(it.heal * pot));
+  if (it.mana) G.mp = Math.min(d.maxMp, G.mp + Math.round(it.mana * pot));
+  if (it.buff && game && game.player) {
+    const b = { name: it.buff.name, until: game.t + it.buff.dur * (it.skill === 'enchanting' && skillLevel(G, 'enchanting') >= 30 ? 1.5 : 1), icon: it.icon };
+    for (const [k, v] of Object.entries(it.buff)) if (k !== 'name' && k !== 'dur') b[k] = +(v * pot).toFixed(3);
+    game.player.buffs = game.player.buffs.filter((x) => x.name !== b.name); game.player.buffs.push(b);
+  }
+  removeItem(G, id, 1);
+  return `You use the ${it.name}.${it.buff ? ` ${it.buff.name} for ${Math.round(it.buff.dur / 60)} min${pot > 1 ? ` (+${Math.round((pot - 1) * 100)}% potency)` : ''}.` : ''}`;
+}
+/** Exceed Bonding: feed Happy. Fish give a little bond, snacks/platters a lot. */
+export function feedExceed(G, id) {
+  const it = ITEMS[id]; if (!it || countItem(G, id) < 1) return null;
+  const xp = it.bond || (it.resType === 'fish' ? 12 * it.tier * it.tier : it.kind === 'consumable' && it.skill === 'cooking' ? 30 * it.tier * it.tier : 0);
+  if (!xp) return null; removeItem(G, id, 1); G.bond = (G.bond || 0) + 1; grantSkillXp(G, 'exceed', xp); questEvent(G, { type: 'craft', id: 'feed_happy', n: 1 });
+  return ['Aye sir! Happy munches happily.', 'Happy: "Fiiiish!" (He does a little flip.)', 'Happy: "You\'re my favourite. Don\'t tell Natsu."'][G.bond % 3];
+}
+/** Best item in the bag to feed Happy (most bond first). */
+export function bestExceedFood(G) {
+  const c = G.inv.filter(Boolean).map((s) => ITEMS[s.id]).filter((it) => it.kind === 'food' || it.resType === 'fish');
+  return c.sort((a, b) => (b.bond || 12 * b.tier * b.tier) - (a.bond || 12 * a.tier * a.tier))[0] || null;
+}
+/** Bartering: market trades train the skill. */
+export function onTrade(G, jewels, sold) { grantSkillXp(G, 'bartering', Math.max(1, jewels * (sold ? 0.5 : 0.25))); }
+export { globalSkillFx, skillBonus };

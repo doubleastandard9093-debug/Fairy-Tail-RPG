@@ -75,7 +75,12 @@ export class Game {
     const ab = ABILITIES[id]; if (!ab) return false;
     return !abilityLearned(this.G, id);
   }
-  buff(k) { let v = 0; for (const b of this.player.buffs) if (b[k]) v += b[k]; return v; }
+  buff(k) {
+    let v = 0; for (const b of this.player.buffs) if (b[k]) v += b[k];
+    const ar = this.G.equip.armor && ITEMS[this.G.equip.armor]; if (ar && ar.fx && ar.fx[k]) v += ar.fx[k]; // Requip armor effects
+    const gf = P.globalSkillFx(this.G); if (gf[k]) v += gf[k]; // skill perks and set bonuses (allyUp, dmgUp, regen)
+    return v;
+  }
 
   useAbility(slot) {
     const id = this.loadout()[slot]; if (!id) return;
@@ -466,13 +471,13 @@ export class Game {
     const lvl = skillLevel(G, nt.skill);
     if (lvl < tier.level) { this.ui.toast(`You need ${nt.skill[0].toUpperCase() + nt.skill.slice(1)} level ${tier.level} (T${node.tier}).`); return; }
     if (!canAdd(G, `${node.type}_t${node.tier}`)) { this.ui.toast('Your bag is full!'); return; }
-    const dur = Math.max(0.7, tier.time * (1 - Math.min(0.5, (lvl - tier.level) * 0.02)) * (1 - artisanBonus(G).gspeed));
+    const sb = P.skillBonus(G, nt.skill); const dur = Math.max(0.6, tier.time * (1 - Math.min(0.5, (lvl - tier.level) * 0.02)) * (1 - artisanBonus(G).gspeed) * (1 - sb.speed) * (1 - Math.min(0.4, this.buff('gspeed'))));
     this.player.gathering = { node, t: 0, dur };
   }
   finishGather() {
     const G = this.G, pl = this.player, g = pl.gathering; const node = g.node; const nt = NODE_TYPES[node.type]; const tier = NODE_TIERS[node.tier];
     const id = `${node.type}_t${node.tier}`;
-    const n = this.rand() < 0.1 + skillLevel(G, nt.skill) * 0.004 + artisanBonus(G).yield ? 2 : 1;
+    const n = this.rand() < 0.1 + skillLevel(G, nt.skill) * 0.004 + artisanBonus(G).yield + P.skillBonus(G, nt.skill).yield ? 2 : 1;
     const left = addItem(G, id, n); const got = n - left;
     if (got > 0) {
       this.ui.log(`You ${nt.verb.toLowerCase()} ${got}× ${ITEMS[id].name}.`, 'loot');
@@ -499,7 +504,7 @@ export class Game {
     // regen
     if (!pl.dead) {
       const ooc = pl.combatT <= 0;
-      G.hp = Math.min(d.maxHp, G.hp + dt * (ooc ? d.maxHp * 0.04 : d.maxHp * 0.004));
+      G.hp = Math.min(d.maxHp, G.hp + dt * ((ooc ? d.maxHp * 0.04 * (1 + this.buff('regen') * 0.1) : d.maxHp * 0.004) + this.buff('regen')));
       G.mp = Math.min(d.maxMp, G.mp + dt * (2 + d.maxMp * 0.01 + this.buff('mpRegen')));
       if (ooc) G.adr = Math.max(0, G.adr - dt * 4);
     }
@@ -590,6 +595,7 @@ export class Game {
     if (kind === 'train') { cost = trainCost(this.placeId || 'magnolia', dest); [tx, tz] = p.station.pos; const st = this.world.interactables.find((i) => i.kind === 'rail' && i.place === dest); if (st) { tx = st.x; tz = st.z; } }
     else if (kind === 'boat') { cost = FERRY_COST; const d = this.world.docks[dest]; tx = d.x; tz = d.z; rot = d.rot; }
     else [tx, tz] = p.pos;
+    cost = Math.round(cost * (1 - P.globalSkillFx(G).travel)); // Exceed Bonding: Happy carries you part of the way
     if (this.entities.some((e) => e.kind === 'mob' && e.aggro && !e.dead)) { this.ui.toast('You can\'t travel in the middle of a fight!'); return false; }
     if (G.jewels < cost) { this.ui.toast(`Not enough Jewels (${cost} J needed).`); return false; }
     G.jewels -= cost; this.travelling = true;

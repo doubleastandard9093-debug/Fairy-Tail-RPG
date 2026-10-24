@@ -70,4 +70,38 @@ add({ id: 'pudding', name: "Erza's Strawberry Cake", icon: '🍮', kind: 'quest'
 add({ id: 'tyrant_core', name: 'Broken Lullaby Flute', icon: '💎', kind: 'quest', value: 500 });
 add({ id: 'mayor_hat', name: "Plue's Spare Lollipop", icon: '🎩', kind: 'quest', stack: false, value: 0 });
 
+
+// ---- Life-skill items (see data/skills.js + recipes.js) ----
+const FISH = ['Magnolia Minnow', 'Scilliora Trout', 'Hargeon Mackerel', 'Galuna Moonfish', 'Tenrou Starfin'];
+const MEALS = ['Grilled Minnow Skewer', 'Herb-Crusted Trout', 'Hargeon Seafood Stew', 'Moonfish Sashimi Platter', 'Fairy Feast'];
+for (let t = 1; t <= 5; t++) {
+  add({ id: `fish_t${t}`, name: FISH[t - 1], icon: '🐟', kind: 'resource', resType: 'fish', tier: t, value: 5 * t * t });
+  add({ id: `meal_t${t}`, name: MEALS[t - 1], icon: ['🍢', '🐟', '🍲', '🍣', '🍱'][t - 1], kind: 'consumable', tier: t, skill: 'cooking', value: 14 * t * t, heal: 50 + 45 * t, buff: { name: 'Well Fed', dur: 300, dmgUp: 0.02 * t, regen: 0.6 * t } });
+  if (t <= 3) add({ id: `cell_t${t}`, name: ['Dim Lacrima Cell', 'Bright Lacrima Cell', 'Radiant Lacrima Cell'][t - 1], icon: '🔋', kind: 'refined', tier: t, value: 30 * t * t });
+}
+add({ id: 'fish_snack', name: "Happy's Fish Snack", icon: '🍡', kind: 'food', value: 10, bond: 60, desc: 'Happy would do anything for one. Feed it to him (Skills → Exceed Bonding or talk to Happy).' });
+add({ id: 'fish_feast', name: 'Grand Fish Platter', icon: '🐠', kind: 'food', value: 90, bond: 420, desc: 'A mountain of fish. Happy will love you forever.' });
+add({ id: 'solvent', name: 'Lacrima Solvent', icon: '💧', kind: 'refined', value: 20 });
+add({ id: 'parchment', name: 'Archive Parchment', icon: '📄', kind: 'refined', value: 12 });
+add({ id: 'ink', name: 'Solid Script Ink', icon: '🖋️', kind: 'refined', value: 24 });
+add({ id: 'stardust', name: 'Stardust', icon: '✨', kind: 'refined', value: 60 });
+add({ id: 'rune_plate', name: 'Rune-Etched Plate', icon: '🔶', kind: 'refined', value: 220 });
+add({ id: 'elixir_str', name: 'Dragon Force Elixir', icon: '🧪', kind: 'consumable', skill: 'alchemy', value: 60, buff: { name: 'Dragon Force', dur: 240, dmgUp: 0.12 } });
+add({ id: 'elixir_iron', name: 'Iron Skin Draught', icon: '🫙', kind: 'consumable', skill: 'alchemy', value: 60, buff: { name: 'Iron Skin', dur: 240, dr: 0.12 } });
+add({ id: 'elixir_ether', name: 'Ethernano Draught', icon: '🔵', kind: 'consumable', skill: 'alchemy', value: 70, mana: 80, buff: { name: 'Ethernano Flow', dur: 240, mpRegen: 5 } });
+add({ id: 'brew_gather', name: "Gatherer's Brew", icon: '🍺', kind: 'consumable', skill: 'alchemy', value: 45, buff: { name: "Gatherer's Brew", dur: 600, gspeed: 0.15 } });
+add({ id: 'sigil_power', name: 'Jutsu Shiki: Power Sigil', icon: '🟥', kind: 'consumable', skill: 'enchanting', value: 140, buff: { name: 'Power Rune', dur: 600, dmgUp: 0.15 } });
+add({ id: 'sigil_ward', name: 'Jutsu Shiki: Ward Sigil', icon: '🟦', kind: 'consumable', skill: 'enchanting', value: 140, buff: { name: 'Ward Rune', dur: 600, dr: 0.15 } });
+add({ id: 'sigil_spirit', name: 'Jutsu Shiki: Spirit Sigil', icon: '🟨', kind: 'consumable', skill: 'enchanting', value: 160, buff: { name: 'Spirit Rune', dur: 600, allyUp: 0.25, mpRegen: 3 } });
+const TOMES = { smithing: 'Iron Dragon Smithing Notes', alchemy: "Porlyusica's Herbal", fishing: "Happy's Fishing Diary", celestial: 'Heartfilia Star Almanac', requip: "Titania's Armory Ledger", cooking: "Mira's Recipe Book", lacrima: 'Lacrima Theory Primer' };
+for (const [k, n] of Object.entries(TOMES)) add({ id: `tome_${k}`, name: n, icon: '📘', kind: 'tome', skill: 'script', teach: k, teachXp: 650, value: 160 });
+const RQ = [
+  ['rq_heaven', "Heaven's Wheel Armor", 'plate', 4, 40, 0, { dmgUp: 0.08 }],
+  ['rq_flame', 'Flame Empress Armor', 'leather', 4, 26, 30, { dmgUp: 0.05, dr: 0.05 }],
+  ['rq_sea', 'Sea Empress Armor', 'cloth', 4, 16, 140, { mpRegen: 4 }],
+  ['rq_blackwing', 'Black Wing Armor', 'leather', 5, 38, 40, { dmgUp: 0.12 }],
+  ['rq_adamantine', 'Adamantine Armor', 'plate', 5, 78, 0, { dr: 0.12 }],
+];
+for (const [id, name, a, t, def, mp, fx] of RQ) add({ id, base: id, q: 3, name, icon: '💍', kind: 'armor', armorType: a, tier: t, stack: false, value: 600 * t * t, def, mp, fx, requip: true });
+
 export function itemName(id) { return ITEMS[id] ? ITEMS[id].name : id; }

@@ -3,18 +3,13 @@ import { SCHOOLS, rankForXp } from '../data/schools.js';
 import { GUILD_RANKS } from '../data/jobs.js';
 import { charLevelForXp, levelForXp } from './xp.js';
 import { globalBonus, migrateTree } from '../data/skilltree.js';
+import { SKILL_DEFS, globalSkillFx } from '../data/skills.js';
 
 export const SAVE_KEY = 'ftrpg_save_v1';
 export const SETTINGS_KEY = 'ftrpg_settings_v1';
 export const INV_SIZE = 28;
 export const BANK_SIZE = 96;
-export const SKILLS = {
-  mining: { name: 'Mining', icon: '⛏️' },
-  woodcutting: { name: 'Woodcutting', icon: '🪓' },
-  foraging: { name: 'Foraging', icon: '🌿' },
-  smithing: { name: 'Smithing', icon: '🔨' },
-  crafting: { name: 'Crafting', icon: '🧶' },
-};
+export const SKILLS = SKILL_DEFS; // every life skill is defined in data/skills.js
 export const STAT_INFO = {
   STR: 'Melee weapon damage',
   INT: 'Magic damage and max mana',
@@ -59,7 +54,7 @@ export function derived(G) {
     maxHp: Math.round((120 + 12 * (level - 1) + s.VIT * 9) * (1 + tb.hp)),
     maxMp: Math.round(60 + 5 * (level - 1) + s.INT * 4 + (armor ? armor.mp : 0) + tb.mp),
     def: armor ? armor.def : 0,
-    speed: 6.2 * (1 + s.AGI * 0.006),
+    speed: 6.2 * (1 + s.AGI * 0.006) * (1 + globalSkillFx(G).move),
     cdr: Math.min(0.3, s.AGI * 0.004),
     crit: Math.min(0.5, 0.05 + s.DEX * 0.004 + tb.crit),
   };
@@ -120,6 +115,8 @@ export function migrate(G) {
   }
   const base = newGame({ name: G.name, look: G.look || {}, school: G.school });
   for (const k of Object.keys(base)) if (G[k] === undefined) G[k] = base[k];
+  for (const k of Object.keys(SKILLS)) if (typeof G.skills[k] !== 'number') G.skills[k] = 0;
+  G.bond ||= 0;
   while (G.inv.length < INV_SIZE) G.inv.push(null);
   while (G.bank.length < BANK_SIZE) G.bank.push(null);
   G.inv = G.inv.map((s) => (s && ITEMS[s.id] ? s : null));

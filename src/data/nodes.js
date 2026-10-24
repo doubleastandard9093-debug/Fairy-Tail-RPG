@@ -2,6 +2,7 @@
 export const NODE_TYPES = {
   ore: { skill: 'mining', verb: 'Mine', names: ['Copper Rock', 'Iron Rock', 'Starsilver Vein', 'Adamantine Vein', 'Etherion Geode'] },
   wood: { skill: 'woodcutting', verb: 'Chop', names: ['Birch Tree', 'Oak Tree', 'Moonwillow', 'Galuna Ebony', 'Tenrou Heartwood Tree'] },
+  fish: { skill: 'fishing', verb: 'Fish', names: ['Minnow Pond', 'Trout Shallows', 'Mackerel Shoal', 'Moonfish Pool', 'Starfin Current'] },
   fibre: { skill: 'foraging', verb: 'Pick', names: ['Cotton Bush', 'Flax Patch', 'Silkweed Clump', 'Moonlight Lilies', 'Starweave Bloom'] },
 };
 // The item a node gives is `${type}_t${tier}` (see data/items.js).
@@ -30,4 +31,10 @@ export const NODE_PLACEMENT = [
   { type: 'fibre', tier: 3, place: 'galuna', spread: 60, min: 20, n: 4 }, { type: 'ore', tier: 3, place: 'canyon', spread: 26, min: 8, n: 2 },
   { type: 'ore', tier: 4, place: 'hakobe', spread: 70, min: 40, n: 3 }, { type: 'wood', tier: 4, place: 'galuna', spread: 70, min: 30, n: 3 }, { type: 'fibre', tier: 4, place: 'galuna', spread: 70, min: 30, n: 3 },
   { type: 'ore', tier: 5, place: 'tenrou', spread: 70, min: 30, n: 2 }, { type: 'wood', tier: 5, place: 'tenrou', spread: 70, min: 30, n: 2 }, { type: 'fibre', tier: 5, place: 'tenrou', spread: 70, min: 30, n: 2 },
+
+  // Fishing spots (Fishing skill)
+  { type: 'fish', tier: 1, at: [24, 64], spread: 16, n: 3 }, { type: 'fish', tier: 1, place: 'eastforest', spread: 60, min: 14, n: 2 },
+  { type: 'fish', tier: 2, place: 'scilliora', spread: 75, min: 40, n: 5 }, { type: 'fish', tier: 2, place: 'clover', spread: 50, min: 20, n: 2 },
+  { type: 'fish', tier: 3, place: 'hargeon', spread: 60, min: 20, n: 4 }, { type: 'fish', tier: 3, place: 'galuna', spread: 50, min: 12, n: 2 },
+  { type: 'fish', tier: 4, place: 'galuna', spread: 70, min: 30, n: 3 }, { type: 'fish', tier: 5, place: 'tenrou', spread: 70, min: 30, n: 2 },
 ];

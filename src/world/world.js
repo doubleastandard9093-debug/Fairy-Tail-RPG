@@ -357,6 +357,27 @@ export function buildWorld(scene) {
     addOutlines(g); shadowAll(g, true, true);
     W.map.rects.push({ x: -20, z: 20, w: 10, d: 8, color: '#8a6a5a' });
   }
+  // Arcane Workshop pavilion (life skills: Cooking, Alchemy, Lacrima, Script, Runes, Stars, Requip)
+  {
+    const G0 = { cyl: (a, b, h, n = 8) => new THREE.CylinderGeometry(a, b, h, n), sph: (r, w, hh) => new THREE.SphereGeometry(r, w, hh) };
+    const WX = -17, WZ = 33; const g = new THREE.Group(); g.position.set(WX, 0, WZ); scene.add(g);
+    for (const [x, z] of [[-6, -3.6], [6, -3.6], [-6, 3.6], [6, 3.6]]) { g.add(mesh(new THREE.BoxGeometry(0.45, 4, 0.45), woodD, x, 2, z)); solid(null, WX + x, WZ + z, 0.5, 0.5, 'post'); }
+    const roof = mesh(new THREE.ConeGeometry(9, 2.4, 4), toon('#4a3a6a'), 0, 5.1, 0); roof.rotation.y = Math.PI / 4; roof.scale.z = 0.62; g.add(roof);
+    g.add(mesh(new THREE.BoxGeometry(12.6, 0.22, 7.8), stoneM, 0, 0.1, 0));
+    const st = (station, name, x, z, build, solidW = 0) => { const o = new THREE.Group(); o.position.set(x, 0, z); g.add(o); build(o); if (solidW) solid(null, WX + x, WZ + z, solidW, 1, station); W.interactables.push({ kind: 'station', station, name, x: WX + x, z: WZ + z + (z < 0 ? 1.4 : 0), r: 2.4, obj: o }); return o; };
+    const table = (o, top) => { o.add(mesh(new THREE.BoxGeometry(2, 0.16, 1), wood, 0, 1, 0)); for (const [x, z] of [[-0.85, -0.4], [0.85, -0.4], [-0.85, 0.4], [0.85, 0.4]]) o.add(mesh(new THREE.BoxGeometry(0.12, 1, 0.12), woodD, x, 0.5, z)); if (top) top(o); };
+    st('kitchen', 'Guild Kitchen', -4.5, -2.2, (o) => { o.add(mesh(new THREE.BoxGeometry(1.6, 0.9, 1), stoneM, 0, 0.45, 0)); const pot = mesh(G0.cyl(0.45, 0.38, 0.5, 12), toon('#3a3a42'), 0, 1.15, 0); o.add(pot); const soup = mesh(G0.cyl(0.4, 0.4, 0.05, 12), glow('#e8a040'), 0, 1.38, 0); o.add(soup); const fire = mesh(new THREE.BoxGeometry(1, 0.1, 0.6), glow('#ff6a1a'), 0, 0.92, 0); o.add(fire); W.anim.push((t) => { fire.material.color.setHSL(0.06, 1, 0.5 + Math.sin(t * 6) * 0.08); }); }, 1.6);
+    st('alchemy', 'Alchemy Table', -1.5, -2.2, (o) => table(o, (o2) => { [['#7aff9a', -0.6], ['#7aa8ff', -0.2], ['#ff7a9a', 0.25], ['#ffe07a', 0.6]].forEach(([c, x]) => { o2.add(mesh(G0.sph(0.16, 8, 6), glow(c), x, 1.3, 0)); o2.add(mesh(G0.cyl(0.04, 0.05, 0.22, 6), toon('#e8e8f0'), x, 1.5, 0)); }); }), 2);
+    st('lacrima', 'Lacrima Bench', 1.5, -2.2, (o) => table(o, (o2) => { const c = mesh(new THREE.OctahedronGeometry(0.35, 0), glow('#7ad8ff'), 0, 1.55, 0); c.scale.y = 1.6; o2.add(c); W.anim.push((t) => { c.rotation.y = t; c.position.y = 1.55 + Math.sin(t * 2) * 0.06; }); o2.add(mesh(G0.cyl(0.3, 0.36, 0.14, 8), toon('#6a6a78'), 0, 1.14, 0)); }), 2);
+    st('scriptdesk', 'Script Desk', 4.5, -2.2, (o) => table(o, (o2) => { o2.add(mesh(new THREE.BoxGeometry(0.7, 0.12, 0.5), toon('#8a3a3a'), -0.4, 1.14, 0)); o2.add(mesh(new THREE.BoxGeometry(0.6, 0.02, 0.45), toon('#f4ecd8'), 0.4, 1.1, 0)); const quill = mesh(G0.cyl(0.02, 0.01, 0.6, 4), toon('#ffffff'), 0.55, 1.35, 0.1); quill.rotation.z = -0.6; o2.add(quill); const letter = mesh(new THREE.TorusGeometry(0.14, 0.03, 4, 12), glow('#ffd27a'), 0.1, 1.7, 0); W.anim.push((t) => { letter.position.y = 1.7 + Math.sin(t * 1.7) * 0.1; letter.rotation.y = t * 1.3; }); o2.add(letter); }), 2);
+    const ring = (o, col, n) => { const r = mesh(new THREE.TorusGeometry(1.1, 0.05, 4, 32), glow(col), 0, 0.26, 0); r.rotation.x = Math.PI / 2; o.add(r); const r2 = mesh(new THREE.TorusGeometry(0.7, 0.04, 4, n), glow(col), 0, 0.26, 0); r2.rotation.x = Math.PI / 2; o.add(r2); W.anim.push((t) => { r2.rotation.z = t * 0.8; }); };
+    st('runecircle', 'Rune Circle', -3, 2, (o) => { ring(o, '#c060ff', 5); for (let i = 0; i < 5; i++) { const a = i * 1.2566; const s2 = mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), glow('#c060ff'), Math.cos(a) * 1.1, 0.5, Math.sin(a) * 1.1); o.add(s2); } });
+    st('starcircle', 'Star Circle', 0.2, 2, (o) => { ring(o, '#ffe07a', 12); const star = mesh(new THREE.OctahedronGeometry(0.22, 0), glow('#fff2b0'), 0, 1.4, 0); o.add(star); W.anim.push((t) => { star.rotation.y = t * 2; }); });
+    st('requip', 'Requip Altar', 3.6, 2, (o) => { o.add(mesh(new THREE.BoxGeometry(1.2, 0.8, 0.8), stoneM, 0, 0.4, 0)); const arm = mesh(new THREE.BoxGeometry(0.7, 0.9, 0.35), toon('#c8ccd8', { emissive: '#30343a' }), 0, 1.3, 0); o.add(arm); o.add(mesh(G0.sph(0.18, 8, 6), toon('#c8ccd8'), 0, 1.9, 0)); const sw = mesh(new THREE.BoxGeometry(0.08, 1.2, 0.03), glow('#ffd27a'), 0.55, 1.4, 0); sw.rotation.z = 0.3; o.add(sw); }, 1.2);
+    const sign = mesh(new THREE.PlaneGeometry(4.6, 0.8), new THREE.MeshBasicMaterial({ map: textTexture('ARCANE WORKSHOP'), side: THREE.DoubleSide }), 0, 3.6, 3.7); g.add(sign);
+    addOutlines(g); shadowAll(g, true, true);
+    W.map.rects.push({ x: WX, z: WZ, w: 12, d: 7, color: '#6a5a8a' });
+  }
   // Market board next to the market
   {
     const b = new THREE.Group(); b.position.set(15.4, 0, 3.2); b.rotation.y = -Math.PI / 2; scene.add(b);

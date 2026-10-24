@@ -541,6 +541,13 @@ export function buildNode(type, tier) {
     const crowns = tier === 2 ? [[0, 3.8, 0, 1.6], [0.9, 3.3, 0.3, 1.1], [-0.8, 3.4, -0.3, 1.1]] : [[0, 3.4, 0, 1.2], [0, 4.3, 0, 0.9], [0.5, 3.0, 0.4, 0.8]];
     for (const [x, y, z, r] of crowns) { const c = mesh(new THREE.IcosahedronGeometry(r, 1), leaf, x, y, z); g.add(c); }
     if (tier >= 3) for (let i = 0; i < 5; i++) { const v = mesh(G.cyl(0.04, 0.02, 1.6, 4), leaf, Math.sin(i * 1.3) * 1.1, 2.6, Math.cos(i * 1.3) * 1.1); g.add(v); }
+  } else if (type === 'fish') {
+    const wc = ['', '#4aa0d8', '#3a8ac8', '#2a6ab0', '#4a5ac8', '#7a6ae8'][tier];
+    const pool = mesh(G.cyl(1.25, 1.35, 0.12, 18), tier >= 4 ? glow(wc) : toon(wc), 0, 0.08, 0); g.add(pool);
+    const rim = mesh(new THREE.TorusGeometry(1.3, 0.14, 6, 18), toon('#8a8478'), 0, 0.12, 0); rim.rotation.x = Math.PI / 2; g.add(rim);
+    for (let i = 0; i < 3; i++) { const r = mesh(new THREE.TorusGeometry(0.3 + i * 0.28, 0.03, 4, 16), toon('#e8f6ff'), 0.2, 0.16, -0.1); r.rotation.x = Math.PI / 2; r.userData.ripple = i; g.add(r); }
+    const post = mesh(G.cyl(0.06, 0.06, 1.6, 6), toon('#6a4a2a'), 1.2, 0.8, 0.6); post.rotation.z = -0.5; g.add(post);
+    const fish = mesh(G.sph(0.18, 8, 6), toon(['', '#c0c8d0', '#a0b870', '#5a7a9a', '#d0d8ff', '#ffe07a'][tier]), -0.3, 0.2, 0.3); fish.scale.set(1.8, 0.6, 0.7); g.add(fish);
   } else {
     const leafC = ['', '#5a9a4a', '#4a7a5a', '#7aa0a0', '#3a6a6a', '#6a5a9a'][tier];
     const tuftC = ['', '#ffffff', '#7a9aff', '#f0e8ff', '#e8f4ff', '#ffe07a'][tier];

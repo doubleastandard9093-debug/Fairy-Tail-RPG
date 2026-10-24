@@ -8,6 +8,10 @@ export const GUILD_RANKS = [
 ];
 export const RANK_ORDER = 'EDCBAS';
 export const JOBS = [
+  { id: 'j_fish', rank: 'E', type: 'gather', item: 'fish_t1', n: 6, title: 'Fish for the Guild Bar', client: 'Mirajane', desc: 'Happy "borrowed" the bar\'s fish again. Catch some at the south-gate ponds? ♪', reward: { jewels: 60, gp: 12, xp: 70, skillXp: { fishing: 120 } }, daily: true },
+  { id: 'j_meals', rank: 'D', type: 'deliver', item: 'meal_t2', n: 3, title: 'Lunch for the Thunder Legion', client: 'Freed', desc: 'Evergreen refuses to eat Bickslow\'s cooking. Deliver three Herb-Crusted Trout.', reward: { jewels: 220, gp: 30, xp: 260, skillXp: { cooking: 300 } }, daily: true },
+  { id: 'j_sigils', rank: 'C', type: 'deliver', item: 'sigil_ward', n: 2, title: 'Rune Wards for Magnolia', client: 'Freed', desc: 'Two Ward Sigils for the town gates. Precise lettering, please.', reward: { jewels: 520, gp: 45, xp: 600, skillXp: { enchanting: 500, script: 200 } }, daily: true },
+  { id: 'j_cells', rank: 'C', type: 'deliver', item: 'cell_t2', n: 3, title: 'Lacrima for the Magic Train', client: 'Magnolia Station', desc: 'The magic train\'s lacrima are fading. Three Bright Lacrima Cells, please.', reward: { jewels: 600, gp: 45, xp: 650, skillXp: { lacrima: 600 } }, daily: true },
   { id: 'j_puff', rank: 'E', type: 'kill', mob: 'puffcap', n: 5, title: 'Forest Vulcan Trouble', client: 'Magnolia Farmers',
     desc: 'Forest Vulcans keep stealing our turnips and shouting \"WOMAN!\" at the scarecrow. Reward: 60 Jewels.', reward: { jewels: 60, gp: 15, xp: 80 } },
   { id: 'j_birch', rank: 'E', type: 'gather', item: 'wood_t1', n: 5, title: 'Firewood for the Guild', client: 'Mirajane',

@@ -1,4 +1,5 @@
 import * as T from '../data/skilltree.js';
+import { SKILL_DEFS, SKILL_CATS, STATIONS as CRAFT_STATIONS, SYNERGIES, SETS, skillLinks, skillBonus, globalSkillFx, setTier } from '../data/skills.js';
 import * as THREE from 'three';
 import { ITEMS, WEAPON_TYPES, ARMOR_TYPES } from '../data/items.js';
 import { TIERS, QUALITIES, ROMAN } from '../data/tiers.js';
@@ -24,8 +25,10 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const fmt = (n) => Math.round(n).toLocaleString();
 const hash = (s) => { let x = 2166136261; for (const c of s) { x ^= c.charCodeAt(0); x = Math.imul(x, 16777619); } return ((x >>> 0) % 1000) / 1000; };
 export const drift = (id) => 0.85 + 0.3 * hash(id + dayStamp());
-export const buyPrice = (id) => Math.max(1, Math.round(ITEMS[id].value * BUY_MARKUP * drift(id)));
-export const sellPrice = (id) => Math.max(1, Math.round(ITEMS[id].value * SELL_RATE * drift(id)));
+let PG = null; export const setPriceG = (G) => { PG = G; }; // Bartering perks change prices
+const gfx = () => (PG ? globalSkillFx(PG) : { sell: 0, buy: 0, travel: 0 });
+export const buyPrice = (id) => Math.max(1, Math.round(ITEMS[id].value * BUY_MARKUP * drift(id) * (1 - gfx().buy)));
+export const sellPrice = (id) => Math.max(1, Math.round(ITEMS[id].value * SELL_RATE * drift(id) * (1 + gfx().sell)));
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
 export function itemDesc(id) {
@@ -33,13 +36,18 @@ export function itemDesc(id) {
   const qq = it.q ? QUALITIES[it.q - 1] : null;
   const tier = (it.tier ? `<span style="color:${TIERS[it.tier].color}">T${it.tier} ${TIERS[it.tier].name}</span> · ` : '') + (qq && qq.q > 1 ? `<span style="color:${qq.color}">${qq.name}</span> · ` : '');
   if (it.kind === 'weapon') return `${tier}${WEAPON_TYPES[it.weaponType].name} · Power ×${it.power.toFixed(2)} · Scales with ${WEAPON_TYPES[it.weaponType].stat}<br><span class="muted">Abilities: ${WEAPON_ABILITIES[it.weaponType].map((a) => ABILITIES[a].name).join(', ')}</span>`;
-  if (it.kind === 'armor') return `${tier}${ARMOR_TYPES[it.armorType].name} · Defence ${it.def}${it.mp ? ` · +${it.mp} max mana` : ''}<br><span class="muted">Ability: ${ABILITIES[{ cloth: 'ar_meditate', leather: 'ar_roll', plate: 'ar_guard' }[it.armorType]].name}</span>`;
+  if (it.kind === 'armor') return `${tier}${it.requip ? '<b style="color:#ffd27a">Requip</b> ' : ''}${ARMOR_TYPES[it.armorType].name} · Defence ${it.def}${it.mp ? ` · +${it.mp} max mana` : ''}${it.fx ? ` · ${Object.entries(it.fx).map(([k, v]) => ({ dmgUp: `+${Math.round(v * 100)}% damage`, dr: `-${Math.round(v * 100)}% damage taken`, mpRegen: `+${v} mana/s` }[k])).join(', ')}` : ''}<br><span class="muted">Ability: ${ABILITIES[{ cloth: 'ar_meditate', leather: 'ar_roll', plate: 'ar_guard' }[it.armorType]].name}</span>`;
   if (it.kind === 'lacrima') { const s = SCHOOLS[it.school]; return `Attunes you to <b style="color:${s.color}">${s.name}</b>.<br><span class="muted">${s.blurb}</span>`; }
   if (it.kind === 'key') return 'A celestial gate key. Required to summon its spirit.';
-  if (it.kind === 'consumable') return `${it.heal ? `Restores ${it.heal} health. ` : ''}${it.mana ? `Restores ${it.mana} mana.` : ''}`;
+  const bfx = (b) => Object.entries(b).filter(([k]) => k !== 'name' && k !== 'dur').map(([k, v]) => ({ dmgUp: `+${Math.round(v * 100)}% damage`, dr: `-${Math.round(v * 100)}% damage taken`, regen: `+${v} HP/s regen`, mpRegen: `+${v} mana/s`, gspeed: `-${Math.round(v * 100)}% gathering time`, allyUp: `+${Math.round(v * 100)}% summon power` }[k] || k)).join(', ');
+  if (it.kind === 'consumable') { const pot = PG ? P.potencyOf(PG, it) : 1; return `${it.heal ? `Restores ${Math.round(it.heal * pot)} health. ` : ''}${it.mana ? `Restores ${Math.round(it.mana * pot)} mana. ` : ''}${it.buff ? `<br>${esc(it.buff.name)} (${Math.round(it.buff.dur / 60)} min): ${bfx(it.buff)}` : ''}${it.skill ? `<br><span class="muted">Made with ${SKILL_DEFS[it.skill].icon} ${SKILL_DEFS[it.skill].name}${pot > 1 ? ` · your potency +${Math.round((pot - 1) * 100)}%` : ''}</span>` : ''}`; }
+  if (it.kind === 'tome') return `Study to gain ~${it.teachXp} ${SKILL_DEFS[it.teach].icon} ${SKILL_DEFS[it.teach].name} XP (more with Solid Script perks). Written with Solid Script.`;
+  if (it.kind === 'food') return `${esc(it.desc || '')} Bond +${it.bond} Exceed XP.`;
+  if (it.resType === 'fish') return `${tier}Fresh fish · Cook it, brew with it, or feed Happy (+${12 * it.tier * it.tier} Exceed XP).`;
   if (it.kind === 'quest') return 'Quest item.';
   return `${tier}${it.kind === 'refined' ? 'Refined material' : 'Raw material'} · worth ~${it.value} jewels`;
 }
+const PERKS_TXT = (ps) => ps.map((p) => `Lv${p.lv} ${p.desc}${p.on ? ' ✓' : ''}`).join('; ');
 export function abilityDesc(id) {
   const a = ABILITIES[id]; if (!a) return '';
   const parts = [];
@@ -297,13 +305,13 @@ export class UI {
     let s = `<div class="wm-where">📍 ${esc(g.zone || '')}</div>`;
     if (atPort && FERRY[atPort]) {
       s += `<div class="wm-h">⛵ Ferry from ${esc(PLACE[atPort].name)}</div>`;
-      for (const d of FERRY[atPort]) s += `<button class="btn wm-go" data-travel="${d}" data-kind="boat">Sail to ${esc(PLACE[d].name)} <small>${FERRY_COST} J</small></button>`;
+      for (const d of FERRY[atPort]) s += `<button class="btn wm-go" data-travel="${d}" data-kind="boat">Sail to ${esc(PLACE[d].name)} <small>${Math.round(FERRY_COST * (1 - gfx().travel))} J</small></button>`;
     } else {
       s += `<div class="wm-h">🚂 Magic Train</div>`;
       if (!atStation) s += `<div class="muted">Walk to a station platform (or any town with a 🚂) to ride.</div>`;
       for (const id of STATIONS) {
         const p = PLACE[id]; const known = G.discovered[id]; if (id === g.placeId) continue;
-        const cost = trainCost(g.placeId || 'magnolia', id);
+        const cost = Math.round(trainCost(g.placeId || 'magnolia', id) * (1 - gfx().travel));
         s += known ? `<button class="btn wm-go" ${atStation ? '' : 'disabled'} data-travel="${id}" data-kind="train">${esc(p.station.label)} <small>${cost} J</small></button>` : `<div class="muted">??? (undiscovered)</div>`;
       }
       s += `<div class="muted small">Boats to Galuna and Tenrou leave from the Hargeon Port pier.</div>`;
@@ -314,10 +322,10 @@ export class UI {
   }
   togglePanel(name) { if (this.panel === name) this.closePanel(); else this.openPanel(name); }
   openPanel(name, opts = {}) { this.closeDialog(); this.panel = name; this.popts = opts; this.sel = null; this.tab = opts.tab || this.tab0(name); this.el.panel.classList.remove('hidden'); this.renderPanel(); }
-  tab0(name) { if (name === 'tree') return this.treeTab0(); return { shop: 'buy', quests: 'story', board: 'E' }[name] || null; }
+  tab0(name) { if (name === 'tree') return this.treeTab0(); if (name === 'craft') return this.popts.station || 'forge'; if (name === 'skills') return 'list'; return { shop: 'buy', quests: 'story', board: 'E' }[name] || null; }
   closePanel() { this.panel = null; this.el.panel.classList.add('hidden'); if (this.game) saveGame(this.game.G); }
   renderPanel() {
-    const fn = this['p_' + this.panel]; if (!fn) return;
+    const fn = this['p_' + this.panel]; if (!fn) return; if (this.game) setPriceG(this.game.G);
     const body = this.el.panel.querySelector('.body'); const st = body.scrollTop;
     const tabs = this.el.panel.querySelector('.tabs'); tabs.innerHTML = '';
     const { title, html, tabs: tl, bind } = fn.call(this);
@@ -346,6 +354,8 @@ export class UI {
       if (it.kind === 'armor') acts.push(['equip', 'Equip']);
       if (it.kind === 'lacrima') acts.push(['equip', 'Attune']);
       if (it.kind === 'consumable') acts.push(['use', 'Use']);
+      if (it.kind === 'tome') acts.push(['use', 'Study']);
+      if (it.kind === 'food' || it.resType === 'fish') acts.push(['feed', 'Feed Happy 🐱']);
       if (it.kind !== 'quest') acts.push(['drop', 'Drop']);
     }
     return `<div class="iteminfo"><div class="nm">${it.icon} ${esc(it.name)}${s.qty > 1 ? ` ×${s.qty}` : ''}</div><div class="muted">${itemDesc(s.id)}</div><div class="acts">${acts.map(([a, l]) => `<button class="btn small${a === 'equip' ? ' gold' : ''}" data-act="${a}" data-arg="${where}" data-arg2="${i}">${l}</button>`).join('')}</div></div>`;
@@ -404,10 +414,56 @@ export class UI {
       <div class="sec">Class ranks <span class="muted">(rank up by using a school or weapon; each rank adds +12% school power)</span></div>${ranks}` };
   }
   p_skills() {
-    const G = this.game.G;
-    const rows = Object.entries(SKILLS).map(([k, s]) => { const l = skillLevel(G, k); return `<div class="row"><div class="ic">${s.icon}</div><div class="grow"><div class="nm">${s.name} <span style="float:right">${l}/99</span></div><div class="bar xp"><i style="width:${progressToNext(G.skills[k]) * 100}%"></i></div><div class="ds">${fmt(G.skills[k])} XP${l < 99 ? ` · ${fmt(xpForLevel(l + 1) - G.skills[k])} to level ${l + 1}` : ''}</div></div></div>`; }).join('');
-    return { title: `⛏️ Skills <span class="muted">Total ${totalLevel(G)}</span>`, html: rows + `<div class="muted" style="margin-top:8px">Gathering tiers: T1 at level 1, T2 at 10, T3 at 20. Refine at the forge and workbench in Magnolia.</div>` };
+    const G = this.game.G; const sel = this.skillSel && SKILLS[this.skillSel] ? this.skillSel : null;
+    const pct = (v) => `${Math.round(v * 100)}%`;
+    const bonusChips = (k) => { const b = skillBonus(G, k); return [['xp', '+', 'XP'], ['yield', '+', 'bonus'], ['speed', '-', 'time'], ['save', '+', 'saved'], ['quality', '+', 'quality'], ['potency', '+', 'potency']].filter(([f]) => b[f] > 0.0001).map(([f, sg, l]) => `<span class="chip">${sg}${pct(b[f])} ${l}</span>`).join(''); };
+    const tabs = [['list', '⛏️ Skills'], ['web', '🔗 Synergy Web'], ['sets', '🏅 Skill Sets']];
+    const detail = (k) => {
+      const d = SKILL_DEFS[k], L = skillLevel(G, k), ln = skillLinks(G, k);
+      const st = d.station; const recs = P.RECIPES.filter((r) => r.skill === k).sort((a, b) => a.level - b.level);
+      const unlocks = recs.filter((r) => r.level > L).slice(0, 5).map((r) => `<span class="chip lock">Lv ${r.level}: ${ITEMS[Object.keys(r.out)[0]].icon} ${esc(ITEMS[Object.keys(r.out)[0]].name)}</span>`).join('') || '<span class="muted">All recipes unlocked.</span>';
+      const li = (on, txt) => `<div class="syn ${on ? 'on' : ''}">${on ? '✅' : '🔒'} ${txt}</div>`;
+      return `<div class="iteminfo skilldetail"><div class="nm">${d.icon} ${esc(d.name)} <span class="muted">Level ${L} · ${SKILL_CATS[d.cat]}</span></div><div class="ds">${esc(d.desc)}</div>
+        ${st ? `<div class="ds">Station: ${CRAFT_STATIONS[st].icon} ${CRAFT_STATIONS[st].name} (Magnolia workshop, south-west of the guild)</div>` : ''}
+        <div class="ds">Active bonuses: ${bonusChips(k) || '<span class="muted">none yet</span>'}</div>
+        <div class="sec">Milestone perks</div>${ln.perks.map((p) => li(p.on, `Lv ${p.lv} · ${esc(p.desc)}`)).join('') || '<div class="muted">—</div>'}
+        <div class="sec">Boosted by</div>${ln.incoming.map((x) => li(x.on, `${SKILLS[x.from].icon} ${SKILLS[x.from].name} ${x.lv} → ${esc(x.desc)}`)).join('') || '<div class="muted">—</div>'}
+        <div class="sec">Boosts</div>${ln.outgoing.map((x) => li(x.on, `Lv ${x.lv} → ${SKILLS[x.to] ? SKILLS[x.to].icon + ' ' + SKILLS[x.to].name : 'all ' + x.to}: ${esc(x.desc)}`)).join('') || '<div class="muted">—</div>'}
+        <div class="sec">Skill sets</div>${ln.sets.map((x) => `<div class="syn ${x.tier ? 'on' : ''}">${x.icon} ${esc(x.name)} · tier ${x.tier}/3 · ${x.skills.map((m) => SKILLS[m].icon).join('')}</div>`).join('') || '<div class="muted">—</div>'}
+        ${recs.length ? `<div class="sec">Next unlocks</div><div>${unlocks}</div>` : ''}
+        ${k === 'exceed' ? `<div class="acts" style="margin-top:6px"><button class="btn small gold" data-act="feedHappy">🐟 Feed Happy (best food in bag)</button> <span class="muted">Bonded ${G.bond || 0} times</span></div>` : ''}</div>`;
+    };
+    let html = '';
+    if (this.tab === 'web') {
+      const keys = Object.keys(SKILLS); const n = keys.length; const W = 360, C = 180, Rr = 140; const pos = {};
+      keys.forEach((k, i) => { const a = -Math.PI / 2 + (i / n) * Math.PI * 2; pos[k] = [C + Math.cos(a) * Rr, C + Math.sin(a) * Rr]; });
+      const catCol = { gathering: '#7ad07a', production: '#e0a060', arcane: '#a08aff', support: '#60c8e8' };
+      let lines = '';
+      for (const sy of SYNERGIES) {
+        const tos = SKILLS[sy.to] ? [sy.to] : keys.filter((k) => SKILL_DEFS[k].cat === sy.to);
+        const on = skillLevel(G, sy.from) >= sy.lv; const hi = sel && (sy.from === sel || tos.includes(sel));
+        for (const t of tos) { const [x1, y1] = pos[sy.from], [x2, y2] = pos[t]; const mx = (x1 + x2) / 2 + (C - (x1 + x2) / 2) * 0.35, my = (y1 + y2) / 2 + (C - (y1 + y2) / 2) * 0.35;
+          lines += `<path d="M${x1},${y1} Q${mx},${my} ${x2},${y2}" fill="none" stroke="${on ? '#ffd27a' : '#6a6a80'}" stroke-width="${hi ? 2.6 : tos.length > 1 ? 0.8 : 1.4}" ${on ? '' : 'stroke-dasharray="4 3"'} opacity="${sel && !hi ? 0.15 : 0.9}" marker-end="url(#arw${on ? 1 : 0})"><title>${esc(SKILLS[sy.from].name)} ${sy.lv} → ${esc(sy.desc)}</title></path>`; }
+      }
+      const nodes = keys.map((k) => { const [x, y] = pos[k]; const L = skillLevel(G, k); return `<g class="wnode" data-act="ssel" data-arg="${k}" style="cursor:pointer"><title>${esc(SKILL_DEFS[k].name)} ${L} — ${esc(SKILL_DEFS[k].desc)}</title><circle cx="${x}" cy="${y}" r="${k === sel ? 19 : 16}" fill="#1a1830" stroke="${catCol[SKILL_DEFS[k].cat]}" stroke-width="${k === sel ? 3.5 : 2}"/><text x="${x}" y="${y + 5}" text-anchor="middle" font-size="15">${SKILL_DEFS[k].icon}</text><text x="${x}" y="${y + 29}" text-anchor="middle" font-size="9" fill="#e8e0ff">${esc(SKILL_DEFS[k].name.split(' ')[0])} ${L}</text></g>`; }).join('');
+      html = `<div class="muted">Every gold line is an active synergy (levelling the source skill boosts the target). Dashed lines are still locked. Tap a skill to highlight its links.</div>
+        <svg viewBox="0 0 ${W} ${W + 10}" class="synweb" style="width:100%;max-width:520px;display:block;margin:6px auto"><defs>${[0, 1].map((o) => `<marker id="arw${o}" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${o ? '#ffd27a' : '#6a6a80'}"/></marker>`).join('')}</defs>${lines}${nodes}</svg>
+        <div class="legend muted">${Object.entries(SKILL_CATS).map(([c, l]) => `<span style="color:${catCol[c]}">● ${l}</span>`).join(' · ')}</div>${sel ? detail(sel) : ''}`;
+    } else if (this.tab === 'sets') {
+      html = '<div class="muted">Raise every skill in a set to 10 / 25 / 40 to unlock its tiers. Tiers stack.</div>' + SETS.map((st) => { const t = setTier(G, st); const lo = Math.min(...st.skills.map((k) => skillLevel(G, k))); const nx = st.tiers[t];
+        return `<div class="row setcard ${t ? 'on' : ''}"><div class="ic">${st.icon}</div><div class="grow"><div class="nm">${esc(st.name)} <span style="float:right">Tier ${t}/3</span></div><div class="ds">${st.skills.map((k) => `<span class="chip" data-act="ssel" data-arg="${k}" title="${esc(SKILL_DEFS[k].name)}">${SKILL_DEFS[k].icon} ${skillLevel(G, k)}</span>`).join('')}</div><div class="bar xp"><i style="width:${nx ? Math.min(100, (lo / nx) * 100) : 100}%"></i></div><div class="ds">${esc(st.desc)}${nx ? ` · next tier when all reach ${nx}` : ' · maxed!'}</div></div></div>`; }).join('') + (sel ? detail(sel) : '');
+    } else {
+      for (const [c, label] of Object.entries(SKILL_CATS)) {
+        html += `<div class="sec">${label}</div>`;
+        html += Object.entries(SKILLS).filter(([, d]) => d.cat === c).map(([k, d]) => { const l = skillLevel(G, k); const ln = skillLinks(G, k); const act = ln.incoming.filter((x) => x.on).length + ln.perks.filter((x) => x.on).length;
+          const tip = `${d.name}: ${d.desc} | Perks: ${(PERKS_TXT(ln.perks))} | Synergies in: ${ln.incoming.length}, out: ${ln.outgoing.length}`;
+          return `<div class="row skrow${k === sel ? ' on' : ''}" data-act="ssel" data-arg="${k}" title="${esc(tip)}" style="cursor:pointer"><div class="ic">${d.icon}</div><div class="grow"><div class="nm">${esc(d.name)} <span style="float:right">${l}/99</span></div><div class="bar xp"><i style="width:${progressToNext(G.skills[k] || 0) * 100}%"></i></div><div class="ds">${fmt(G.skills[k] || 0)} XP${l < 99 ? ` · ${fmt(xpForLevel(l + 1) - (G.skills[k] || 0))} to ${l + 1}` : ''} · 🔗 ${act} active ${bonusChips(k)}</div></div></div>${k === sel ? detail(k) : ''}`; }).join('');
+      }
+      html += `<div class="muted" style="margin-top:8px">Tap a skill for perks, synergies and unlocks. Gathering tiers: T1 at 1, T2 at 10, T3 at 20, T4 at 30, T5 at 40. Crafting stations are in Magnolia (Forge pavilion + Arcane Workshop).</div>`;
+    }
+    return { title: `⛏️ Skills <span class="muted">Total ${totalLevel(G)} · ${SYNERGIES.filter((x) => skillLevel(G, x.from) >= x.lv).length}/${SYNERGIES.length} synergies</span>`, tabs, html };
   }
+
   p_quests() {
     const G = this.game.G; const nx = nextGuildRank(G); const cur = GUILD_RANKS.find((r) => r.r === guildRank(G));
     const head = `<div class="row"><div class="rk ${guildRank(G)}">${guildRank(G)}</div><div class="grow"><div class="nm">Guild rank ${guildRank(G)} · ${G.qp} quest points</div><div class="bar gp"><i style="width:${nx ? (G.gp - cur.gp) / (nx.gp - cur.gp) * 100 : 100}%"></i></div><div class="ds">${G.gp} guild points${nx ? ` · ${nx.gp - G.gp} to rank ${nx.r}` : ' · max rank!'}</div></div></div>`;
@@ -463,10 +519,11 @@ export class UI {
     return { title: `🛒 Market Board <span class="muted">💎 ${fmt(G.jewels)}</span>`, tabs: [['buy', 'Buy'], ['sell', 'Sell']], html };
   }
   p_craft() {
-    const G = this.game.G; const station = this.popts.station;
+    const G = this.game.G; const station = CRAFT_STATIONS[this.tab] ? this.tab : (this.popts.station || 'forge');
     const list = P.RECIPES.filter((r) => r.station === station);
     const groups = {}; for (const r of list) (groups[r.group] ||= []).push(r);
-    let html = `<div class="muted">${station === 'forge' ? 'Refine ore into bars and smith weapons and plate. Trains Smithing.' : 'Refine wood, fibre and hide; craft bows, staves, knuckles, robes and jackets. Trains Crafting.'}</div><div class="muted">Refining T2+ also needs one refined piece of the tier below. Gear rolls a quality (Normal → Masterpiece): out-level the recipe and train the 🛠️ Artisan tree for better odds. T4–T5 gear binds Lacrima Shards.</div>`;
+    const SD = CRAFT_STATIONS[station]; const sk = SKILL_DEFS[SD.skill];
+    let html = station !== 'forge' && station !== 'workbench' ? `<div class="muted">${sk.icon} ${esc(sk.desc)} Trains ${esc(sk.name)}. <span class="chip">${Object.entries(skillBonus(G, SD.skill)).filter(([, v]) => v > 0).map(([k2, v]) => `${k2} +${Math.round(v * 100)}%`).join(' · ') || 'no bonuses yet'}</span></div>` : `<div class="muted">${station === 'forge' ? 'Refine ore into bars and smith weapons and plate. Trains Smithing.' : 'Refine wood, fibre and hide; craft bows, staves, knuckles, robes and jackets. Trains Crafting.'}</div><div class="muted">Refining T2+ also needs one refined piece of the tier below. Gear rolls a quality (Normal → Masterpiece): out-level the recipe and train the 🛠️ Artisan tree for better odds. T4–T5 gear binds Lacrima Shards.</div>`;
     for (const [gname, rs] of Object.entries(groups)) {
       html += `<div class="sec">${gname}</div>`;
       html += rs.map((r) => {
@@ -476,7 +533,7 @@ export class UI {
         return `<div class="row"><div class="ic">${it.icon}</div><div class="grow"><div class="nm">${esc(it.name)}${r.out[outId] > 1 ? ` ×${r.out[outId]}` : ''} <span class="muted" style="color:${lvOk ? '' : '#ff9a8a'}">${SKILLS[r.skill].name} ${r.level} · ${Math.round(r.xp)} XP</span></div><div class="ds">${ins}</div></div><button class="btn small gold" data-act="craft" data-arg="${r.id}" ${why ? 'disabled' : ''} title="${esc(why || '')}">Make</button><button class="btn small" data-act="craftAll" data-arg="${r.id}" ${why ? 'disabled' : ''}>All</button></div>`;
       }).join('');
     }
-    return { title: station === 'forge' ? '🔥 Forge & Anvil' : '🪚 Workbench', tabs: [['forge', 'Forge'], ['workbench', 'Workbench']].map(([k, l]) => [k, l]), html, bind: () => { this.el.panel.querySelectorAll('.tab').forEach((t, i) => { t.classList.toggle('on', ['forge', 'workbench'][i] === station); t.onclick = () => { this.popts.station = ['forge', 'workbench'][i]; this.renderPanel(); }; }); } };
+    return { title: `${SD.icon} ${SD.name}`, tabs: Object.entries(CRAFT_STATIONS).map(([k2, v]) => [k2, `${v.icon} ${v.name.split(' ')[0]}`]), html };
   }
   p_settings() {
     const g = this.game, S = g.S, G = g.G;
@@ -516,7 +573,8 @@ export class UI {
       }
       case 'reserve': { const old = G.equip.weapon2; G.inv[idx] = null; if (old) addItem(G, old, 1); G.equip.weapon2 = s.id; this.sel = null; this.log(`${ITEMS[s.id].name} set as your Requip reserve.`, 'info'); break; }
       case 'unequip': { const id = G.equip[arg]; if (!canAdd(G, id)) { this.toast('Bag full!'); break; } addItem(G, id, 1); G.equip[arg] = null; g.refreshGear(); break; }
-      case 'use': { const it = ITEMS[s.id]; const d = derived(G); if (it.heal) G.hp = Math.min(d.maxHp, G.hp + it.heal); if (it.mana) G.mp = Math.min(d.maxMp, G.mp + it.mana); removeItem(G, s.id, 1); this.log(`You use the ${it.name}. ${it.id === 'stew' ? 'It is suspiciously good.' : 'Refreshing!'}`, 'info'); if (!G.inv[idx]) this.sel = null; break; }
+      case 'use': { const msg = P.useItem(G, s.id, g); if (msg) { this.log(msg, 'info'); this.sfx('ui'); } if (!G.inv[idx]) this.sel = null; break; }
+      case 'feed': { const msg = P.feedExceed(G, s.id); if (msg) this.log(msg, 'info'); if (!G.inv[idx]) this.sel = null; break; }
       case 'drop': { this.log(`You drop ${s.qty > 1 ? s.qty + '× ' : ''}${ITEMS[s.id].name}.`, 'info'); G.inv[idx] = null; this.sel = null; break; }
       case 'deposit': case 'depositAll': { const n = a === 'depositAll' ? s.qty : 1; if (addItem(G, s.id, n, 'bank') < n) removeItem(G, s.id, n); else this.toast('Bank full!'); if (!G.inv[idx]) this.sel = null; break; }
       case 'withdraw': case 'withdrawAll': { const n = a === 'withdrawAll' ? s.qty : 1; const left = addItem(G, s.id, n); if (left < n) removeItem(G, s.id, n - left, 'bank'); else this.toast('Bag full!'); if (!G.bank[idx]) this.sel = null; break; }
@@ -524,8 +582,10 @@ export class UI {
         for (let i = 0; i < G.inv.length; i++) { const x = G.inv[i]; if (!x) continue; const k = ITEMS[x.id].kind; if (a === 'depositRes' && !(k === 'resource' || k === 'refined')) continue; if (k === 'quest' || k === 'key') continue; if (addItem(G, x.id, x.qty, 'bank') === 0) G.inv[i] = null; }
         this.sel = null; this.log('Levy stores your items. The owl judges you silently.', 'npc'); break;
       }
-      case 'sell': case 'sellAll': { const n = a === 'sellAll' ? s.qty : 1; const p = sellPrice(s.id) * n; removeItem(G, s.id, n); G.jewels += p; this.log(`Sold ${n}× ${ITEMS[s.id].name} for ${p} jewels.`, 'loot'); if (!G.inv[idx]) this.sel = null; break; }
-      case 'buy': { const p = buyPrice(arg); if (G.jewels < p) { this.toast('Not enough jewels.'); break; } if (!canAdd(G, arg)) { this.toast('Bag full!'); break; } G.jewels -= p; addItem(G, arg, 1); this.log(`Bought ${ITEMS[arg].name} for ${p} jewels.`, 'loot'); P.questEvent(G, { type: 'item' }); break; }
+      case 'sell': case 'sellAll': { const n = a === 'sellAll' ? s.qty : 1; const p = sellPrice(s.id) * n; removeItem(G, s.id, n); G.jewels += p; P.onTrade(G, p, true); this.log(`Sold ${n}× ${ITEMS[s.id].name} for ${p} jewels.`, 'loot'); if (!G.inv[idx]) this.sel = null; break; }
+      case 'buy': { const p = buyPrice(arg); if (G.jewels < p) { this.toast('Not enough jewels.'); break; } if (!canAdd(G, arg)) { this.toast('Bag full!'); break; } G.jewels -= p; addItem(G, arg, 1); P.onTrade(G, p, false); this.log(`Bought ${ITEMS[arg].name} for ${p} jewels.`, 'loot'); P.questEvent(G, { type: 'item' }); break; }
+      case 'ssel': this.skillSel = this.skillSel === arg && this.tab === 'list' ? null : arg; break;
+      case 'feedHappy': { const f = P.bestExceedFood(G); if (!f) { this.toast('No fish or Exceed treats in your bag. Fish or cook some!'); break; } this.log(P.feedExceed(G, f.id), 'info'); break; }
       case 'craft': P.craft(G, P.RECIPES.find((r) => r.id === arg)); break;
       case 'craftAll': { const r = P.RECIPES.find((x) => x.id === arg); let n = 0; while (!P.recipeBlock(G, r) && n < 50) { P.craft(G, r); n++; } break; }
       case 'learn': if (T.learn(G, arg)) { this.log(`Learned ${T.NODE[arg].name} (rank ${T.rankOf(G, arg)}).`, 'lvl'); this.sfx('level'); } else this.toast(T.canLearn(G, arg)); this.treeSel = arg; break;
