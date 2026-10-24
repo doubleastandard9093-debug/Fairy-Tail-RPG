@@ -335,3 +335,13 @@ body.touch #emoteb { display: block; }
 .synweb .wnode:hover circle { stroke-width: 4; }
 .legend { text-align: center; font-size: 11px; }
 .tabs { flex-wrap: wrap; }
+/* ---- Active/passive skill tree ranks ---- */
+.tnode .pips { display: flex; gap: 2px; justify-content: center; margin-top: 1px; }
+.tnode .pips i { width: 6px; height: 6px; border-radius: 50%; background: #3a2e48; border: 1px solid #6a5a7a; }
+.tnode .pips i.on { background: #ffd76a; border-color: #ffe9a8; box-shadow: 0 0 4px #ffcf40; }
+.tnode .ult { position: absolute; top: -7px; right: -6px; font-size: 9px; font-weight: 800; padding: 1px 4px; border-radius: 6px; background: linear-gradient(#ff7a3a, #c8301a); color: #fff; letter-spacing: .5px; }
+.tnode .ult.set { background: linear-gradient(#7ad0ff, #3a6ac8); }
+.tnode .ult.per { background: linear-gradient(#8aff9a, #2a9a4a); }
+.chip.on { border-color: #ffd76a; color: #ffe9a8; }
+#abar .rk { position: absolute; left: 3px; top: 2px; font: 800 10px/1 Georgia, serif; color: #ffe08a; text-shadow: 0 0 3px #000, 0 0 2px #000; }
+#abar .ultb { box-shadow: 0 0 0 2px #ff7a3a inset, 0 0 10px #ff5a1a; }

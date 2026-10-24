@@ -2,7 +2,7 @@ import { ITEMS } from '../data/items.js';
 import { SCHOOLS, rankForXp } from '../data/schools.js';
 import { GUILD_RANKS } from '../data/jobs.js';
 import { charLevelForXp, levelForXp } from './xp.js';
-import { globalBonus, migrateTree } from '../data/skilltree.js';
+import { globalBonus, migrateTree, passiveFx } from '../data/skilltree.js';
 import { SKILL_DEFS, globalSkillFx } from '../data/skills.js';
 
 export const SAVE_KEY = 'ftrpg_save_v1';
@@ -48,15 +48,15 @@ export function dayStamp() { const d = new Date(); return d.getFullYear() * 1000
 export function derived(G) {
   const level = charLevelForXp(G.xp);
   const armor = G.equip.armor ? ITEMS[G.equip.armor] : null;
-  const s = G.stats; const tb = globalBonus(G);
+  const s = G.stats; const tb = globalBonus(G); const pf = passiveFx(G);
   return {
     level,
-    maxHp: Math.round((120 + 12 * (level - 1) + s.VIT * 9) * (1 + tb.hp)),
-    maxMp: Math.round(60 + 5 * (level - 1) + s.INT * 4 + (armor ? armor.mp : 0) + tb.mp),
-    def: armor ? armor.def : 0,
-    speed: 6.2 * (1 + s.AGI * 0.006) * (1 + globalSkillFx(G).move),
-    cdr: Math.min(0.3, s.AGI * 0.004),
-    crit: Math.min(0.5, 0.05 + s.DEX * 0.004 + tb.crit),
+    maxHp: Math.round((120 + 12 * (level - 1) + s.VIT * 9) * (1 + tb.hp + (pf.hp || 0))),
+    maxMp: Math.round(60 + 5 * (level - 1) + s.INT * 4 + (armor ? armor.mp : 0) + tb.mp + (pf.mp || 0)),
+    def: (armor ? armor.def : 0) + (pf.def || 0),
+    speed: 6.2 * (1 + s.AGI * 0.006) * (1 + globalSkillFx(G).move + (pf.move || 0)),
+    cdr: Math.min(0.4, s.AGI * 0.004 + (pf.cdr || 0)),
+    crit: Math.min(0.5, 0.05 + s.DEX * 0.004 + tb.crit + (pf.crit || 0)),
   };
 }
 export function skillLevel(G, k) { return levelForXp(G.skills[k] || 0); }

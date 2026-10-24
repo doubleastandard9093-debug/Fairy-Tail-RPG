@@ -1,3 +1,4 @@
+import * as TREE_API from './data/skilltree.js';
 import * as THREE from 'three';
 import './ui/style.css';
 import { GFX } from './world/toon.js';
@@ -76,6 +77,6 @@ async function boot() {
     audio.play(ui.bossEnt ? 'boss' : game.zone === 'Fairy Tail Guild Hall' || game.zone === 'Magnolia' ? 'hall' : 'field');
   };
   requestAnimationFrame(frame);
-  window.__ew = { game, G, ui, P, S, THREE, D: { derived, TREES, MOBS } };
+  window.__ew = { game, G, ui, P, S, THREE, D: { derived, TREES, MOBS }, T: TREE_API };
 }
 boot().catch((e) => { console.error(e); const d = document.createElement('div'); d.id = 'loading'; d.textContent = 'Something exploded (not the guild this time): ' + e.message; document.body.appendChild(d); });

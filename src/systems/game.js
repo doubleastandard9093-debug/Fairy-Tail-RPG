@@ -15,7 +15,7 @@ import { glow, GFX } from '../world/toon.js';
 import * as P from './progress.js';
 import { MagicFX, schoolOf, SCHOOL_COLORS } from './magicfx.js';
 import { PARTY } from '../data/combos.js';
-import { artisanBonus, abilityLearned, abilityBonus, NODE } from '../data/skilltree.js';
+import { artisanBonus, abilityLearned, abilityBonus, NODE, passiveFx, abilityRank } from '../data/skilltree.js';
 
 const TMP = new THREE.Vector3();
 const ang = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -61,13 +61,21 @@ export class Game {
     const G = this.G; const w = G.equip.weapon ? ITEMS[G.equip.weapon].weaponType : 'none';
     const a = G.equip.armor ? ITEMS[G.equip.armor].armorType : null; const sch = G.equip.lacrima ? ITEMS[G.equip.lacrima].school : null;
     const list = [...WEAPON_ABILITIES[w]]; while (list.length < 3) list.push(null);
-    const sa = sch ? SCHOOLS[sch].abilities : [];
+    const sa = sch ? this.schoolBar(sch) : [];
     for (let i = 0; i < 4; i++) list.push(sa[i] || null);
     list.push(a ? ARMOR_ABILITY[a] : null);
     return list;
   }
+  /** The 4 school slots: player-chosen (Skill Tree → Slot) or the school's first four. */
+  schoolBar(sch) {
+    const S = SCHOOLS[sch]; const all = [...S.abilities, ...(S.advanced || [])]; const hb = this.G.hotbar && this.G.hotbar[sch];
+    if (hb && hb.length === 4 && hb.every((x) => !x || all.includes(x))) return hb; return S.abilities.slice(0, 4);
+  }
+  setSchoolSlot(sch, slot, id) {
+    const G = this.G; G.hotbar ||= {}; const bar = [...this.schoolBar(sch)]; const old = bar.indexOf(id); if (old >= 0) bar[old] = bar[slot]; bar[slot] = id; G.hotbar[sch] = bar; this.ui.renderAbilities?.();
+  }
   abilitySource(id) {
-    for (const [k, s] of Object.entries(SCHOOLS)) if (s.abilities.includes(id)) return { kind: 'school', key: k };
+    for (const [k, s] of Object.entries(SCHOOLS)) if (s.abilities.includes(id) || (s.advanced || []).includes(id)) return { kind: 'school', key: k };
     for (const [k, l] of Object.entries(WEAPON_ABILITIES)) if (l.includes(id)) return { kind: 'weapon', key: k };
     return { kind: 'armor', key: null };
   }
@@ -78,7 +86,8 @@ export class Game {
   buff(k) {
     let v = 0; for (const b of this.player.buffs) if (b[k]) v += b[k];
     const ar = this.G.equip.armor && ITEMS[this.G.equip.armor]; if (ar && ar.fx && ar.fx[k]) v += ar.fx[k]; // Requip armor effects
-    const gf = P.globalSkillFx(this.G); if (gf[k]) v += gf[k]; // skill perks and set bonuses (allyUp, dmgUp, regen)
+    const gf = P.globalSkillFx(this.G); if (gf[k]) v += gf[k];
+    const pf = passiveFx(this.G); if (pf[k] && k !== 'dmgUp') v += pf[k]; // passive trees (dr, regen, mpRegen, allyUp, gspeed, yield) // skill perks and set bonuses (allyUp, dmgUp, regen)
     return v;
   }
 
@@ -88,14 +97,15 @@ export class Game {
     if (pl.dead) return;
     if (this.abilityLocked(id)) { if (!(this.lockToastT > this.t)) { this.lockToastT = this.t + 3; this.ui.toast(`Learn ${ab.name} in the Skill Tree (T) first.`); } return; }
     if ((pl.cds[id] || 0) > 0) return;
-    const cost = ab.cost || {};
+    const tb0 = abilityBonus(G, id, this.abilitySource(id).key);
+    const cost = ab.cost ? { ...ab.cost } : {}; if (cost.mp) cost.mp = Math.round(cost.mp * (1 + tb0.cost));
     if (cost.mp && G.mp < cost.mp) { this.ui.toast('Not enough mana!'); return; }
     if (cost.adr && G.adr < cost.adr) { this.ui.toast(`Needs ${cost.adr}% adrenaline.`); return; }
     if (ab.needs && countItem(G, ab.needs) < 1) { this.ui.toast(`You need the ${ITEMS[ab.needs].name}.`); return; }
     if (ab.type === 'requip' && !G.equip.weapon2) { this.ui.toast('No reserve weapon! Equip one as Reserve in your bag.'); return; }
     G.mp -= cost.mp || 0; G.adr -= cost.adr || 0; G.adr = Math.min(100, G.adr + (ab.gain || 0));
     const src = this.abilitySource(id); const tb = abilityBonus(G, id, src.key);
-    pl.cds[id] = ab.cd * (1 - d.cdr) * (1 - Math.min(0.3, tb.cdr));
+    pl.cds[id] = ab.cd * (1 - d.cdr) * (1 - Math.min(0.4, tb.cdr));
     pl.gathering = null; pl.combatT = 6;
     P.grantRankXp(G, src.key === 'none' ? 'knuckles' : src.key, 2);
     let tgt = this.validTarget();
@@ -103,7 +113,7 @@ export class Game {
     if (tgt && ab.type !== 'buff' && ab.type !== 'dash') pl.rot = Math.atan2(tgt.pos.x - pl.pos.x, tgt.pos.z - pl.pos.z);
     const wItem = G.equip.weapon ? ITEMS[G.equip.weapon] : null;
     const power = src.kind === 'weapon' ? (wItem ? wItem.power : 0.8) : src.kind === 'school' ? 1 + 0.12 * (classRank(G, src.key) - 1) + (wItem ? (wItem.power - 1) * 0.5 : 0) : 1;
-    const base = (14 + d.level * 3) * power * (ab.mult || 0) * (1 + (G.stats[ab.stat] || 0) * 0.035) * (1 + this.buff('dmgUp')) * (1 + tb.dmg);
+    const base = (14 + d.level * 3) * power * (ab.mult || 0) * (1 + (G.stats[ab.stat] || 0) * 0.035) * (1 + this.buff('dmgUp')) * (1 + tb.dmg) * (1 + (passiveFx(G).dmg || 0));
     const fwd = new THREE.Vector3(Math.sin(pl.rot), 0, Math.cos(pl.rot));
     const color = ab.color || '#ffffff';
     const wt = wItem ? wItem.weaponType : 'knuckles';
@@ -155,7 +165,7 @@ export class Game {
         this.fxRing(pl.pos, ab.radius, color); this.ui.log(`Requip! Now wielding ${ITEMS[G.equip.weapon].name}.`, 'ability'); this.ui.refresh(); break;
       }
     }
-    this.magic.cast(id, { ...ab, id }, pl, tgt, fwd); this.magic.onCast(id, ab, (14 + d.level * 3) * power * (1 + (G.stats.INT || 0) * 0.035) * (1 + this.buff('dmgUp')));
+    this.magic.cast(id, { ...ab, id }, pl, tgt, fwd); this.rankFx(tb.rank, ab, pl, tgt, fwd, color); this.magic.onCast(id, ab, (14 + d.level * 3) * power * (1 + (G.stats.INT || 0) * 0.035) * (1 + this.buff('dmgUp')));
     this.ui.abilityFired(slot);
   }
   /** Party: one guildmate follows you everywhere (saved in G.party). */
@@ -199,12 +209,32 @@ export class Game {
     }
     return best;
   }
+  /** Extra visual layers for ranked-up actives: rank 3+ adds a glyph and sparks, rank 5 a light pillar; ultimates always flare. */
+  rankFx(rank, ab, pl, tgt, fwd, color) {
+    if (!rank || rank < 3 && ab.tier !== 'ult') return;
+    const at = ab.type === 'aoe_target' || ab.type === 'proj' ? (tgt ? tgt.pos.clone() : pl.pos.clone().addScaledVector(fwd, ab.dist || 6)) : pl.pos.clone();
+    this.magic.glyph(pl.pos, 1.4 + rank * 0.15, color, false, 0, rank >= 4, 0.9); this.fxBurst(at, color, 6 + rank * 3);
+    if (rank >= 5 || ab.tier === 'ult') { this.magic.pillar(at, (ab.radius || 2.5) * 0.6, [color, '#ffffff'], 10 + rank * 2, 0.9); this.ui.shake?.(0.2 + (ab.tier === 'ult' ? 0.25 : 0)); }
+  }
+  /** On-hit passive procs (Arcana / Life Bond trees). */
+  procs(m, dmg, ab) {
+    const pf = passiveFx(this.G); const G = this.G; const d = derived(G);
+    if (pf.lifesteal) G.hp = Math.min(d.maxHp, G.hp + dmg * pf.lifesteal);
+    if (m.dead || m.hp <= 0) return;
+    if (pf.burnProc && this.rand() < pf.burnProc) { m.burn = { dps: (4 + d.level * 0.6) * (1 + G.stats.INT * 0.03), until: this.t + 4, tick: 1 }; this.magic.embers(m.pos, 10); this.ui.floatText(m.pos, 2.6, 'Ignite!', 'crit'); }
+    if (pf.stunProc && this.rand() < pf.stunProc) { m.stun = Math.max(m.stun, m.tpl.boss ? 0.3 : 1.0); this.ui.floatText(m.pos, 2.6, 'Stun!', 'crit'); }
+    if (pf.chainProc && this.rand() < pf.chainProc) {
+      const n = this.entities.find((e) => e.kind === 'mob' && !e.dead && e !== m && dist2(e.pos, m.pos) < 7);
+      if (n) { this.magic.bolt(new THREE.Vector3(m.pos.x, m.pos.y + 1, m.pos.z), new THREE.Vector3(n.pos.x, n.pos.y + 1, n.pos.z), '#fff27a', 0.3, 8, 0.6); this.damageMob(n, dmg * 0.4, null, 'proc'); }
+    }
+  }
   damageMob(m, amt, ab, from = 'player') {
     if (m.dead) return;
     if (m.form === 'flute') { if (from === 'player') this.ui.floatText(m.pos, 3, 'Immune', 'heal'); return; }
     if (m.transition > 0 || this.shielded(m)) { if (from === 'player') this.ui.floatText(m.pos, m.tpl.boss ? 6 : 3, m.transition > 0 ? 'Immune' : 'Shielded', 'heal'); return; }
-    const d = derived(this.G); const crit = from === 'player' && this.rand() < d.crit;
-    let dmg = Math.max(1, Math.round(amt * (0.9 + this.rand() * 0.2) * (crit ? 1.6 : 1)));
+    const d = derived(this.G); const crit = from === 'player' && this.rand() < d.crit; const pf = passiveFx(this.G);
+    if ((from === 'player' || from === 'proc') && pf.execute && m.hp / m.maxHp < 0.3) amt *= 1 + pf.execute;
+    let dmg = Math.max(1, Math.round(amt * (0.9 + this.rand() * 0.2) * (crit ? 1.6 + (pf.critDmg || 0) : 1)));
     m.hp -= dmg; m.aggro = true; if (from === 'player' || from === 'ally') this.magic.fill(from); if (from !== 'dot') this.ui.sfx('hit'); if (from === 'player') this.player.combatT = 6;
     this.ui.floatText(m.pos, m.tpl.boss ? 9 : 1.8, (crit ? '✦' : '') + dmg, crit ? 'crit' : from === 'ally' ? 'ally' : 'dmg');
     const ef = ab && ab.effect;
@@ -215,7 +245,8 @@ export class Game {
       else if (ef.stun && m.tpl.boss) m.stun = Math.max(m.stun, ef.stun * 0.25);
     }
     if (m.tpl.phases && m.hp > 0) this.bossPhaseCheck(m);
-    if (m.hp <= 0) this.killMob(m);
+    if (from === 'player') this.procs(m, dmg, ab);
+    if (m.hp <= 0 && !m.dead) this.killMob(m);
   }
   bossPhaseCheck(m) {
     for (const ph of m.tpl.phases) if (m.phase < ph.n && m.hp / m.maxHp <= ph.at) {
@@ -236,6 +267,7 @@ export class Game {
     this.teles = this.teles.filter((t) => { if (t.owner === m) { this.scene.remove(t.group); return false; } return true; });
     this.fxBurst(m.pos, m.tpl.boss ? '#ffb060' : '#ffffff', m.tpl.boss ? 40 : 14);
     const wItem = G.equip.weapon ? ITEMS[G.equip.weapon] : null; const lac = G.equip.lacrima ? ITEMS[G.equip.lacrima] : null;
+    { const pf = passiveFx(G); const d = derived(G); if (pf.mpOnKill) G.mp = Math.min(d.maxMp, G.mp + pf.mpOnKill); if (pf.hpOnKill) G.hp = Math.min(d.maxHp, G.hp + pf.hpOnKill); }
     P.grantCharXp(G, m.tpl.xp); P.grantRankXp(G, wItem ? wItem.weaponType : 'knuckles', 4); if (lac) P.grantRankXp(G, lac.school, 6);
     const j = m.tpl.jewels; const jw = Math.round(j[0] + this.rand() * (j[1] - j[0])); G.jewels += jw;
     const loot = { };
@@ -379,15 +411,17 @@ export class Game {
   }
 
   // ------------------------------------------------------------------ damage to player / allies
-  hurt(target, amt, srcName) {
+  hurt(target, amt, srcName, src = null) {
     if (target === 'player') {
       const pl = this.player, G = this.G; if (pl.dead) return;
-      if (pl.iframes > 0) { this.ui.floatText(pl.pos, 2.2, 'Dodge!', 'heal'); return; }
+      const pfx = passiveFx(G);
+      if (pl.iframes > 0 || (pfx.dodge && this.rand() < pfx.dodge)) { this.ui.floatText(pl.pos, 2.2, 'Dodge!', 'heal'); return; }
       const d = derived(G);
       let dmg = amt * (1 - d.def / (d.def + 40)) * (1 - Math.min(0.8, this.buff('dr')));
       for (const b of pl.buffs) if (b.shieldLeft > 0) { const ab = Math.min(b.shieldLeft, dmg); b.shieldLeft -= ab; dmg -= ab; }
       dmg = Math.round(dmg); pl.combatT = 6;
       if (dmg <= 0) { this.ui.floatText(pl.pos, 2.2, 'Blocked', 'heal'); return; }
+      if (pfx.thorns && src && src.kind === 'mob' && !src.dead) { const th = Math.max(1, Math.round(dmg * pfx.thorns)); src.hp -= th; this.ui.floatText(src.pos, 2, '↩' + th, 'dmg'); if (src.hp <= 0) this.killMob(src); }
       G.hp -= dmg; this.ui.sfx('hurt'); this.ui.floatText(pl.pos, 2.2, '-' + dmg, 'hurt'); this.ui.hurtFlash();
       G.adr = Math.min(100, G.adr + 2);
       if (G.hp <= 0) this.playerDie(srcName);
@@ -685,7 +719,7 @@ export class Game {
         if (m.charge.windup > 0) { m.charge.windup -= dt; }
         else {
           const s = tpl.charge.speed * dt; this.moveBy(m.pos, Math.sin(m.charge.rot) * s, Math.cos(m.charge.rot) * s, m.radius); m.moving = 1;
-          if (!m.charge.hit && !pl.dead && dist2(pl.pos, m.pos) < 1.6) { m.charge.hit = true; this.hurt('player', tpl.charge.dmg, tpl.name); }
+          if (!m.charge.hit && !pl.dead && dist2(pl.pos, m.pos) < 1.6) { m.charge.hit = true; this.hurt('player', tpl.charge.dmg, tpl.name, m); }
           if (m.charge.t <= 0) m.charge = null;
         }
         m.pos.y = groundAt(m.pos.x, m.pos.z); return;
@@ -706,7 +740,7 @@ export class Game {
     if (m.atkCd <= 0 && vd <= tpl.range + 0.5) {
       m.atkCd = tpl.atkCd * (1 + m.slow); m.atk = 0;
       if (tpl.ranged) this.fireProj(m.pos, victim.ref === 'player' ? { pos: pl.pos } : victim.ref, null, { speed: 16 }, tpl.dmg, 'mob', tpl.projColor || '#9a7aff', { y: tpl.float || 1, size: 0.3 });
-      else this.hurt(victim.ref, tpl.dmg * (0.85 + this.rand() * 0.3), tpl.name);
+      else this.hurt(victim.ref, tpl.dmg * (0.85 + this.rand() * 0.3), tpl.name, m);
     }
     m.pos.y = groundAt(m.pos.x, m.pos.z);
   }

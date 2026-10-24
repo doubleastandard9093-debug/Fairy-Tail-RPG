@@ -1,3 +1,4 @@
+import { passiveFx } from '../data/skilltree.js';
 // Pure game-progress logic on the save object G. UI feedback goes through `hooks`.
 import { ITEMS, itemName } from '../data/items.js';
 import { JOBS, RANK_ORDER } from '../data/jobs.js';
@@ -39,7 +40,7 @@ export function tickRivals(G, dt) {
 
 // ---------- XP ----------
 export function grantSkillXp(G, skill, xp, raw = false) {
-  if (!SKILLS[skill]) return; if (!raw) xp *= 1 + skillBonus(G, skill).xp;
+  if (!SKILLS[skill]) return; if (!raw) xp *= 1 + skillBonus(G, skill).xp + (passiveFx(G).xp || 0);
   const setsBefore = SETS.map((st) => setTier(G, st));
   const before = skillLevel(G, skill);
   G.skills[skill] = Math.min(200000000, (G.skills[skill] || 0) + xp);

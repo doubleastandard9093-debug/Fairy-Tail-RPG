@@ -48,6 +48,8 @@ export function itemDesc(id) {
   return `${tier}${it.kind === 'refined' ? 'Refined material' : 'Raw material'} · worth ~${it.value} jewels`;
 }
 const PERKS_TXT = (ps) => ps.map((p) => `Lv${p.lv} ${p.desc}${p.on ? ' ✓' : ''}`).join('; ');
+const FX_LABEL = { hp: ['Max HP', '%'], mp: ['Max MP', ''], def: ['Defence', ''], crit: ['Crit', '%'], critDmg: ['Crit dmg', '%'], cdr: ['Cooldowns -', '%'], move: ['Move', '%'], dmg: ['Damage', '%'], dr: ['Dmg reduction', '%'], dodge: ['Dodge', '%'], thorns: ['Thorns', '%'], regen: ['Regen', ''], mpRegen: ['MP/s', ''], lifesteal: ['Lifesteal', '%'], burnProc: ['Ignite', '%'], stunProc: ['Stun proc', '%'], chainProc: ['Chain', '%'], execute: ['Execute', '%'], mpOnKill: ['MP on kill', ''], hpOnKill: ['HP on kill', ''], allyUp: ['Summons', '%'], xp: ['Skill XP', '%'], gspeed: ['Gather speed', '%'], yield: ['Yield', '%'] };
+export function fxFmt(k, v) { const [n, u] = FX_LABEL[k] || [k, '']; return u === '%' ? `${n} +${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%` : `${n} +${(+v).toFixed(v % 1 ? 1 : 0)}`; }
 export function abilityDesc(id) {
   const a = ABILITIES[id]; if (!a) return '';
   const parts = [];
@@ -188,7 +190,7 @@ export class UI {
   }
   renderMenuDots() {
     const G = this.game.G; const b = this.el.menu.querySelector('[data-p=stats]');
-    { const tb = this.el.menu.querySelector('[data-p=tree]'); const fp = T.pointsFree(G); let td = tb.querySelector('.dot'); if (fp > 0) { if (!td) { td = h('span', 'dot'); tb.appendChild(td); } td.textContent = fp > 9 ? '9+' : fp; } else if (td) td.remove(); }
+    { const tb = this.el.menu.querySelector('[data-p=tree]'); const fp = T.pointsFree(G) + T.pointsFree(G, 'pp'); let td = tb.querySelector('.dot'); if (fp > 0) { if (!td) { td = h('span', 'dot'); tb.appendChild(td); } td.textContent = fp > 9 ? '9+' : fp; } else if (td) td.remove(); }
     let dot = b.querySelector('.dot'); if (G.statPoints > 0) { if (!dot) { dot = h('span', 'dot'); b.appendChild(dot); } dot.textContent = G.statPoints > 9 ? '9+' : G.statPoints; } else if (dot) dot.remove();
     const q = this.el.menu.querySelector('[data-p=quests]'); let qd = q.querySelector('.dot'); const ready = G.jobs.active.filter((a) => P.jobReady(G, a)).length;
     if (ready) { if (!qd) { qd = h('span', 'dot'); q.appendChild(qd); } qd.textContent = ready; } else if (qd) qd.remove();
@@ -203,6 +205,7 @@ export class UI {
       b.title = a ? `${a.name} — ${abilityDesc(id)}` : 'Empty';
       b.classList.toggle('mag', i >= 3 && i <= 6); b.classList.toggle('arm', i === 7);
       const locked = id && g.abilityLocked(id); b.classList.toggle('locked', !!locked); if (locked) b.dataset.lock = 'Learn';
+      let rk = b.querySelector('.rk'); if (!rk) { rk = h('span', 'rk'); b.appendChild(rk); } const rn = id ? T.abilityRank(g.G, id) : 1; rk.textContent = rn > 1 ? ['', 'I', 'II', 'III', 'IV', 'V'][rn] : ''; b.classList.toggle('ultb', !!(a && a.tier === 'ult'));
       b.style.visibility = a ? 'visible' : 'hidden';
     });
   }
@@ -378,30 +381,42 @@ export class UI {
   }
   treeTab0() { const G = this.game.G; const lac = G.equip.lacrima ? ITEMS[G.equip.lacrima].school : null; return lac || G.school; }
   p_tree() {
-    const G = this.game.G; const tr = T.TREES[this.tab] || T.TREES[G.school];
-    const tabs = Object.values(T.TREES).map((t) => [t.key, `${t.icon} ${t.name.split(' (')[0]}`]);
-    const W = 3, rows = Math.max(...tr.nodes.map((n) => n.row)) + 1;
-    const pos = (n) => [(n.col + 0.5) / W * 100, n.row * 92 + 46];
+    const G = this.game.G; const tr = T.TREES[this.tab] || T.TREES[G.school]; const g = this.game;
+    const grp = tr.group || 'active'; const pool = tr.points || 'sp';
+    const tabs = Object.values(T.TREES).filter((t) => (t.group || 'active') === grp).map((t) => [t.key, `${t.icon} ${t.name.split(' (')[0]}`]);
+    const W = 3, rows = Math.max(...tr.nodes.map((n) => n.row)) + 1, RH = 88;
+    const pos = (n) => [(n.col + 0.5) / W * 100, n.row * RH + 44];
     const lines = tr.nodes.flatMap((n) => n.req.map(([r]) => { const a = pos(T.NODE[r]), b = pos(n); const ok = T.rankOf(G, r) > 0; return `<line x1="${a[0]}%" y1="${a[1]}" x2="${b[0]}%" y2="${b[1]}" stroke="${ok ? '#ffd76a' : '#6a5a7a'}" stroke-width="3" ${ok ? '' : 'stroke-dasharray="6 5"'}/>`; })).join('');
     const nodes = tr.nodes.map((n) => {
       const r = T.rankOf(G, n.id), why = T.canLearn(G, n.id); const [x, y] = pos(n);
       const cls = r >= n.max ? 'max' : r > 0 ? 'have' : why && why.startsWith('Needs') ? 'lock' : 'open';
-      return `<button class="tnode ${n.kind} ${cls}${this.treeSel === n.id ? ' sel' : ''}" style="left:${x}%;top:${y}px" data-act="tsel" data-arg="${n.id}" title="${esc(n.name)}"><span class="ti">${n.icon}</span><span class="tr">${r}/${n.max}</span><span class="tn">${esc(n.name.replace(/^Open, Gate of the |^Requip: |^Ice-Make: /, ''))}</span></button>`;
+      const pips = n.max > 1 && n.max <= 5 ? `<span class="pips">${Array.from({ length: n.max }, (_, i) => `<i class="${i < r ? 'on' : ''}"></i>`).join('')}</span>` : '';
+      const tag = n.ult ? '<span class="ult">ULT</span>' : n.reqSet ? '<span class="ult set">SET</span>' : n.per ? '<span class="ult per">LIFE</span>' : '';
+      return `<button class="tnode ${n.kind} ${cls}${this.treeSel === n.id ? ' sel' : ''}" style="left:${x}%;top:${y}px" data-act="tsel" data-arg="${n.id}" title="${esc(n.name)}">${tag}<span class="ti">${n.icon}</span><span class="tr">${r}/${n.max}</span>${pips}<span class="tn">${esc(n.name.replace(/^Open, Gate of the |^Requip: |^Ice-Make: |^Solid Script: /, ''))}</span></button>`;
     }).join('');
     const sel = T.NODE[this.treeSel] && T.NODE[this.treeSel].tree === tr.key ? T.NODE[this.treeSel] : null;
-    let info = '<div class="muted">Tap a skill to see what it does. Gold lines are unlocked paths; dashed lines still need their prerequisite.</div>';
+    let info = `<div class="muted">Tap a skill to see what it does. Gold lines are unlocked paths; dashed lines still need their prerequisite.${grp === 'active' ? ' Actives rank up to 5 (+10% damage, -4% cooldown, +8% mana per rank; higher ranks need higher levels and add visual flourishes).' : ''}</div>`;
     if (sel) {
       const r = T.rankOf(G, sel.id), why = T.canLearn(G, sel.id);
       const req = sel.req.length ? sel.req.map(([q, k]) => `<span style="color:${T.rankOf(G, q) >= k ? '#7aff9a' : '#ff9a8a'}">${esc(T.NODE[q].name)}${T.NODE[q].max > 1 ? ' ' + k : ''}</span>`).join(', ') : 'none';
-      info = `<div class="iteminfo"><div class="nm">${sel.icon} ${esc(sel.name)} <span class="muted">${sel.kind === 'active' ? 'Active skill' : 'Passive'} · rank ${r}/${sel.max}</span></div>
-        <div class="ds">${sel.kind === 'active' ? abilityDesc(sel.ab) : esc(sel.desc)}</div><div class="ds">Requires: ${req}${sel.free ? ' · starter skill (free)' : ''}</div>
-        <div class="acts"><button class="btn small gold" data-act="learn" data-arg="${sel.id}" ${why ? 'disabled' : ''}>${why ? esc(why) : r ? `Rank up (1 ${sel.tree === 'artisan' ? 'AP' : 'SP'})` : `Learn (1 ${sel.tree === 'artisan' ? 'AP' : 'SP'})`}</button></div></div>`;
+      const extra = [sel.reqLvl ? `level ${sel.reqLvl}` : '', sel.reqSet ? `${esc(SETS.find((x) => x.id === sel.reqSet[0]).name)} set tier ${sel.reqSet[1]}` : '', sel.per ? `scales with ${esc(SKILLS[sel.per.skill].name)} (level ${skillLevel(G, sel.per.skill)})` : ''].filter(Boolean).join(' · ');
+      let rk = '';
+      if (sel.kind === 'active') {
+        const ab = ABILITIES[sel.ab]; const row = (k) => `<span class="chip${k === r ? ' on' : ''}">R${k}: ${ab.mult ? Math.round(ab.mult * (1 + T.RANK_DMG * (k - 1)) * 100) + '% · ' : ''}${(ab.cd * (1 - T.RANK_CDR * (k - 1))).toFixed(1)}s${ab.cost && ab.cost.mp ? ' · ' + Math.round(ab.cost.mp * (1 + T.RANK_COST * (k - 1))) + ' MP' : ''} · Lv ${T.rankLevel(sel, k)}</span>`;
+        rk = `<div class="ds">${Array.from({ length: sel.max }, (_, i) => row(i + 1)).join(' ')}</div>`;
+        const sch = SCHOOLS[sel.tree]; if (sch && r > 0) { const bar = g.schoolBar(sel.tree); rk += `<div class="acts">Hotbar: ${[0, 1, 2, 3].map((i) => `<button class="btn small${bar[i] === sel.ab ? ' gold' : ''}" data-act="slot" data-arg="${sel.tree}|${i}|${sel.ab}">${KEYS[3 + i]}${bar[i] ? ' ' + ABILITIES[bar[i]].icon : ''}</button>`).join('')}</div>`; }
+      } else if (sel.per) { const lv = skillLevel(G, sel.per.skill); rk = `<div class="ds">${Object.entries(sel.per.fx).map(([k, v]) => `<span class="chip on">now ${fxFmt(k, v * Math.max(1, r) * lv)}${r ? '' : ' at rank 1'}</span>`).join(' ')}</div>`; }
+      info = `<div class="iteminfo"><div class="nm">${sel.icon} ${esc(sel.name)} <span class="muted">${sel.kind === 'active' ? (sel.ult ? 'Ultimate' : 'Active skill') : 'Passive'} · rank ${r}/${sel.max}</span></div>
+        <div class="ds">${sel.kind === 'active' ? abilityDesc(sel.ab) : esc(sel.desc)}</div>${rk}<div class="ds">Requires: ${req}${extra ? ' · ' + extra : ''}${sel.free ? ' · starter skill (free)' : ''}</div>
+        <div class="acts"><button class="btn small gold" data-act="learn" data-arg="${sel.id}" ${why ? 'disabled' : ''}>${why ? esc(why) : r ? `Rank up (1 ${T.POOL_SHORT[pool]})` : `Learn (1 ${T.POOL_SHORT[pool]})`}</button></div></div>`;
     }
     const cost = G.respecs ? 50 * derived(G).level : 0;
-    const art = tr.key === 'artisan';
-    return { title: `🌳 Skill Tree <span class="muted">${art ? `${T.pointsFree(G, true)} artisan points` : `${T.pointsFree(G)} skill points`}</span>`, tabs, html: `
-      <div class="muted" style="margin-bottom:6px">${art ? 'Artisan points: 1 per 5 total gathering + crafting levels (Albion Destiny Board style). They never mix with combat skill points and survive respecs.' : '+1 skill point per level (Toram style). Actives go on your ability bar when the matching weapon or lacrima is equipped.'}</div>
-      <div class="tree" style="height:${rows * 92}px"><svg width="100%" height="${rows * 92}">${lines}</svg>${nodes}</div>${info}
+    const pf = T.passiveFx(G); const tot = Object.entries(pf).filter(([, v]) => v).map(([k, v]) => `<span class="chip on">${fxFmt(k, v)}</span>`).join(' ');
+    const intro = { sp: '+1 skill point per level (Toram style). Actives go on your ability bar when the matching weapon or lacrima is equipped; advanced and ultimate school actives can be slotted into keys 4–7.', artisan: 'Artisan points: 1 per 5 total gathering + crafting levels (Albion Destiny Board style). They never mix with combat skill points and survive respecs.', pp: 'Passive points: 1 + 1 per 2 levels + 1 per Skill Set tier + 1 per 20 total life-skill levels. Life Bond passives grow with your life skills; SET passives unlock from Skill Set tiers.' }[pool];
+    const mode = `<div class="tabs" style="margin-bottom:6px"><button class="tab${grp === 'active' ? ' on' : ''}" data-act="tmode" data-arg="active">⚔️ Active skills <b>${T.pointsFree(G, 'sp')} SP</b></button><button class="tab${grp === 'passive' ? ' on' : ''}" data-act="tmode" data-arg="passive">🧬 Passive skills <b>${T.pointsFree(G, 'pp')} PP</b> · ${T.pointsFree(G, 'artisan')} AP</button></div>`;
+    return { title: `🌳 Skill Tree <span class="muted">${T.pointsFree(G, pool)} ${T.POOL_NAME[pool]}</span>`, tabs, html: `${mode}
+      <div class="muted" style="margin-bottom:6px">${intro}</div>${grp === 'passive' ? `<div class="ds" style="margin-bottom:6px"><b>Passive totals:</b> ${tot || '<span class="muted">none yet</span>'}</div>` : ''}
+      <div class="tree" style="height:${rows * RH}px"><svg width="100%" height="${rows * RH}">${lines}</svg>${nodes}</div>${info}
       <div style="margin-top:8px"><button class="btn small" data-act="respec">♻️ Respec${cost ? ` (💎${cost})` : ' (free once)'}</button></div>` };
   }
   p_stats() {
@@ -590,6 +605,8 @@ export class UI {
       case 'craftAll': { const r = P.RECIPES.find((x) => x.id === arg); let n = 0; while (!P.recipeBlock(G, r) && n < 50) { P.craft(G, r); n++; } break; }
       case 'learn': if (T.learn(G, arg)) { this.log(`Learned ${T.NODE[arg].name} (rank ${T.rankOf(G, arg)}).`, 'lvl'); this.sfx('level'); } else this.toast(T.canLearn(G, arg)); this.treeSel = arg; break;
       case 'tsel': this.treeSel = arg; break;
+      case 'tmode': { const t = Object.values(T.TREES).find((x) => (x.group || 'active') === arg && (arg === 'passive' ? x.key === 'body' : x.key === this.treeTab0())) || Object.values(T.TREES).find((x) => (x.group || 'active') === arg); this.tab = t.key; this.treeSel = null; break; }
+      case 'slot': { const [sch, i, ab] = arg.split('|'); this.game.setSchoolSlot(sch, +i, ab); this.toast(`${ABILITIES[ab].name} → key ${KEYS[3 + +i]}`); break; }
       case 'respec': { const cost = G.respecs ? 50 * derived(G).level : 0; if (G.jewels < cost) { this.toast('Not enough jewels.'); break; } if (!confirm(`Reset all skill points${cost ? ` for ${cost} jewels` : ' (first reset is free)'}?`)) break; G.jewels -= cost; G.respecs = (G.respecs || 0) + 1; T.respec(G); this.log('Your skill points were refunded.', 'info'); break; }
       case 'stat': if (G.statPoints > 0) { G.statPoints--; G.stats[arg]++; } break;
       case 'take': if (P.takeJob(G, arg) && arg === 'j_cat') g.startEscort(); break;
@@ -639,6 +656,7 @@ export class UI {
       if (G.party === npcId) svc.push({ label: `👋 Part ways with ${nm}`, svc: () => { this.game.setParty(null); this.log(`${nm} heads back to the guild.`, 'npc'); } });
       else { const u = unisonFor(this.game.magic.playerSchool(), PARTY[npcId].school); svc.push({ label: `🤝 Ask ${nm} to join your party (${u.name.replace('Unison Raid: ', '')})`, svc: () => { this.game.setParty(npcId); this.toast(`${nm} joined your party! Fight together to charge Unison Raids (U).`); } }); }
     }
+    if (npcId === 'happy') { const fi = P.bestExceedFood(G); const f = fi && fi.id; svc.push({ label: f ? `🐟 Feed Happy (${fi.name})` : '🐟 Feed Happy (you have no fish or snacks)', svc: () => { if (!f) { this.toast('Bring fish, a Fish Snack or a Fish Feast.'); return; } const msg = P.feedExceed(G, f); this.log(msg || 'Happy sniffs it and declines.', 'npc'); this.refresh(); } }); }
     if (role === 'inn') { svc.push({ label: '🛏️ Rest (10 jewels): full health & mana', svc: () => this.innRest() }); svc.push({ label: '🍲 Buy stew (30 jewels)', svc: () => this.innStew() }); }
     this.dlg = { npcId, queue: [...lines], options: [...options, ...svc] };
     this.el.dialog.classList.remove('hidden'); this.stepDialogue();

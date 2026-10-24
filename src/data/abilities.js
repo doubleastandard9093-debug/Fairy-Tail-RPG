@@ -74,6 +74,21 @@ export const ABILITIES = {
   rq_armor: { name: 'Requip: Adamantine Armor', icon: '🏰', type: 'buff', buff: { dr: 0.4, shield: 50, dur: 10 }, cd: 24, cost: { mp: 15 }, stat: 'STR', color: '#f0e0c0', rank: 2 },
   rq_storm: { name: "Heaven's Wheel: Blumenblatt", icon: '🗡️', type: 'aoe_self', radius: 5, mult: 4.0, cd: 16, cost: { adr: 60 }, stat: 'STR', color: '#fff8e0', rank: 3 },
 
+
+  // ---------- Advanced school actives (skill tree rows 5-6; slot them onto the bar from the Skill Tree) ----------
+  fl_talon: { name: "Fire Dragon's Talon", icon: '🦶', type: 'dash', dist: 6, width: 1.8, mult: 2.2, cd: 7, cost: { mp: 12 }, gain: 6, stat: 'INT', color: '#ff7a2a', effect: { burn: { dps: 6, dur: 4 } }, tier: 'adv' },
+  fl_lotus: { name: 'Crimson Lotus: Exploding Flame Blade', icon: '🪷', type: 'aoe_target', radius: 5.5, dist: 7, delay: 0.9, mult: 5.4, cd: 24, cost: { adr: 80 }, stat: 'INT', color: '#ff3a10', effect: { burn: { dps: 12, dur: 5 } }, tier: 'ult' },
+  ic_geyser: { name: 'Ice-Make: Geyser', icon: '🌋', type: 'aoe_target', radius: 3.4, dist: 8, delay: 0.5, mult: 2.4, cd: 9, cost: { mp: 16 }, gain: 6, stat: 'INT', color: '#bdefff', effect: { stun: 0.8 }, tier: 'adv' },
+  ic_cannon: { name: 'Ice-Make: Cannon', icon: '💠', type: 'beam', length: 14, width: 2.2, mult: 5.0, cd: 22, cost: { adr: 80 }, stat: 'INT', color: '#8fdcff', effect: { slow: { pct: 0.7, dur: 5 } }, tier: 'ult' },
+  li_jaw: { name: "Lightning Dragon's Jaw", icon: '🦷', type: 'melee', range: 3, arc: 2, mult: 2.4, cd: 6, cost: { mp: 10 }, gain: 7, stat: 'INT', color: '#fff27a', effect: { stun: 1.0 }, tier: 'adv' },
+  li_halberd: { name: "Lightning Dragon's Heavenly Halberd", icon: '🔱', type: 'proj', speed: 60, pierce: true, mult: 5.2, cd: 22, cost: { adr: 80 }, stat: 'INT', color: '#fffcb0', effect: { stun: 1.2 }, tier: 'ult' },
+  ce_sagi: { name: 'Sagittarius: Rapid Fire', icon: '🏹', type: 'proj', speed: 44, pierce: true, mult: 2.0, cd: 6, cost: { mp: 12 }, gain: 7, stat: 'INT', color: '#ffe8a0', tier: 'adv' },
+  ce_urano: { name: 'Urano Metria', icon: '🌌', type: 'aoe_self', radius: 7, mult: 5.6, cd: 26, cost: { adr: 90 }, stat: 'INT', color: '#c8d0ff', effect: { stun: 1.0 }, tier: 'ult' },
+  ru_wall: { name: "Freed's Rune Wall", icon: '🧱', type: 'trap', radius: 5, dist: 3, dur: 25, mult: 1.4, cd: 14, cost: { mp: 16 }, stat: 'INT', color: '#8a6aff', effect: { slow: { pct: 0.7, dur: 4 } }, tier: 'adv' },
+  ru_iron: { name: 'Solid Script: Iron', icon: '🛡️', type: 'buff', buff: { dr: 0.35, shield: 70, dur: 10 }, cd: 22, cost: { adr: 50 }, stat: 'INT', color: '#c0a0ff', tier: 'ult' },
+  rq_flight: { name: 'Flight Armor: Sonic Claw', icon: '🐆', type: 'dash', dist: 9, width: 2, mult: 2.0, cd: 6, cost: { mp: 10 }, gain: 7, stat: 'STR', color: '#ffd0a0', tier: 'adv' },
+  rq_purg: { name: 'Purgatory Armor: Crushing Mace', icon: '🔨', type: 'aoe_target', radius: 4.5, dist: 6, delay: 0.7, mult: 5.6, cd: 24, cost: { adr: 80 }, stat: 'STR', color: '#9a8aa0', effect: { stun: 1.6 }, tier: 'ult' },
+
   // ---------- Mob-only ----------
   mob_bite: { name: 'Bite', type: 'mob' },
 };
