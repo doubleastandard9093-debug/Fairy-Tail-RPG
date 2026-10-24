@@ -1,6 +1,7 @@
 import { guildMarkTexture, MARK_SIZES } from './mark.js';
 import * as THREE from 'three';
 import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
+import { CREATURES, buildCreature, animateCreature, dressLizard, animateLizardExtra } from './creatures.js';
 import { refineCharacter, animateDetail, refineMob, FRAMES, ACCESSORIES, EXTRA_OUTFITS } from './detail.js';
 export { FRAMES, ACCESSORIES };
 
@@ -261,6 +262,7 @@ export function animateCharacter(char, st) {
 
 // ------------------------------- Mobs -----------------------------------
 export function buildMob(model, opt = {}) {
+  if (CREATURES.has(model)) { const c = buildCreature(model, opt); addOutlines(c.group); shadowAll(c.group, true, false); return c; }
   const g = new THREE.Group(); const parts = {};
   const eyes = (parent, y, z, sx = 0.1, r = 0.05) => {
     for (const s of [-1, 1]) {
@@ -503,12 +505,14 @@ export function buildMob(model, opt = {}) {
     const mark = mesh(G.sph(0.05, 6, 4), glow('#9a3aff'), 0.12, 1.25, 0.2); c.group.add(mark);
   }
   refineMob(model, g, parts);
+  if (model === 'lizard') dressLizard(g, parts);
   addOutlines(g); shadowAll(g, true, false);
   return { group: g, parts };
 }
 
 export function animateMob(m, model, t, move, atk) {
   const p = m.parts;
+  if (CREATURES.has(model)) { animateCreature(m, model, t, move, atk); return; }
   if (model === 'puffcap') { p.body.position.y = Math.abs(Math.sin(t * (move ? 10 : 3))) * (move ? 0.25 : 0.05); p.body.scale.y = 1 - Math.abs(Math.sin(t * 10)) * 0.08 * move; p.body.rotation.x = atk > 0 ? Math.sin(atk * Math.PI) * 0.6 : 0; }
   else if (model === 'boar') { p.legs.forEach((l, i) => { l.rotation.x = Math.sin(t * 14 + (i % 2 ? 0 : Math.PI) + (i > 1 ? Math.PI : 0)) * 0.6 * move; }); p.head.rotation.x = atk > 0 ? -Math.sin(atk * Math.PI) * 0.5 : Math.sin(t * 2) * 0.05; }
   else if (model === 'wisp') { p.body.position.y = Math.sin(t * 2.5) * 0.2; p.trail.forEach((s, i) => { s.position.x = Math.sin(t * 4 - i) * 0.12; }); p.body.scale.setScalar(1 + (atk > 0 ? Math.sin(atk * Math.PI) * 0.3 : 0)); }
@@ -523,7 +527,7 @@ export function animateMob(m, model, t, move, atk) {
     if (st.dashing) p.char.group.rotation.x = 0.5; else p.char.group.rotation.x = 0; }
   else if (model === 'mage') animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: atk > 0 ? 0.8 : 0 });
   else if (model === 'vulcan') { p.legs.forEach((l, i) => { l.rotation.x = Math.sin(t * 8 + i * Math.PI) * 0.5 * move; }); p.arms.forEach((a, i) => { a.rotation.x = Math.sin(t * 8 + i * Math.PI + Math.PI) * 0.5 * move - (atk > 0 ? Math.sin(atk * Math.PI) * 2.2 : 0); }); p.body.position.y = Math.abs(Math.sin(t * 8)) * 0.08 * move; p.head.rotation.z = Math.sin(t * 1.5) * 0.08; }
-  else if (model === 'lizard') { animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: 0 }); p.tail.rotation.z = Math.sin(t * 3) * 0.3; }
+  else if (model === 'lizard') { animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: 0 }); p.tail.rotation.z = Math.sin(t * 3) * 0.3; animateLizardExtra(p, t, move, atk, m.wind); }
   else if (model === 'plue') { p.body.position.x = Math.sin(t * 40) * 0.012; p.body.position.y = Math.abs(Math.sin(t * 8)) * 0.05 * move; p.body.rotation.z = Math.sin(t * 33) * 0.04; p.tail.rotation.z = Math.sin(t * 20) * 0.3; }
   else if (model === 'cat') { p.body.position.y = Math.abs(Math.sin(t * 10)) * 0.05 * move; p.tail.rotation.z = Math.sin(t * 3) * 0.4; }
 }

@@ -1,6 +1,7 @@
 // Character + monster detail layer (Round 2 rework). Adds anatomy, faces, layered outfits, accessories and secondary
 // animation on top of the base builders in models.js, so every humanoid (player, NPCs, party, mage mobs, bosses) benefits.
 import * as THREE from 'three';
+import { hitBurst, stepBurst, animateElite } from './creatures.js';
 import { toon, glow, mesh } from './toon.js';
 
 const GC = new Map(); // shared geometry cache (keeps draw-call memory down across dozens of NPCs)
@@ -192,13 +193,15 @@ export function refineMob(model, g, parts) {
 /** Generic monster state layer: idle breathing, hit flinch + flash scale, death topple/sink. Runs after animateMob. */
 export function animateMobState(m, t, dt) {
   const o = m.obj; const p = m.model.parts || {}; const b = p.body;
+  if (m.hitT != null && m.hitT !== m._hitSeen) { m._hitSeen = m.hitT; if (t - m.hitT < 0.1) hitBurst(m); }
+  stepBurst(m, dt); animateElite(p, t); if (m.stun > 0 || m.dead) m.model.wind = 0; const bs = o.userData.bs || 1;
   if (b && !m.model.char) { const br = 1 + Math.sin(t * 2.4 + (m.pos.x || 0)) * 0.025; b.scale.y = (b.userData.sy || (b.userData.sy = b.scale.y)) * br; }
-  if (p.orbit) p.orbit.forEach((s, i) => { const a = t * 2 + i * 1.05; s.position.set(Math.sin(a) * 0.7, Math.sin(a * 1.7) * 0.25, Math.cos(a) * 0.7); });
-  if (p.halo) p.halo.rotation.z = t * 0.8;
+  if (p.orbit && !p.kind) p.orbit.forEach((s, i) => { const a = t * 2 + i * 1.05; s.position.set(Math.sin(a) * 0.7, Math.sin(a * 1.7) * 0.25, Math.cos(a) * 0.7); });
+  if (p.halo && !p.kind) p.halo.rotation.z = t * 0.8;
   if (p.tailC) p.tailC.rotation.z = Math.sin(t * 12) * 0.4;
   if (p.arms && m.tpl && m.tpl.model === 'puffcap') p.arms.forEach((a, i) => { a.rotation.x = Math.sin(t * 8 + i * Math.PI) * 0.5 * (m.moving || 0) - (m.atk > 0 ? Math.sin(m.atk * Math.PI) * 1.4 : 0); });
   const hk = m.hitT != null ? (t - m.hitT) / 0.28 : 2;
-  if (hk < 1 && !m.dying) { const f = Math.sin(hk * Math.PI); o.rotation.x = -f * 0.22; o.scale.set(1 + f * 0.08, 1 - f * 0.1, 1 + f * 0.08); }
-  else if (!m.dying) { o.rotation.x = 0; o.scale.setScalar(1); }
-  if (m.dying) { const k = Math.min(1, m.dying.k); const e = k * k; o.rotation.z = e * 1.35 * m.dying.side; o.rotation.x = -e * 0.4; o.position.y -= e * 0.5 * (m.radius || 0.7); const s = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1; o.scale.setScalar(Math.max(0.01, s)); }
+  if (hk < 1 && !m.dying) { const f = Math.sin(hk * Math.PI); o.rotation.x = -f * 0.22; o.scale.set(bs * (1 + f * 0.08), bs * (1 - f * 0.1), bs * (1 + f * 0.08)); }
+  else if (!m.dying) { o.rotation.x = 0; o.scale.setScalar(bs); }
+  if (m.dying) { const k = Math.min(1, m.dying.k); const e = k * k; o.rotation.z = e * 1.35 * m.dying.side; o.rotation.x = -e * 0.4; o.position.y -= e * 0.5 * (m.radius || 0.7); const s = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1; o.scale.setScalar(Math.max(0.01, s) * bs); }
 }

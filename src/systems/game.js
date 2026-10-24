@@ -8,6 +8,7 @@ import { NODE_TYPES, NODE_TIERS, NODE_RESPAWN } from '../data/nodes.js';
 import { POIS } from '../data/npcs.js';
 import { derived, countItem, addItem, skillLevel, classRank, canAdd, saveGame } from '../core/state.js';
 import { buildCharacter, buildMob, animateCharacter, animateMob, equipVisual } from '../world/models.js';
+import { dressElite } from '../world/creatures.js';
 import { animateMobState } from '../world/detail.js';
 import { buildWorld, groundAt, HALL, zoneAt, placeAt, blockedAt, rng } from '../world/world.js';
 import { PLACE, trainCost, FERRY_COST } from '../world/fiore.js';
@@ -191,7 +192,10 @@ export class Game {
     }
   }
   makeMob(id, x, z) {
-    const tpl = MOBS[id]; const m = buildMob(tpl.model, tpl.opt || {}); if (tpl.scale && tpl.scale !== 1) m.group.scale.setScalar(tpl.scale);
+    let tpl = MOBS[id]; const m = buildMob(tpl.model, tpl.opt || {});
+    const elite = !tpl.boss && !tpl.temp && (this.forceElite || this.rand() < (tpl.eliteChance ?? 0.1));
+    if (elite) { tpl = { ...tpl, name: `Elite ${tpl.name}`, short: tpl.short && `Elite ${tpl.short}`, level: tpl.level + 2, hp: Math.round(tpl.hp * 2.4), dmg: tpl.dmg * 1.4, xp: Math.round(tpl.xp * 2.5), scale: (tpl.scale || 1) * 1.18, elite: true, radius: (tpl.radius || 0.7) * 1.15 }; dressElite(m); }
+    if (tpl.scale && tpl.scale !== 1) m.group.scale.setScalar(tpl.scale); m.group.userData.bs = tpl.scale || 1;
     const e = { kind: 'mob', id, tpl, obj: m.group, model: m, pos: new THREE.Vector3(x, groundAt(x, z), z), home: new THREE.Vector3(x, 0, z), rot: this.rand() * 6,
       hp: tpl.hp, maxHp: tpl.hp, aggro: false, atkCd: 1, atk: -1, stun: 0, slow: 0, slowT: 0, burn: null, dead: false, respawn: 0, wander: null, radius: tpl.radius || (tpl.boss ? 2.2 : 0.7), temp: !!tpl.temp,
       teleCds: {}, castLock: 0, chargeCd: 3, charge: null, bark: 4 + this.rand() * 10 };
@@ -739,8 +743,8 @@ export class Game {
     const rot = Math.atan2(victim.pos.x - m.pos.x, victim.pos.z - m.pos.z); m.rot += ang(rot - m.rot) * Math.min(1, dt * 8);
     if (vd > want) { const s = tpl.speed * (1 - m.slow) * dt; this.moveBy(m.pos, Math.sin(rot) * s, Math.cos(rot) * s, m.radius); m.moving = 1; }
     else if (tpl.ranged && vd < want * 0.5) { const s = tpl.speed * 0.6 * dt; this.moveBy(m.pos, -Math.sin(rot) * s, -Math.cos(rot) * s, m.radius); m.moving = 0.6; }
-    m.atkCd -= dt;
-    if (m.atkCd <= 0 && vd <= tpl.range + 0.5) {
+    m.atkCd -= dt; m.model.wind = !tpl.ranged && vd <= tpl.range + 1.2 && m.atkCd < 0.45 ? Math.min(1, 1 - Math.max(0, m.atkCd) / 0.45) : 0;
+    if (m.atkCd <= 0 && vd <= tpl.range + 0.5) { m.model.wind = 0;
       m.atkCd = tpl.atkCd * (1 + m.slow); m.atk = 0;
       if (tpl.ranged) this.fireProj(m.pos, victim.ref === 'player' ? { pos: pl.pos } : victim.ref, null, { speed: 16 }, tpl.dmg, 'mob', tpl.projColor || '#9a7aff', { y: tpl.float || 1, size: 0.3 });
       else this.hurt(victim.ref, tpl.dmg * (0.85 + this.rand() * 0.3), tpl.name, m);
