@@ -46,7 +46,7 @@ void main(){
 
 const FRAG = /* glsl */`
 ${'%COMMON%'}
-uniform sampler2D uDepth; uniform vec4 uO; uniform sampler2D tDiffuse; uniform vec3 color; uniform float uPoolD; uniform vec4 uPool; uniform vec4 uRip; uniform float uAlpha;
+uniform sampler2D uDepth; uniform vec4 uO; uniform sampler2D tDiffuse; uniform vec3 color; uniform float uPoolD; uniform vec4 uPool; uniform vec4 uRip; uniform float uAlpha; uniform float uFresMax;
 varying vec3 vW; varying vec4 vR; varying float vCrest;
 #include <fog_pars_fragment>
 void main(){
@@ -69,7 +69,7 @@ void main(){
     g += (vec2(nx - n0, nz - n0) * 0.35 + vec2(mx - m0, mz - m0) * 0.2) / e * detail * 0.35; }
   #endif
   vec3 N = normalize(vec3(-g.x, 1.0, -g.y)); vec3 V = normalize(cameraPosition - vW); vec3 L = normalize(uSun);
-  float fres = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
+  float fres = (0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0)) * uFresMax;
   vec3 R = reflect(-V, N); vec3 refl = skyCol(R);
   #ifdef REFLECT
   { vec4 ru = vR; ru.xy += N.xz * 2.4 * ru.w * 0.06; vec3 rc = texture2DProj(tDiffuse, ru).rgb; refl = mix(refl, rc, 0.85); }
@@ -116,9 +116,9 @@ function defines(pool) {
   return d;
 }
 function baseUniforms(sunDir) {
-  return { uT: { value: 0 }, uSun: { value: sunDir.clone() }, uSunCol: { value: new THREE.Color('#fff2d8') }, uDeep: { value: new THREE.Color('#0b3a58') }, uShallow: { value: new THREE.Color('#3fa6b8') },
+  return { uT: { value: 0 }, uSun: { value: sunDir.clone() }, uSunCol: { value: new THREE.Color('#fff2d8') }, uDeep: { value: new THREE.Color(GFX.high ? '#0b3a58' : '#0d3f6e') }, uShallow: { value: new THREE.Color(GFX.high ? '#3fa6b8' : '#2b93b4') },
     uSkyH: { value: new THREE.Color('#b8d8f0') }, uSkyZ: { value: new THREE.Color('#4a86c8') }, uDepth: { value: null }, uO: { value: new THREE.Vector4(0, 0, 1, 1) }, uSwell: { value: 1 },
-    tDiffuse: { value: null }, color: { value: new THREE.Color('#ffffff') }, textureMatrix: { value: new THREE.Matrix4() }, uPoolD: { value: 0.5 }, uPool: { value: new THREE.Vector4() }, uRip: { value: new THREE.Vector4() }, uAlpha: { value: 1 } };
+    tDiffuse: { value: null }, color: { value: new THREE.Color('#ffffff') }, textureMatrix: { value: new THREE.Matrix4() }, uPoolD: { value: 0.5 }, uPool: { value: new THREE.Vector4() }, uRip: { value: new THREE.Vector4() }, uAlpha: { value: 1 }, uFresMax: { value: GFX.real ? 1.0 : GFX.high ? 0.8 : 0.5 } };
 }
 function shader(pool, sunDir) {
   return { uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, baseUniforms(sunDir)]), vertexShader: VERT, fragmentShader: FRAG.replace('%COMMON%', COMMON), defines: defines(pool) };
@@ -180,7 +180,7 @@ void main(){ float s = n2(vec2(vUv.x * 90.0, vUv.y * 5.0 - uT * 5.0)) * 0.65 + n
   vec3 V = normalize(cameraPosition - vW); float fr = pow(1.0 - abs(dot(normalize(vN), V)), 2.0);
   float breakup = smoothstep(0.55, 1.0, vUv.y) * smoothstep(0.35, 0.75, n2(vec2(vUv.x * 40.0, vUv.y * 3.0 - uT * 4.0)));
   float a = (0.22 + 0.55 * smoothstep(0.35, 0.85, s) + fr * 0.3) * smoothstep(0.0, 0.08, vUv.y) * (1.0 - breakup) * uAlpha;
-  vec3 c = mix(vec3(0.55, 0.78, 0.9), vec3(0.97, 0.99, 1.0), smoothstep(0.4, 0.9, s) * 0.8 + fr * 0.3);
+  vec3 c = mix(vec3(0.42, 0.66, 0.78), vec3(0.86, 0.91, 0.95), smoothstep(0.4, 0.9, s) * 0.8 + fr * 0.3);
   gl_FragColor = vec4(c, a);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -206,7 +206,7 @@ void main(){ // uA: r0, y0, vr, vy   uB: life, floorY, size, spread
   vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv;
   gl_PointSize = max(1.5, uB.z * projectionMatrix[1][1] * uH * 0.5 / -mv.z) * step(0.001, vA);
 }`;
-const DROP_FRAG = /* glsl */`varying float vA; void main(){ vec2 c = gl_PointCoord - 0.5; float d = dot(c, c); if (d > 0.25) discard; float a = smoothstep(0.25, 0.05, d) * vA * 0.85; gl_FragColor = vec4(0.92, 0.97, 1.0, a);
+const DROP_FRAG = /* glsl */`varying float vA; void main(){ vec2 c = gl_PointCoord - 0.5; float d = dot(c, c); if (d > 0.25) discard; float a = smoothstep(0.25, 0.05, d) * vA * 0.85; gl_FragColor = vec4(0.84, 0.9, 0.95, a);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`;
@@ -225,9 +225,9 @@ let mistTex = null;
 function mist(parent, { r, y, n, anim }) {
   if (!GFX.high) return;
   if (!mistTex) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const gr = x.createRadialGradient(32, 32, 1, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); mistTex = new THREE.CanvasTexture(c); }
-  const sm = new THREE.SpriteMaterial({ map: mistTex, color: '#eef6ff', transparent: true, opacity: 0.16, depthWrite: false });
+  const sm = new THREE.SpriteMaterial({ map: mistTex, color: '#eef6ff', transparent: true, opacity: 0.08, depthWrite: false });
   for (let i = 0; i < n; i++) { const a = i / n * 6.2832; const s = new THREE.Sprite(sm); s.position.set(Math.cos(a) * r, y + 0.25, Math.sin(a) * r); s.scale.set(1.3, 0.8, 1); s.userData.dyn = true; s.userData.noAO = true; parent.add(s);
-    const ph = i * 1.7; anim.push((t) => { s.position.y = y + 0.25 + Math.sin(t * 0.9 + ph) * 0.08; s.material.opacity = 0.12 + Math.sin(t * 0.6 + ph) * 0.04; }); }
+    const ph = i * 1.7; anim.push((t) => { s.position.y = y + 0.25 + Math.sin(t * 0.9 + ph) * 0.08; s.material.opacity = 0.06 + Math.sin(t * 0.6 + ph) * 0.02; }); }
 }
 
 /**
@@ -272,4 +272,104 @@ export function buildFountain(parent, { x, y = 0, z, scale = 1, W, stone = '#c4b
   drops(fx, { n: 80, r0: 0.95, y0: 2.24, vr: 0.0, vy: 1.0, life: 0.35, floorY: 2.21, size: 0.035, spread: 1.0, anim });
   mist(fx, { r: c1.rImpact, y: 0.8, n: 10, anim });
   return g;
+}
+
+// ---------------------------------------------------------------- rivers
+const RIVER_VERT = /* glsl */`attribute vec4 aFlow; attribute vec3 aR; varying vec3 vW; varying vec4 vF; varying vec3 vRv;
+#include <fog_pars_vertex>
+void main(){ vec4 wp = modelMatrix * vec4(position, 1.0); vW = wp.xyz; vF = aFlow; vRv = aR; vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
+#include <fog_vertex>
+}`;
+const RIVER_FRAG = /* glsl */`
+${'%COMMON%'}
+uniform float uFresMax;
+varying vec3 vW; varying vec4 vF; varying vec3 vRv; // vF: flow dir xz * speed, across u (-1..1), along s ; vRv: rock foam, mouth fade, depth
+#include <fog_pars_fragment>
+vec2 ngrad(vec2 p){ float e = 0.12; float a = n2(p), b = n2(p + vec2(e, 0.0)), c = n2(p + vec2(0.0, e)); return vec2(b - a, c - a) / e; }
+void main(){
+  vec2 fl = vF.xy; float sp = length(fl); vec2 fd = sp > 0.001 ? fl / sp : vec2(0.0, 1.0); float u = vF.z;
+  float dist = length(cameraPosition - vW); float detail = exp(-dist / 60.0);
+  // flow-map advection: two phases of noise dragged along the current, cross-faded so it never stretches
+  float ph0 = fract(uT * 0.35), ph1 = fract(uT * 0.35 + 0.5); float wb = abs(1.0 - 2.0 * ph0);
+  vec2 p = vW.xz * 0.8;
+  vec2 g0 = ngrad(p - fl * ph0 * 1.6) * 0.6 + ngrad(p * 2.3 - fl * ph0 * 3.0 + 7.1) * 0.4;
+  vec2 g1 = ngrad(p - fl * ph1 * 1.6 + 3.7) * 0.6 + ngrad(p * 2.3 - fl * ph1 * 3.0 + 1.3) * 0.4;
+  vec2 g = mix(g0, g1, 1.0 - wb) * (0.12 + sp * 0.06) * (0.35 + 0.65 * detail);
+  vec3 N = normalize(vec3(-g.x, 1.0, -g.y)); vec3 V = normalize(cameraPosition - vW); vec3 L = normalize(uSun);
+  float fres = (0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0)) * uFresMax;
+  float d = vRv.z * (1.0 - u * u);
+  vec3 body = mix(uShallow, uDeep, 1.0 - exp(-d * 0.9));
+  #ifdef CAUSTICS
+    body += vec3(0.7, 0.85, 0.8) * caust(vW.xz * 0.7 - fl * uT * 0.2, uT * 0.6) * exp(-d * 1.5) * 0.4;
+  #endif
+  vec3 col = mix(body, skyCol(reflect(-V, N)), fres);
+  vec3 H = normalize(L + V); col += uSunCol * (pow(max(dot(N, H), 0.0), 600.0) * 5.0 + pow(max(dot(N, H), 0.0), 60.0) * 0.2);
+  // foam: banks, rapids (streaks stretched along the current), rocks
+  vec2 q = vec2(dot(vW.xz, vec2(-fd.y, fd.x)) * 3.0, dot(vW.xz, fd) * 0.5 - uT * sp * 0.8);
+  float st = n2(q) * 0.6 + n2(q * vec2(2.7, 2.0) + 4.0) * 0.4;
+  float bank = smoothstep(0.72, 1.0, abs(u)) * smoothstep(0.35, 0.8, n2(vW.xz * 1.6 - fl * uT * 0.3));
+  float rap = smoothstep(2.3, 3.9, sp) * smoothstep(0.64, 0.9, st) * 0.75;
+  float rock = vRv.x * smoothstep(0.3, 0.7, n2(vW.xz * 3.0 - fl * uT * 0.6));
+  float foam = clamp(bank * 0.7 + rap + rock, 0.0, 0.85);
+  col = mix(col, vec3(0.93, 0.97, 1.0), foam);
+  float a = mix(0.5 + 0.5 * (1.0 - exp(-d * 1.4)), 1.0, fres); a = max(a, foam);
+  a *= smoothstep(1.06, 0.9, abs(u)) * vRv.y;
+  if (a < 0.004) discard;
+  gl_FragColor = vec4(col, a);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+  #include <fog_fragment>
+}`;
+/** Ribbon mesh for one traced river (from rivers.js). Returns { mesh, rocks:[[x,y,z,s]] }. */
+export function riverMesh(R, { W, sunDir }) {
+  const P = R.pts; const A = 9; const pos = [], flow = [], rr = [], idx = [];
+  let sd = 97; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+  const rocks = [];
+  for (let k = 2; k < P.length - 6; k += 3) { const p = P[k]; if (p.speed > 2.0 && rnd() < 0.55) { const o = (rnd() - 0.5) * p.w * 1.1; const nx = P[k + 1].z - p.z, nz = -(P[k + 1].x - p.x), l = Math.hypot(nx, nz) || 1; rocks.push([p.x + nx / l * o, p.y, p.z + nz / l * o, 0.35 + rnd() * 0.5]); } }
+  for (let k = 0; k < P.length; k++) {
+    const p = P[k], q = P[Math.min(P.length - 1, k + 1)], o = P[Math.max(0, k - 1)];
+    let tx = q.x - o.x, tz = q.z - o.z; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl; const nx = -tz, nz = tx;
+    const mouth = R.reached ? Math.min(1, (P.length - 1 - k) / 8) : Math.min(1, (P.length - 1 - k) / 4); const src = Math.min(1, k / 3);
+    for (let a = 0; a < A; a++) { const u = (a / (A - 1)) * 2 - 1; const x = p.x + nx * u * p.w * 1.08, z = p.z + nz * u * p.w * 1.08;
+      pos.push(x, p.y + 0.04, z); flow.push(tx * p.speed, tz * p.speed, u, p.s);
+      let rf = 0; for (const r of rocks) { const dd = Math.hypot(r[0] - x, r[2] - z); if (dd < r[3] * 3.2) rf = Math.max(rf, 1 - dd / (r[3] * 3.2)); }
+      rr.push(rf, mouth * src, p.depth); }
+  }
+  for (let k = 0; k < P.length - 1; k++) for (let a = 0; a < A - 1; a++) { const i0 = k * A + a, i1 = i0 + 1, i2 = i0 + A, i3 = i2 + 1; idx.push(i0, i2, i1, i1, i2, i3); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aFlow', new THREE.Float32BufferAttribute(flow, 4)); g.setAttribute('aR', new THREE.Float32BufferAttribute(rr, 3)); g.setIndex(idx); g.computeBoundingSphere();
+  const u = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, baseUniforms(sunDir || W.sunDir || new THREE.Vector3(30, 60, 20).normalize()), { uFresMax: { value: fresMax() } }]);
+  u.uShallow.value.set('#3a9aa8'); u.uDeep.value.set('#1d5a6a');
+  const mat = new THREE.ShaderMaterial({ uniforms: u, vertexShader: RIVER_VERT, fragmentShader: RIVER_FRAG.replace('%COMMON%', COMMON), defines: { NW: 4, ...(GFX.high ? { CAUSTICS: 1 } : {}) }, transparent: true, depthWrite: false, fog: true, side: THREE.DoubleSide });
+  const m = new THREE.Mesh(g, mat); m.userData.noOutline = true; m.renderOrder = 2;
+  W.anim.push((t) => { u.uT.value = t; });
+  return { mesh: m, rocks };
+}
+export function fresMax() { return GFX.real ? 1.0 : GFX.high ? 0.8 : 0.5; }
+
+// ---------------------------------------------------------------- boat wakes
+const WAKE_FRAG = /* glsl */`uniform float uT; uniform float uK; varying vec2 vUv; varying vec3 vW;
+float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h2(i), h2(i+vec2(1,0)), f.x), mix(h2(i+vec2(0,1)), h2(i+vec2(1,1)), f.x), f.y); }
+void main(){ // local: x across (-1..1 → ±W), y back from the bow (0..1 → L)
+  float x = (vUv.x - 0.5) * 2.0 * 7.0; float z = vUv.y * 26.0 - 3.0; // metres; bow at z=0, stern ~3.4
+  float n = n2(vW.xz * 1.7 + uT * 0.4) * 0.6 + n2(vW.xz * 4.3 - uT * 0.7) * 0.4;
+  float arm = abs(abs(x) - max(z, 0.0) * 0.36 - 0.6); // Kelvin wake: ~19.5 degree arms
+  float v = smoothstep(0.9, 0.0, arm) * smoothstep(-0.5, 1.5, z) * exp(-max(z, 0.0) / 13.0);
+  float chop = smoothstep(0.5, 0.0, abs(sin(arm * 3.0 - z * 0.3 + uT * 2.0))) * smoothstep(2.5, 0.0, arm) * exp(-max(z, 0.0) / 9.0) * 0.5;
+  float trail = smoothstep(1.4 + z * 0.06, 0.0, abs(x)) * smoothstep(2.0, 4.0, z) * exp(-(z - 3.0) / 10.0);
+  float bow = smoothstep(1.8, 0.0, length(vec2(x * 0.8, z + 0.2))) * 0.9 + smoothstep(1.2, 0.0, abs(abs(x) - 0.9 - max(z, 0.0) * 0.1)) * smoothstep(3.5, 0.0, z) * smoothstep(-0.4, 0.4, z) * 0.7;
+  float a = clamp((v * 0.8 + chop + trail * 0.7) * smoothstep(0.3, 0.75, n) + bow * smoothstep(0.2, 0.6, n), 0.0, 0.9) * uK;
+  a *= smoothstep(1.0, 0.55, abs(vUv.x - 0.5) * 2.0) * smoothstep(0.0, 0.04, vUv.y) * smoothstep(1.0, 0.8, vUv.y);
+  if (a < 0.004) discard;
+  gl_FragColor = vec4(0.94, 0.97, 1.0, a);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+/** V-wake + bow foam that rides with a boat group (boat forward = +z). Set wake.uniforms.uK (0..1) by speed. */
+export function addWake(boat, W, scale = 1) {
+  const geo = new THREE.PlaneGeometry(14 / scale, 26 / scale); geo.rotateX(-Math.PI / 2); geo.translate(0, 0, (-26 / 2 + 3) / scale);
+  const mat = new THREE.ShaderMaterial({ uniforms: { uT: { value: 0 }, uK: { value: 0 } }, vertexShader: SHEET_VERT, fragmentShader: WAKE_FRAG, transparent: true, depthWrite: false });
+  const m = new THREE.Mesh(geo, mat); m.position.y = 0.16 / scale; m.userData.noOutline = true; m.userData.noAO = true; m.renderOrder = 3; m.visible = false; m.frustumCulled = false; boat.add(m);
+  W.anim.push((t) => { mat.uniforms.uT.value = t; m.visible = mat.uniforms.uK.value > 0.01; });
+  boat.userData.wake = mat.uniforms; return m;
 }

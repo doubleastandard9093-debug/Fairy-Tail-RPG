@@ -2,6 +2,7 @@
 // now rides the real route (Dijkstra over the traced railway graph) instead of a fade-teleport.
 import * as THREE from 'three';
 import { RAILS_W, WATER_Y } from '../world/fiore.js';
+import { addWake } from '../world/water.js';
 
 // ---- rail graph: vertices of every polyline, merged where lines meet ----
 const V = []; const E = [];
@@ -56,7 +57,7 @@ export class Transit {
     for (const [a, b, sail] of [['hargeon', 'galuna', '#f4ecd8'], ['hargeon', 'tenrou', '#e86a4a'], ['galuna', 'tenrou', '#4a7ad0']]) {
       const A = W.docks[a], B = W.docks[b]; if (!A || !B) continue;
       const pts = seaPath(A.boat.slice(0, 2), B.boat.slice(0, 2), land); const tr = track(pts);
-      const obj = W.makeBoat(game.scene, A.boat[0], A.boat[1], 0, 1.3, sail); this.boats.push({ tr, obj, s: Math.random() * tr.len, v: 9, dirn: 1, wait: 0 });
+      const obj = W.makeBoat(game.scene, A.boat[0], A.boat[1], 0, 1.3, sail); addWake(obj, W, 1.3); this.boats.push({ tr, obj, s: Math.random() * tr.len, v: 9, dirn: 1, wait: 0 });
     }
     this.ride = null;
   }
@@ -64,6 +65,7 @@ export class Transit {
   update(dt) {
     const W = this.g.world;
     for (const t of [...this.trains, ...this.boats]) {
+      if (t.obj.userData.wake) { const u = t.obj.userData.wake.uK; u.value += ((t.wait > 0 ? 0 : 1) - u.value) * Math.min(1, dt * 0.8); }
       if (t.wait > 0) { t.wait -= dt; continue; }
       t.s += t.v * t.dirn * dt; if (t.s > t.tr.len || t.s < 0) { t.dirn *= -1; t.s = Math.max(0, Math.min(t.tr.len, t.s)); t.wait = 4; }
       const p = t.tr.at(t.s); const boat = this.boats.includes(t);
@@ -71,6 +73,7 @@ export class Transit {
     }
     const r = this.ride; if (!r) return;
     r.s += r.v * dt * Math.min(1, 0.25 + r.s / 25) ; // ease in
+    if (r.obj.userData.wake) r.obj.userData.wake.uK.value = Math.min(1, r.s / 20);
     const p = r.tr.at(r.s); const yb = r.kind === 'boat' ? WATER_Y - 0.1 : W.yAt(p.x, p.z) + 0.2;
     this.place(r.obj, p, yb, false);
     const pl = this.g.player; const off = r.kind === 'boat' ? [0, 1.05, -1.5] : [0, 3.95, -9.6]; // deck / roof of the first carriage
@@ -80,7 +83,7 @@ export class Transit {
   start(kind, path, dest, onEnd) {
     const W = this.g.world; const tr = track(path);
     const obj = kind === 'boat' ? W.makeBoat(this.g.scene, path[0][0], path[0][1], 0, 1.4, '#f4f0e0', '#5a3a22') : W.makeTrain(this.g.scene, path[0][0], path[0][1], 0, 2);
-    obj.userData.riding = true;
+    obj.userData.riding = true; if (kind === 'boat') addWake(obj, W, 1.4);
     // the moored ferries at both piers step aside while you sail, so the ride boat never overlaps them
     const hidden = kind === 'boat' ? W.interactables.filter((i) => i.kind === 'ferry' && i.obj && (Math.hypot(i.x - path[0][0], i.z - path[0][1]) < 30 || Math.hypot(i.x - path[path.length - 1][0], i.z - path[path.length - 1][1]) < 30)) : [];
     for (const i of hidden) i.obj.visible = false;

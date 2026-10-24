@@ -6,7 +6,7 @@ export const GFX = { high: false, outlines: false, shadows: false, real: false }
 export const WIND = { value: 0 };
 
 // ---- Realistic mode: PBR materials with world-space procedural detail (no UVs needed) ----
-const NOISE_GLSL = `
+export const NOISE_GLSL = `
 float rh(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float vnoise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(rh(i), rh(i + vec3(1,0,0)), f.x), mix(rh(i + vec3(0,1,0)), rh(i + vec3(1,1,0)), f.x), f.y),

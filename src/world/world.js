@@ -6,7 +6,8 @@ import { NPCS, POIS } from '../data/npcs.js';
 import { drawGuildMark } from './mark.js';
 import { BOSS_ARENA, BOSS_ARENAS } from '../data/mobs.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { createSea, buildFountain } from './water.js';
+import { createSea, buildFountain, riverMesh, addWake } from './water.js';
+import { planRivers, riverCarve, riverNear, RIVERS } from './rivers.js';
 import { mapHeight, biomeAt, PLACES, PLACE, WORLD, WATER_Y, RAILS_W, ROADS_W, distToLines, toWorld } from './fiore.js';
 import { Terrain } from './terrain.js';
 import { buildRegions, SITE_FLATS, WOODSEA_CLEARING } from './regions.js';
@@ -25,6 +26,7 @@ export const CATHEDRAL = { x: 74, z: -14.4, w: 16, d: 10 };
 // Traced Fiore height + detail noise, then local flattening for towns/stations and the carved canyon.
 const FLAT = []; // { x, z, r, blend, h, rect }
 const CARVE = []; // { a:[x,z], b:[x,z], w, blend, h }
+const WET_BANK = new THREE.Color('#6a6a48'), RIVER_BED = new THREE.Color('#7a7466');
 const DECKS = []; // walkable platforms over water / raised floors: { minX,maxX,minZ,maxZ,y }
 let flatReady = false;
 function initFlat() {
@@ -50,6 +52,7 @@ function initFlat() {
   FLAT.push({ ...WOODSEA_CLEARING, h: Math.max(WATER_Y + 1.6, height(WOODSEA_CLEARING.x, WOODSEA_CLEARING.z)) });
   for (const f of SITE_FLATS) FLAT.push({ ...f, h: Math.max(WATER_Y + 1.6, height(f.x, f.z)) });
   CARVE.push({ a: PLACE.clover.pos, b: [BOSS_ARENA.x, BOSS_ARENA.z], w: 5, blend: 9, h: 3 });
+  planRivers(height);
 }
 function rawHeight(x, z) {
   let h = mapHeight(x, z);
@@ -71,7 +74,7 @@ export function height(x, z) {
     const [x0, z0] = c.a, [x1, z1] = c.b; const vx = x1 - x0, vz = z1 - z0; const t = Math.max(0, Math.min(1, ((x - x0) * vx + (z - z0) * vz) / (vx * vx + vz * vz)));
     const d = Math.hypot(x - x0 - t * vx, z - z0 - t * vz); if (d < c.w + c.blend) h = Math.min(h, c.h + smooth(c.w, c.w + c.blend, d) * Math.max(0, h - c.h));
   }
-  return h;
+  return riverCarve(h, x, z);
 }
 const ZORDER = [...PLACES].sort((a, b) => a.r - b.r);
 /** Named area at a point; place ids are returned through placeAt. */
@@ -195,6 +198,7 @@ export function buildWorld(scene) {
   const inTownPad = (x, z, pad) => x > TOWN.minX - pad && x < TOWN.maxX + pad && z > TOWN.minZ - pad && z < TOWN.maxZ + pad;
   W.keepOut = (x, z, pad) => {
     if (inTownPad(x, z, pad + 2)) return true;
+    { const rn = riverNear(x, z); if (rn && rn[0] < rn[1] + 1.2 + pad) return true; }
     for (const f of FLAT) if (!f.rect && f.r < 40 && Math.hypot(x - f.x, z - f.z) < f.r * 0.85 + pad) return true;
     for (const A of Object.values(BOSS_ARENAS)) { if (Math.hypot(x - A.x, z - A.z) < A.r + 4) return true;
       if (A.gate) { const [gx, gz] = A.gate; const vx = gx - A.x, vz = gz - A.z, L = Math.hypot(vx, vz); const ux = vx / L, uz = vz / L; const f = (x - A.x) * ux + (z - A.z) * uz; const sd = Math.abs((x - A.x) * uz - (z - A.z) * ux);
@@ -209,14 +213,20 @@ export function buildWorld(scene) {
     height, keepOut: (x, z, pad) => W.keepOut(x, z, pad),
     forestBoost: (x, z) => { const d = Math.hypot(x - eastForest[0], z - eastForest[1]); return d < 95 ? (1 - d / 95) * 0.5 : 0; },
     pineAt: (x, z) => z < -380,
-    paint: (x, z, c, n) => {
+    paint: (x, z, c, n, w) => {
+      { const rn = riverNear(x, z); if (rn && rn[0] < rn[1] * 1.6 + 2) { const k = smooth(rn[1] * 1.6 + 2, rn[1] * 0.9, rn[0]); c.lerp(WET_BANK, k * 0.75); if (w) { w[4] = Math.max(w[4], k); w[1] = Math.max(w[1], k * 0.6); w[6] = Math.max(w[6], k * 0.4); } if (rn[0] < rn[1]) { const kb = smooth(rn[1], rn[1] * 0.6, rn[0]); c.lerp(RIVER_BED, kb); if (w) { w[0] = Math.max(w[0], kb * 0.5); w[4] = 1; } } } }
       if (inTownPad(x, z, 0)) { const plaza = Math.hypot(x, z - 2) < 13; const road = Math.abs(x) < 3 && z > -14; const lanes = (Math.abs(z + 2) < 2.5 && Math.abs(x) < 24) || (Math.abs(z - 20) < 2.5 && Math.abs(x) < 24) || (Math.abs(x) < 3 && z < -34) || (z > -13 && z < -5 && x < -24) || (z > -19 && z < -9 && x > 24);
-        if (plaza || road || lanes) c.set('#b8b0a4').multiplyScalar(0.9 + n * 0.15); }
+        if (plaza || road || lanes) { c.set('#b8b0a4').multiplyScalar(0.9 + n * 0.15); if (w) { w.fill(0); w[5] = 1; } } }
       for (const A of ARENA_LIST) { const da = Math.hypot(x - A.x, z - A.z); if (da < A.r) c.lerp(A.col, smooth(A.r, A.r - 6, da)); }
     },
   });
   {
     const water = createSea({ scene, W, height, WORLD, WATER_Y }); W.water = water;
+    W.rivers = RIVERS; const rockG = new THREE.DodecahedronGeometry(1, 1); const rockM = toon('#7a746c', { rough: 0.6 });
+    for (const R of RIVERS) { const { mesh: rm, rocks } = riverMesh(R, { W }); rm.userData.dyn = true; scene.add(rm); R.mesh = rm;
+      if (rocks.length) { const im = new THREE.InstancedMesh(rockG, rockM, rocks.length); const mt = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+        rocks.forEach((r, k) => { e.set(r[0] * 0.7, r[2] * 0.3, r[3] * 2); q.setFromEuler(e); mt.compose(new THREE.Vector3(r[0], r[1] - r[3] * 0.35, r[2]), q, new THREE.Vector3(r[3] * 1.3, r[3], r[3] * 1.1)); im.setMatrixAt(k, mt); });
+        im.castShadow = im.receiveShadow = GFX.shadows; im.userData.noOutline = true; im.userData.dyn = true; scene.add(im); } }
     W.anim.push((t) => { WIND.value = t; });
   }
   // ---------------- Town ----------------
@@ -728,7 +738,7 @@ export function buildWorld(scene) {
     W.grass = new Grass(scene, { height: groundAt, count: GFX.real ? 22000 : 9000, radius: GFX.real ? 46 : 34,
       prepare: (cx, cz, r) => { const pad = 1.2; near = [...W.boxes, ...(W.noGrass || []), ...DECKS.filter((d) => !d.dir)].filter((b) => b.maxX > cx - r - pad && b.minX < cx + r + pad && b.maxZ > cz - r - pad && b.minZ < cz + r + pad)
         .concat(W.circles.filter((c) => c.r > 0.9 && Math.abs(c.x - cx) < r + c.r && Math.abs(c.z - cz) < r + c.r).map((c) => ({ minX: c.x - c.r * 0.8, maxX: c.x + c.r * 0.8, minZ: c.z - c.r * 0.8, maxZ: c.z + c.r * 0.8 }))); },
-      accept: (x, z) => { const b = biomeAt(x, z); if (b !== 1 && b !== 2) return 0; const h = height(x, z); if (h < WATER_Y + 0.5 || h > 16) return 0; if (inTownPad(x, z, -2)) return 0; for (const f of TOWNFLAT) if (Math.hypot(x - f.x, z - f.z) < f.r) return 0; if (distToLines(ROADS_W, x, z) < 2.2 || distToLines(RAILS_W, x, z) < 2) return 0;
+      accept: (x, z) => { const b = biomeAt(x, z); if (b !== 1 && b !== 2) return 0; { const rn = riverNear(x, z); if (rn && rn[0] < rn[1] + 0.8) return 0; } const h = height(x, z); if (h < WATER_Y + 0.5 || h > 16) return 0; if (inTownPad(x, z, -2)) return 0; { const rn = riverNear(x, z); if (rn && rn[0] < rn[1] + 0.8) return 0; } for (const f of TOWNFLAT) if (Math.hypot(x - f.x, z - f.z) < f.r) return 0; if (distToLines(ROADS_W, x, z) < 2.2 || distToLines(RAILS_W, x, z) < 2) return 0;
         for (const b2 of near) if (x > b2.minX - 0.6 && x < b2.maxX + 0.6 && z > b2.minZ - 0.6 && z < b2.maxZ + 0.6) return 0; return b === 2 ? 0.7 : 1; } }); }
 
   // ---------------- Bake static geometry ----------------

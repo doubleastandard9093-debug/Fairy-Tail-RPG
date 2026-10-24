@@ -34,7 +34,7 @@ export function setupRealism(renderer, scene, camera, world) {
   const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, uAspect: { value: size.x / size.y } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: `uniform sampler2D tDiffuse; uniform float uAspect; varying vec2 vUv;
       void main(){ vec3 c = texture2D(tDiffuse, vUv).rgb; float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-        c = mix(c, c * c * (3.0 - 2.0 * c), 0.22);
+        c = mix(c, c * c * (3.0 - 2.0 * c), 0.3); c = max(c - 0.018, 0.0) / 0.982;
         c += mix(vec3(-0.012, 0.0, 0.022), vec3(0.03, 0.012, -0.02), smoothstep(0.15, 0.85, l));
         float sat = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b)); c = mix(vec3(l), c, 1.0 + 0.18 * (1.0 - sat));
         vec2 v = (vUv - 0.5) * vec2(uAspect, 1.0); c *= 1.0 - smoothstep(0.45, 1.15, length(v)) * 0.32;
