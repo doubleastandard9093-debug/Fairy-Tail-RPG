@@ -14,6 +14,7 @@ import { xpForLevel, levelForXp, progressToNext, charXpForLevel } from '../core/
 import * as P from '../systems/progress.js';
 import { TOWN } from '../world/world.js';
 import { BOSS_ARENA } from '../data/mobs.js';
+import { PARTY, unisonFor } from '../data/combos.js';
 import { PLACES, PLACE, STATIONS, GW, GH, S as MAP_S, ORIGIN, toMap, biomeAt, mapHeight, ROADS, RAILS, FERRY, FERRY_COST, trainCost } from '../world/fiore.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -61,7 +62,7 @@ export class UI {
     document.body.insertAdjacentHTML('beforeend', `
       <div id="hud" class="hidden">
         <div id="plate" class="frame"><div class="crest">🔥</div><div><div class="nm"></div><div class="sub"></div></div></div>
-        <div id="orbs"><div class="orb hp"><div class="fill"></div><div class="v"></div></div><div class="orb mp"><div class="fill"></div><div class="v"></div></div><div class="orb adr"><div class="fill"></div><div class="v"></div></div></div>
+        <div id="orbs"><div class="orb hp"><div class="fill"></div><div class="v"></div></div><div class="orb mp"><div class="fill"></div><div class="v"></div></div><div class="orb adr"><div class="fill"></div><div class="v"></div></div><div class="orb uni hidden" title="Unison Raid (U)"><div class="fill"></div><div class="v"></div></div></div><div id="combo"></div>
         <div id="buffs"></div>
         <div id="mapwrap"><canvas id="minimap" width="344" height="344"></canvas><div id="compass">N</div><div id="zone"></div></div>
         <div id="target" class="frame hidden"><div class="nm"></div><div class="bar"><i></i></div><div class="fx"></div></div>
@@ -105,6 +106,10 @@ export class UI {
     if (this.floaters.length > 40) { const f = this.floaters.shift(); f.e.remove(); }
   }
   hurtFlash() { const v = this.el.vig; v.classList.add('hit'); clearTimeout(this._hf); this._hf = setTimeout(() => v.classList.remove('hit'), 120); }
+  comboText(txt, big = false, uni = false) {
+    const el = document.getElementById('combo'); if (!el) return; el.textContent = txt; el.className = (big ? 'big' : '') + (uni ? ' uni' : ''); void el.offsetWidth; el.classList.add('show');
+    clearTimeout(this.comboT); this.comboT = setTimeout(() => el.classList.remove('show'), big ? 2200 : 900);
+  }
   shake(a) { if (this.game && this.game.S.shake === false) return; this.shakeAmt = Math.max(this.shakeAmt, a); }
   sfx(n) { this.audio?.sfx(n); }
   abilityFired(slot) { const b = this.el.abar.children[slot]; b.classList.remove('fired'); void b.offsetWidth; b.classList.add('fired'); }
@@ -125,6 +130,7 @@ export class UI {
     // orbs
     const orb = (el, v, max, label) => { el.querySelector('.fill').style.height = Math.max(0, Math.min(100, v / max * 100)) + '%'; el.querySelector('.v').innerHTML = `${Math.max(0, Math.ceil(v))}<small>${label}</small>`; };
     const [oh, om, oa] = this.el.orbs.children; orb(oh, G.hp, d.maxHp, 'HP'); orb(om, G.mp, d.maxMp, 'MP'); orb(oa, G.adr, 100, '%');
+    const ou = this.el.orbs.children[3]; if (ou) { const on = !!G.party; ou.classList.toggle('hidden', !on); if (on) { const u = g.magic.unison; ou.querySelector('.fill').style.height = u + '%'; ou.querySelector('.v').innerHTML = u >= 100 ? 'U<small>RAID!</small>' : `${Math.floor(u)}<small>UNISON</small>`; ou.classList.toggle('ready', u >= 100); if (!ou.onclick) ou.onclick = () => g.magic.unisonRaid(); } }
     this.el.vig.classList.toggle('low', G.hp / d.maxHp < 0.3 && !pl.dead);
     // abilities
     const lo = g.loadout();
@@ -539,6 +545,11 @@ export class UI {
     if (role === 'bank') svc.push({ label: '🏦 Open my bank', svc: () => this.openPanel('bank') });
     if (role === 'shop') svc.push({ label: '🛒 Browse the market board', svc: () => this.openPanel('shop') });
     if (role === 'forge') { svc.push({ label: '🔥 Use the forge', svc: () => this.openPanel('craft', { station: 'forge' }) }); svc.push({ label: '🪚 Use the workbench', svc: () => this.openPanel('craft', { station: 'workbench' }) }); }
+    if (PARTY[npcId]) {
+      const nm = NPCS[npcId].name;
+      if (G.party === npcId) svc.push({ label: `👋 Part ways with ${nm}`, svc: () => { this.game.setParty(null); this.log(`${nm} heads back to the guild.`, 'npc'); } });
+      else { const u = unisonFor(this.game.magic.playerSchool(), PARTY[npcId].school); svc.push({ label: `🤝 Ask ${nm} to join your party (${u.name.replace('Unison Raid: ', '')})`, svc: () => { this.game.setParty(npcId); this.toast(`${nm} joined your party! Fight together to charge Unison Raids (U).`); } }); }
+    }
     if (role === 'inn') { svc.push({ label: '🛏️ Rest (10 jewels): full health & mana', svc: () => this.innRest() }); svc.push({ label: '🍲 Buy stew (30 jewels)', svc: () => this.innStew() }); }
     this.dlg = { npcId, queue: [...lines], options: [...options, ...svc] };
     this.el.dialog.classList.remove('hidden'); this.stepDialogue();

@@ -12,6 +12,8 @@ import { PLACE, trainCost, FERRY_COST } from '../world/fiore.js';
 import { Transit, railPath, seaPath as seaPathFor } from './transit.js';
 import { glow, GFX } from '../world/toon.js';
 import * as P from './progress.js';
+import { MagicFX, schoolOf, SCHOOL_COLORS } from './magicfx.js';
+import { PARTY } from '../data/combos.js';
 import { artisanBonus, abilityLearned, abilityBonus, NODE } from '../data/skilltree.js';
 
 const TMP = new THREE.Vector3();
@@ -25,7 +27,7 @@ export class Game {
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
     this.cam = { yaw: Math.PI, pitch: 0.55, dist: 11, tx: 0, ty: 0, tz: 0 };
     this.world = buildWorld(this.scene);
-    this.transit = new Transit(this);
+    this.transit = new Transit(this); this.magic = new MagicFX(this);
     this.t = 0; this.entities = []; this.projectiles = []; this.teles = []; this.traps = []; this.fx = [];
     this.input = { x: 0, z: 0 }; this.autoAttack = S.autoAttack !== false;
     this.rand = rng(Date.now() & 0xffff);
@@ -145,7 +147,15 @@ export class Game {
         this.fxRing(pl.pos, ab.radius, color); this.ui.log(`Requip! Now wielding ${ITEMS[G.equip.weapon].name}.`, 'ability'); this.ui.refresh(); break;
       }
     }
+    this.magic.cast(id, { ...ab, id }, pl, tgt, fwd); this.magic.onCast(id, ab, (14 + d.level * 3) * power * (1 + (G.stats.INT || 0) * 0.035) * (1 + this.buff('dmgUp')));
     this.ui.abilityFired(slot);
+  }
+  /** Party: one guildmate follows you everywhere (saved in G.party). */
+  setParty(npcId) {
+    const old = this.entities.find((e) => e.kind === 'ally' && e.party); if (old) { this.fxBurst(old.pos, '#fff0b0', 12); this.removeEntity(old); }
+    this.G.party = npcId || null; this.magic.unison = 0; this.magic.partyT = 0;
+    if (npcId) this.summon(PARTY[npcId].ally, 0, 1 + derived(this.G).level * 0.06, { party: true });
+    this.ui.refresh(); saveGame?.(this.G);
   }
   validTarget() { const t = this.player.target; return t && !t.dead && t.kind === 'mob' ? t : null; }
   setTarget(m) { this.player.target = m; this.ui.setTarget(m); }
@@ -184,7 +194,7 @@ export class Game {
     if (m.form === 'flute') { if (from === 'player') this.ui.floatText(m.pos, 3, 'Immune', 'heal'); return; }
     const d = derived(this.G); const crit = from === 'player' && this.rand() < d.crit;
     let dmg = Math.max(1, Math.round(amt * (0.9 + this.rand() * 0.2) * (crit ? 1.6 : 1)));
-    m.hp -= dmg; m.aggro = true; if (from !== 'dot') this.ui.sfx('hit'); if (from === 'player') this.player.combatT = 6;
+    m.hp -= dmg; m.aggro = true; if (from === 'player' || from === 'ally') this.magic.fill(from); if (from !== 'dot') this.ui.sfx('hit'); if (from === 'player') this.player.combatT = 6;
     this.ui.floatText(m.pos, m.tpl.boss ? 9 : 1.8, (crit ? '✦' : '') + dmg, crit ? 'crit' : from === 'ally' ? 'ally' : 'dmg');
     const ef = ab && ab.effect;
     if (ef) {
@@ -236,7 +246,7 @@ export class Game {
     else built = buildMob(tpl.model);
     const side = this.rand() < 0.5 ? -1 : 1;
     const p = this.player.pos.clone().add(new THREE.Vector3(Math.cos(this.player.rot) * 2 * side, 0, -Math.sin(this.player.rot) * 2 * side));
-    const e = { kind: 'ally', id: allyId, tpl, obj: built.group, model: built, pos: p, rot: this.player.rot, hp: tpl.hp * mult, maxHp: tpl.hp * mult, mult, atkCd: 0.5, atk: -1, until: dur ? this.t + dur : Infinity, healCd: 1, radius: 0.6, guildmate: !!opts.guildmate };
+    const e = { kind: 'ally', id: allyId, tpl, obj: built.group, model: built, pos: p, rot: this.player.rot, hp: tpl.hp * mult, maxHp: tpl.hp * mult, mult, atkCd: 0.5, atk: -1, until: dur ? this.t + dur : Infinity, healCd: 1, radius: 0.6, party: !!opts.party, guildmate: !!opts.guildmate };
     this.scene.add(built.group); this.entities.push(e);
     if (tpl.requip) this.requipFx(built.char, p);
     this.fxRing(p, 1.6, '#ffe8a0'); this.fxBurst(p, '#fff0b0', 18);
@@ -526,7 +536,7 @@ export class Game {
     animateCharacter(pl.char, { t: this.t, move: mv, atk: pl.atk, kind: pl.atkKind, cast: pl.cast > 0 ? Math.min(1, pl.cast * 3) : 0, dead: !!pl.dead });
     if (pl.iframes > 0 && pl.dash) g.rotation.x = 0; // roll is implied by the dash burst
     // world systems
-    this.updateEntities(dt); this.updateProjectiles(dt); this.updateTeles(dt); this.updateTraps(dt); this.updateFx(dt);
+    this.updateEntities(dt); this.updateProjectiles(dt); this.updateTeles(dt); this.updateTraps(dt); this.updateFx(dt); this.magic.update(dt);
     for (const n of this.world.nodes) if (n.respawn > 0) { n.respawn -= dt; if (n.respawn <= 0) { n.respawn = 0; n.uses = NODE_TIERS[n.tier].uses; n.obj.scale.setScalar(1); } }
     // boss party: guildmates join on the S-rank job or the final quest stage
     const inArena = Math.hypot(pl.pos.x - BOSS_ARENA.x, pl.pos.z - BOSS_ARENA.z) < BOSS_ARENA.r + 6;
@@ -735,7 +745,7 @@ export class Game {
       a.atkCd -= dt;
       if (a.atkCd <= 0 && d <= tpl.range + foe.radius + 0.4) {
         a.atkCd = tpl.atkCd; a.atk = 0; const dmg = tpl.dmg * a.mult * (1 + derived(this.G).level * 0.1);
-        if (tpl.range > 4) this.fireProj(a.pos, foe, null, { speed: 22 }, dmg, 'ally', tpl.model === 'maiden' ? '#7ad8ff' : '#a0ffd0', { y: 1.4 });
+        if (tpl.range > 4) this.fireProj(a.pos, foe, null, { speed: 22 }, dmg, 'ally', tpl.school ? SCHOOL_COLORS[tpl.school][0] : tpl.model === 'maiden' ? '#7ad8ff' : '#a0ffd0', { y: 1.4 });
         else this.damageMob(foe, dmg, null, 'ally');
       }
     } else {
@@ -815,6 +825,7 @@ export class Game {
       f.age += dt; const k = f.age / f.life;
       if (f.kind === 'ring') { f.m.scale.setScalar(0.3 + k * 0.9); f.m.material.opacity = 0.9 * (1 - k); }
       else if (f.kind === 'fade') { f.mat.opacity = 0.8 * (1 - k); f.m.scale.setScalar(0.8 + k * 0.4); }
+      else if (f.kind === 'custom') f.upd(k, dt, f);
       else if (f.kind === 'beam') { for (const m of f.mats) m.opacity = (1 - k) * 0.85; f.m.scale.set(1 + k * 0.5, 1 + k * 0.5, 1); }
       else if (f.kind === 'requip') { for (const m of f.mats) m.opacity = Math.max(0, 1 - k) * 0.85; f.m.children.forEach((c, i) => { if (i > 1) c.position.y = (0.4 + (i - 2) * 0.8 + k * 4) % 6; }); f.m.scale.set(1 - k * 0.5, 1, 1 - k * 0.5); }
       else if (f.kind === 'burst') {

@@ -11,6 +11,7 @@ export function setupInput(game, ui, canvas) {
     else if (k === 'tab') { e.preventDefault(); const m = game.nearestMob(game.player.pos, 25); if (m) game.setTarget(m); }
     else if (k === 'escape') { ui.closePanel(); ui.closeDialog(); ui.closeWorldMap(); game.setTarget(null); }
     else if (k === 'm') ui.toggleWorldMap();
+    else if (k === 'u') game.magic.unisonRaid();
     else if (k === 'i' || k === 'b') ui.togglePanel('bag'); else if (k === 'g') ui.togglePanel('gear'); else if (k === 'c') ui.togglePanel('stats'); else if (k === 'k') ui.togglePanel('skills'); else if (k === 't') ui.togglePanel('tree'); else if (k === 'j' || k === 'l') ui.togglePanel('quests');
   });
   addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));

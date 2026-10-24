@@ -285,3 +285,12 @@ body.portrait #worldmap .wm-body { flex-direction: column; }
 body.portrait #worldmap .wm-side { flex: 0 0 auto; }
 body.landscape.touch #worldmap .wm-side { flex-basis: 180px; font-size: 12px; }
 body.landscape.touch #worldmap .wm-mapbox { max-height: calc(100vh - 70px); }
+
+.orb.uni { cursor: pointer; pointer-events: auto; }
+.orb.uni .fill { background: radial-gradient(circle at 40% 30%, #ffb0ff, #a040e0 55%, #3a1060); }
+.orb.uni.ready { animation: uniPulse .8s ease-in-out infinite alternate; border-color: #ffd0ff; }
+@keyframes uniPulse { from { box-shadow: 0 0 6px #e080ff, inset 0 0 12px #000; } to { box-shadow: 0 0 22px #ffb0ff, inset 0 0 12px #000; } }
+#combo { position: absolute; left: 50%; top: 22%; transform: translateX(-50%) scale(.8); font-weight: 900; font-size: 22px; color: #ffe8a0; text-shadow: 0 0 8px #ff7a20, 0 2px 3px #000; opacity: 0; pointer-events: none; white-space: nowrap; transition: opacity .25s, transform .25s; z-index: 30; }
+#combo.big { font-size: 30px; color: #fff4c0; }
+#combo.uni { color: #ffd8ff; text-shadow: 0 0 12px #c050ff, 0 0 24px #ff70c0, 0 2px 3px #000; font-size: 34px; }
+#combo.show { opacity: 1; transform: translateX(-50%) scale(1); }
