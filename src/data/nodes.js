@@ -1,8 +1,8 @@
 // Gathering nodes. type -> skill and item. Tier bands push higher tiers deeper into the field.
 export const NODE_TYPES = {
-  ore: { skill: 'mining', verb: 'Mine', names: ['Copper Rock', 'Iron Rock', 'Starsilver Vein'] },
-  wood: { skill: 'woodcutting', verb: 'Chop', names: ['Birch Tree', 'Oak Tree', 'Moonwillow'] },
-  fibre: { skill: 'foraging', verb: 'Pick', names: ['Cotton Bush', 'Flax Patch', 'Silkweed Clump'] },
+  ore: { skill: 'mining', verb: 'Mine', names: ['Copper Rock', 'Iron Rock', 'Starsilver Vein', 'Adamantine Vein', 'Etherion Geode'] },
+  wood: { skill: 'woodcutting', verb: 'Chop', names: ['Birch Tree', 'Oak Tree', 'Moonwillow', 'Galuna Ebony', 'Tenrou Heartwood Tree'] },
+  fibre: { skill: 'foraging', verb: 'Pick', names: ['Cotton Bush', 'Flax Patch', 'Silkweed Clump', 'Moonlight Lilies', 'Starweave Bloom'] },
 };
 // The item a node gives is `${type}_t${tier}` (see data/items.js).
 export const NODE_TIERS = [
@@ -10,6 +10,8 @@ export const NODE_TIERS = [
   { level: 1, xp: 25, time: 1.6, uses: 4 },
   { level: 10, xp: 48, time: 2.2, uses: 4 },
   { level: 20, xp: 85, time: 2.8, uses: 3 },
+  { level: 30, xp: 140, time: 3.3, uses: 3 },
+  { level: 40, xp: 220, time: 3.8, uses: 2 },
 ];
 export const NODE_BANDS = [
   { tier: 1, z: [50, 92], perType: 5 },
@@ -26,4 +28,6 @@ export const NODE_PLACEMENT = [
   { type: 'wood', tier: 2, place: 'oshibana', spread: 60, min: 32, n: 3 }, { type: 'fibre', tier: 2, place: 'clover', spread: 50, min: 30, n: 3 },
   { type: 'ore', tier: 3, place: 'hakobe', spread: 45, min: 10, n: 4 }, { type: 'wood', tier: 3, place: 'tenrou', spread: 60, min: 18, n: 4 },
   { type: 'fibre', tier: 3, place: 'galuna', spread: 60, min: 20, n: 4 }, { type: 'ore', tier: 3, place: 'canyon', spread: 26, min: 8, n: 2 },
+  { type: 'ore', tier: 4, place: 'hakobe', spread: 70, min: 40, n: 3 }, { type: 'wood', tier: 4, place: 'galuna', spread: 70, min: 30, n: 3 }, { type: 'fibre', tier: 4, place: 'galuna', spread: 70, min: 30, n: 3 },
+  { type: 'ore', tier: 5, place: 'tenrou', spread: 70, min: 30, n: 2 }, { type: 'wood', tier: 5, place: 'tenrou', spread: 70, min: 30, n: 2 }, { type: 'fibre', tier: 5, place: 'tenrou', spread: 70, min: 30, n: 2 },
 ];

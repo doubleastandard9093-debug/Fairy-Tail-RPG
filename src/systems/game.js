@@ -11,7 +11,7 @@ import { buildWorld, groundAt, HALL, zoneAt, placeAt, blockedAt, rng } from '../
 import { PLACE, trainCost, FERRY_COST } from '../world/fiore.js';
 import { glow, GFX } from '../world/toon.js';
 import * as P from './progress.js';
-import { abilityLearned, abilityBonus, NODE } from '../data/skilltree.js';
+import { artisanBonus, abilityLearned, abilityBonus, NODE } from '../data/skilltree.js';
 
 const TMP = new THREE.Vector3();
 const ang = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -437,13 +437,13 @@ export class Game {
     const lvl = skillLevel(G, nt.skill);
     if (lvl < tier.level) { this.ui.toast(`You need ${nt.skill[0].toUpperCase() + nt.skill.slice(1)} level ${tier.level} (T${node.tier}).`); return; }
     if (!canAdd(G, `${node.type}_t${node.tier}`)) { this.ui.toast('Your bag is full!'); return; }
-    const dur = Math.max(0.7, tier.time * (1 - Math.min(0.5, (lvl - tier.level) * 0.02)));
+    const dur = Math.max(0.7, tier.time * (1 - Math.min(0.5, (lvl - tier.level) * 0.02)) * (1 - artisanBonus(G).gspeed));
     this.player.gathering = { node, t: 0, dur };
   }
   finishGather() {
     const G = this.G, pl = this.player, g = pl.gathering; const node = g.node; const nt = NODE_TYPES[node.type]; const tier = NODE_TIERS[node.tier];
     const id = `${node.type}_t${node.tier}`;
-    const n = this.rand() < 0.1 + skillLevel(G, nt.skill) * 0.004 ? 2 : 1;
+    const n = this.rand() < 0.1 + skillLevel(G, nt.skill) * 0.004 + artisanBonus(G).yield ? 2 : 1;
     const left = addItem(G, id, n); const got = n - left;
     if (got > 0) {
       this.ui.log(`You ${nt.verb.toLowerCase()} ${got}× ${ITEMS[id].name}.`, 'loot');

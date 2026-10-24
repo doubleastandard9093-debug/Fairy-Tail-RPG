@@ -1,7 +1,7 @@
 import * as T from '../data/skilltree.js';
 import * as THREE from 'three';
 import { ITEMS, WEAPON_TYPES, ARMOR_TYPES } from '../data/items.js';
-import { TIERS, ROMAN } from '../data/tiers.js';
+import { TIERS, QUALITIES, ROMAN } from '../data/tiers.js';
 import { ABILITIES } from '../data/abilities.js';
 import { SCHOOLS, RANK_XP } from '../data/schools.js';
 import { JOBS, RANK_ORDER, GUILD_RANKS } from '../data/jobs.js';
@@ -28,7 +28,8 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
 export function itemDesc(id) {
   const it = ITEMS[id]; if (!it) return '';
-  const tier = it.tier ? `<span style="color:${TIERS[it.tier].color}">T${it.tier} ${TIERS[it.tier].name}</span> · ` : '';
+  const qq = it.q ? QUALITIES[it.q - 1] : null;
+  const tier = (it.tier ? `<span style="color:${TIERS[it.tier].color}">T${it.tier} ${TIERS[it.tier].name}</span> · ` : '') + (qq && qq.q > 1 ? `<span style="color:${qq.color}">${qq.name}</span> · ` : '');
   if (it.kind === 'weapon') return `${tier}${WEAPON_TYPES[it.weaponType].name} · Power ×${it.power.toFixed(2)} · Scales with ${WEAPON_TYPES[it.weaponType].stat}<br><span class="muted">Abilities: ${WEAPON_ABILITIES[it.weaponType].map((a) => ABILITIES[a].name).join(', ')}</span>`;
   if (it.kind === 'armor') return `${tier}${ARMOR_TYPES[it.armorType].name} · Defence ${it.def}${it.mp ? ` · +${it.mp} max mana` : ''}<br><span class="muted">Ability: ${ABILITIES[{ cloth: 'ar_meditate', leather: 'ar_roll', plate: 'ar_guard' }[it.armorType]].name}</span>`;
   if (it.kind === 'lacrima') { const s = SCHOOLS[it.school]; return `Attunes you to <b style="color:${s.color}">${s.name}</b>.<br><span class="muted">${s.blurb}</span>`; }
@@ -364,11 +365,12 @@ export class UI {
       const req = sel.req.length ? sel.req.map(([q, k]) => `<span style="color:${T.rankOf(G, q) >= k ? '#7aff9a' : '#ff9a8a'}">${esc(T.NODE[q].name)}${T.NODE[q].max > 1 ? ' ' + k : ''}</span>`).join(', ') : 'none';
       info = `<div class="iteminfo"><div class="nm">${sel.icon} ${esc(sel.name)} <span class="muted">${sel.kind === 'active' ? 'Active skill' : 'Passive'} · rank ${r}/${sel.max}</span></div>
         <div class="ds">${sel.kind === 'active' ? abilityDesc(sel.ab) : esc(sel.desc)}</div><div class="ds">Requires: ${req}${sel.free ? ' · starter skill (free)' : ''}</div>
-        <div class="acts"><button class="btn small gold" data-act="learn" data-arg="${sel.id}" ${why ? 'disabled' : ''}>${why ? esc(why) : r ? 'Rank up (1 SP)' : 'Learn (1 SP)'}</button></div></div>`;
+        <div class="acts"><button class="btn small gold" data-act="learn" data-arg="${sel.id}" ${why ? 'disabled' : ''}>${why ? esc(why) : r ? `Rank up (1 ${sel.tree === 'artisan' ? 'AP' : 'SP'})` : `Learn (1 ${sel.tree === 'artisan' ? 'AP' : 'SP'})`}</button></div></div>`;
     }
     const cost = G.respecs ? 50 * derived(G).level : 0;
-    return { title: `🌳 Skill Tree <span class="muted">${T.pointsFree(G)} skill points</span>`, tabs, html: `
-      <div class="muted" style="margin-bottom:6px">+1 skill point per level (Toram style). Actives go on your ability bar when the matching weapon or lacrima is equipped.</div>
+    const art = tr.key === 'artisan';
+    return { title: `🌳 Skill Tree <span class="muted">${art ? `${T.pointsFree(G, true)} artisan points` : `${T.pointsFree(G)} skill points`}</span>`, tabs, html: `
+      <div class="muted" style="margin-bottom:6px">${art ? 'Artisan points: 1 per 5 total gathering + crafting levels (Albion Destiny Board style). They never mix with combat skill points and survive respecs.' : '+1 skill point per level (Toram style). Actives go on your ability bar when the matching weapon or lacrima is equipped.'}</div>
       <div class="tree" style="height:${rows * 92}px"><svg width="100%" height="${rows * 92}">${lines}</svg>${nodes}</div>${info}
       <div style="margin-top:8px"><button class="btn small" data-act="respec">♻️ Respec${cost ? ` (💎${cost})` : ' (free once)'}</button></div>` };
   }
@@ -423,7 +425,7 @@ export class UI {
     const G = this.game.G; const station = this.popts.station;
     const list = P.RECIPES.filter((r) => r.station === station);
     const groups = {}; for (const r of list) (groups[r.group] ||= []).push(r);
-    let html = `<div class="muted">${station === 'forge' ? 'Refine ore into bars and smith weapons and plate. Trains Smithing.' : 'Refine wood, fibre and hide; craft bows, staves, knuckles, robes and jackets. Trains Crafting.'}</div>`;
+    let html = `<div class="muted">${station === 'forge' ? 'Refine ore into bars and smith weapons and plate. Trains Smithing.' : 'Refine wood, fibre and hide; craft bows, staves, knuckles, robes and jackets. Trains Crafting.'}</div><div class="muted">Refining T2+ also needs one refined piece of the tier below. Gear rolls a quality (Normal → Masterpiece): out-level the recipe and train the 🛠️ Artisan tree for better odds. T4–T5 gear binds Lacrima Shards.</div>`;
     for (const [gname, rs] of Object.entries(groups)) {
       html += `<div class="sec">${gname}</div>`;
       html += rs.map((r) => {

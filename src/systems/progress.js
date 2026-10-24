@@ -195,6 +195,8 @@ export { ITEMS };
 
 // ---------- Crafting ----------
 import { RECIPES } from '../data/recipes.js';
+import { QUALITIES, rollQuality } from '../data/tiers.js';
+import { artisanBonus } from '../data/skilltree.js';
 import { hasAll, canAdd as _canAdd } from '../core/state.js';
 export function recipeBlock(G, r) {
   if (skillLevel(G, r.skill) < r.level) return `Needs ${SKILLS[r.skill].name} ${r.level}`;
@@ -204,8 +206,14 @@ export function recipeBlock(G, r) {
 }
 export function craft(G, r) {
   const why = recipeBlock(G, r); if (why) { hooks.toast(why); return false; }
-  for (const [id, n] of Object.entries(r.in)) removeItem(G, id, n);
-  for (const [id, n] of Object.entries(r.out)) { addItem(G, id, n); hooks.log(`You make ${n}× ${itemName(id)}.`, 'loot'); onCraft(G, id, n); }
+  const ab = artisanBonus(G); let saved = 0;
+  for (const [id, n] of Object.entries(r.in)) { let use = n; for (let i = 0; i < n; i++) if (id !== 'lacrima_shard' && Math.random() < Math.min(0.4, 0.08 + ab.refund)) { use--; saved++; } removeItem(G, id, use); }
+  for (const [id0, n0] of Object.entries(r.out)) {
+    let id = id0, n = n0;
+    if (r.gear) { const q = rollQuality(skillLevel(G, r.skill) - r.level, ab.quality); id = id0 + QUALITIES[q - 1].sfx; if (q >= 3) hooks.toast(`✨ ${QUALITIES[q - 1].name} quality!`); }
+    else if (r.group === 'Refine' && Math.random() < ab.refineX) n++;
+    addItem(G, id, n); hooks.log(`You make ${n}× ${itemName(id)}.${saved ? ` (${saved} material${saved > 1 ? 's' : ''} saved)` : ''}`, 'loot'); onCraft(G, id0, n);
+  }
   grantSkillXp(G, r.skill, r.xp);
   questEvent(G, { type: 'item' });
   return true;

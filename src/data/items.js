@@ -1,4 +1,4 @@
-import { TIERS } from './tiers.js';
+import { TIERS, QUALITIES } from './tiers.js';
 
 // Every item: { id, name, icon, kind, stack, value, tier?, ...kind-specific }
 // kind: resource | refined | weapon | armor | lacrima | key | consumable | quest
@@ -7,14 +7,14 @@ const add = (it) => { ITEMS[it.id] = { stack: true, value: 1, ...it }; };
 
 // ---- Gathered resources (T1-T3) ----
 const RES = {
-  ore: { skill: 'mining', names: ['Copper Ore', 'Iron Ore', 'Starsilver Ore'], icon: '🪨', refined: 'bar', refinedNames: ['Copper Bar', 'Iron Bar', 'Starsilver Bar'], refIcon: '🟫' },
-  wood: { skill: 'woodcutting', names: ['Birch Log', 'Oak Log', 'Moonwillow Log'], icon: '🪵', refined: 'plank', refinedNames: ['Birch Plank', 'Oak Plank', 'Moonwillow Plank'], refIcon: '🟧' },
-  fibre: { skill: 'foraging', names: ['Cotton Tuft', 'Flax Bundle', 'Silkweed'], icon: '🌾', refined: 'cloth', refinedNames: ['Cotton Cloth', 'Linen', 'Silkweave'], refIcon: '🧵' },
-  hide: { skill: null, names: ['Scruffy Hide', 'Boar Hide', 'Gleaming Hide'], icon: '🟤', refined: 'leather', refinedNames: ['Rough Leather', 'Sturdy Leather', 'Gleamleather'], refIcon: '🟫' },
+  ore: { skill: 'mining', names: ['Copper Ore', 'Iron Ore', 'Starsilver Ore', 'Adamantine Ore', 'Etherion Crystal'], icon: '🪨', refined: 'bar', refinedNames: ['Copper Bar', 'Iron Bar', 'Starsilver Bar', 'Adamantine Bar', 'Etherion Ingot'], refIcon: '🟫' },
+  wood: { skill: 'woodcutting', names: ['Birch Log', 'Oak Log', 'Moonwillow Log', 'Galuna Ebony Log', 'Tenrou Heartwood'], icon: '🪵', refined: 'plank', refinedNames: ['Birch Plank', 'Oak Plank', 'Moonwillow Plank', 'Ebony Plank', 'Heartwood Plank'], refIcon: '🟧' },
+  fibre: { skill: 'foraging', names: ['Cotton Tuft', 'Flax Bundle', 'Silkweed', 'Moonlight Lily', 'Starweave Thread'], icon: '🌾', refined: 'cloth', refinedNames: ['Cotton Cloth', 'Linen', 'Silkweave', 'Moondrop Satin', 'Starweave Cloth'], refIcon: '🧵' },
+  hide: { skill: null, names: ['Scruffy Hide', 'Boar Hide', 'Gleaming Hide', 'Wyvern Hide', 'Dragon Scale'], icon: '🟤', refined: 'leather', refinedNames: ['Rough Leather', 'Sturdy Leather', 'Gleamleather', 'Wyvern Leather', 'Dragonscale Leather'], refIcon: '🟫' },
 };
 export const RESOURCE_TYPES = RES;
 for (const [type, r] of Object.entries(RES)) {
-  for (let t = 1; t <= 3; t++) {
+  for (let t = 1; t <= 5; t++) {
     add({ id: `${type}_t${t}`, name: r.names[t - 1], icon: r.icon, kind: 'resource', resType: type, tier: t, value: 4 * t * t });
     add({ id: `${r.refined}_t${t}`, name: r.refinedNames[t - 1], icon: r.refIcon, kind: 'refined', resType: r.refined, tier: t, value: 12 * t * t });
   }
@@ -36,10 +36,10 @@ export const ARMOR_TYPES = {
 for (let t = 1; t <= 8; t++) {
   const tn = TIERS[t].name;
   for (const [w, d] of Object.entries(WEAPON_TYPES)) {
-    add({ id: `${w}_t${t}`, name: `${tn} ${d.name}`, icon: d.icon, kind: 'weapon', weaponType: w, tier: t, stack: false, value: 40 * t * t * t, power: TIERS[t].power });
+    for (const q of QUALITIES) add({ id: `${w}_t${t}${q.sfx}`, base: `${w}_t${t}`, q: q.q, name: `${q.pre}${tn} ${d.name}`, icon: d.icon, kind: 'weapon', weaponType: w, tier: t, stack: false, value: Math.round(40 * t * t * t * q.mult), power: +(TIERS[t].power * q.mult).toFixed(3) });
   }
   for (const [a, d] of Object.entries(ARMOR_TYPES)) {
-    add({ id: `${d.id}_t${t}`, name: `${tn} ${d.name}`, icon: d.icon, kind: 'armor', armorType: a, tier: t, stack: false, value: 40 * t * t * t, def: Math.round(d.def * TIERS[t].power), mp: Math.round(d.mp * TIERS[t].power) });
+    for (const q of QUALITIES) add({ id: `${d.id}_t${t}${q.sfx}`, base: `${d.id}_t${t}`, q: q.q, name: `${q.pre}${tn} ${d.name}`, icon: d.icon, kind: 'armor', armorType: a, tier: t, stack: false, value: Math.round(40 * t * t * t * q.mult), def: Math.round(d.def * TIERS[t].power * q.mult), mp: Math.round(d.mp * TIERS[t].power * q.mult) });
   }
 }
 
@@ -55,6 +55,8 @@ add({ id: 'lac_requip', name: 'Requip Ring (Erza)', icon: '💍', kind: 'lacrima
 add({ id: 'key_ram', name: 'Gate Key: Taurus', icon: '🗝️', kind: 'key', stack: false, value: 150 });
 add({ id: 'key_leo', name: 'Gate Key: Leo (Loke)', icon: '🦁', kind: 'key', stack: false, value: 400 });
 add({ id: 'key_coral', name: 'Gate Key: Aquarius', icon: '🔑', kind: 'key', stack: false, value: 150 });
+
+add({ id: 'lacrima_shard', name: 'Lacrima Shard', icon: '🔷', kind: 'refined', value: 120 });
 
 // ---- Consumables ----
 add({ id: 'tonic_hp', name: 'Fizzy Tonic', icon: '🧪', kind: 'consumable', heal: 60, value: 15 });

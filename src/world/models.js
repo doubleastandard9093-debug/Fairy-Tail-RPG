@@ -463,28 +463,28 @@ export function animateMob(m, model, t, move, atk) {
 }
 
 // ----------------------------- Gathering nodes ----------------------------
-const ORE_COL = [null, '#e08a4a', '#9a8a7a', '#a8e0ff'];
+const ORE_COL = [null, '#e08a4a', '#9a8a7a', '#a8e0ff', '#5ae0a0', '#ff6ad5'];
 export function buildNode(type, tier) {
   const g = new THREE.Group();
   if (type === 'ore') {
     const r = mesh(new THREE.DodecahedronGeometry(0.9, 0), toon('#8a8478'), 0, 0.55, 0); r.scale.set(1.3, 0.85, 1.1); g.add(r);
     const r2 = mesh(new THREE.DodecahedronGeometry(0.55, 0), toon('#7a7468'), 0.8, 0.35, 0.3); g.add(r2);
-    const om = tier === 3 ? glow(ORE_COL[3]) : toon(ORE_COL[tier]);
+    const om = tier >= 3 ? glow(ORE_COL[tier]) : toon(ORE_COL[tier]);
     for (let i = 0; i < 7; i++) { const a = i * 0.9; const f = mesh(new THREE.OctahedronGeometry(0.16, 0), om, Math.sin(a) * 0.85, 0.5 + (i % 3) * 0.2, Math.cos(a) * 0.75); f.rotation.set(a, a * 2, 0); g.add(f); }
   } else if (type === 'wood') {
-    const trunkC = ['', '#f0ece0', '#6a4a2a', '#4a3a5a'][tier];
-    const leafC = ['', '#9ad060', '#3a8a3a', '#9a8ae0'][tier];
+    const trunkC = ['', '#f0ece0', '#6a4a2a', '#4a3a5a', '#2a2228', '#c89a5a'][tier];
+    const leafC = ['', '#9ad060', '#3a8a3a', '#9a8ae0', '#2a5a4a', '#ffb0d8'][tier];
     const trunk = mesh(G.cyl(0.25, 0.38, 3.2, 8), toon(trunkC), 0, 1.6, 0); g.add(trunk);
     if (tier === 1) for (let i = 0; i < 4; i++) { const s = mesh(G.box(0.27, 0.05, 0.05), toon('#2a2a2a'), 0, 0.6 + i * 0.6, 0.2); s.rotation.y = i; g.add(s); }
-    const leaf = tier === 3 ? toon(leafC, { emissive: '#3a2a7a' }) : toon(leafC);
+    const leaf = tier >= 3 ? toon(leafC, { emissive: ['', '', '', '#3a2a7a', '#0a3a2a', '#7a2a5a'][tier] }) : toon(leafC);
     const crowns = tier === 2 ? [[0, 3.8, 0, 1.6], [0.9, 3.3, 0.3, 1.1], [-0.8, 3.4, -0.3, 1.1]] : [[0, 3.4, 0, 1.2], [0, 4.3, 0, 0.9], [0.5, 3.0, 0.4, 0.8]];
     for (const [x, y, z, r] of crowns) { const c = mesh(new THREE.IcosahedronGeometry(r, 1), leaf, x, y, z); g.add(c); }
-    if (tier === 3) for (let i = 0; i < 5; i++) { const v = mesh(G.cyl(0.04, 0.02, 1.6, 4), leaf, Math.sin(i * 1.3) * 1.1, 2.6, Math.cos(i * 1.3) * 1.1); g.add(v); }
+    if (tier >= 3) for (let i = 0; i < 5; i++) { const v = mesh(G.cyl(0.04, 0.02, 1.6, 4), leaf, Math.sin(i * 1.3) * 1.1, 2.6, Math.cos(i * 1.3) * 1.1); g.add(v); }
   } else {
-    const leafC = ['', '#5a9a4a', '#4a7a5a', '#7aa0a0'][tier];
-    const tuftC = ['', '#ffffff', '#7a9aff', '#f0e8ff'][tier];
+    const leafC = ['', '#5a9a4a', '#4a7a5a', '#7aa0a0', '#3a6a6a', '#6a5a9a'][tier];
+    const tuftC = ['', '#ffffff', '#7a9aff', '#f0e8ff', '#e8f4ff', '#ffe07a'][tier];
     for (let i = 0; i < 6; i++) { const a = i * 1.05; const b = mesh(G.sph(0.35, 10, 8), toon(leafC), Math.sin(a) * 0.4, 0.35, Math.cos(a) * 0.4); b.scale.y = 0.8; g.add(b); }
-    const tm = tier === 3 ? glow(tuftC) : toon(tuftC);
+    const tm = tier >= 3 ? glow(tuftC) : toon(tuftC);
     for (let i = 0; i < 8; i++) { const a = i * 0.8; g.add(mesh(G.sph(0.12, 8, 6), tm, Math.sin(a) * 0.45, 0.62 + (i % 2) * 0.12, Math.cos(a) * 0.45)); }
   }
   addOutlines(g); shadowAll(g, true, false);

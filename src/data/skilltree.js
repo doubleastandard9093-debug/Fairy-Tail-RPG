@@ -3,7 +3,7 @@
 // Node: { id, name, icon, kind: 'active'|'passive', ab?, max, req: [[nodeId, rank]], row, col, fx }
 import { ABILITIES, WEAPON_ABILITIES } from './abilities.js';
 import { SCHOOLS } from './schools.js';
-import { charLevelForXp } from '../core/xp.js';
+import { charLevelForXp, levelForXp } from '../core/xp.js';
 
 const FLAVOR = {
   flame: ['Dragon Lungs', 'Fire Eater', 'Dragon Force'], ice: ['Cold Emotion', 'Maker Stance', 'Ice Devil Mind'], celestial: ['Star Bond', 'Gate Mastery', 'Urano Light'],
@@ -28,21 +28,34 @@ function build(key) {
   return { key, name: SCHOOLS[key] ? SCHOOLS[key].name : { sword1h: 'Sword', sword2h: 'Greatsword', bow: 'Bow', staff: 'Staff', knuckles: 'Knuckles' }[key], icon: SCHOOLS[key] ? SCHOOLS[key].icon : { sword1h: '🗡️', sword2h: '⚔️', bow: '🏹', staff: '🪄', knuckles: '🥊' }[key], nodes: N };
 }
 export const TREES = Object.fromEntries(TREE_KEYS.map((k) => [k, build(k)]));
+// Albion "Destiny Board"-style Artisan tree: its own points, earned from gathering + crafting levels (1 per 5 total).
+TREES.artisan = { key: 'artisan', name: 'Artisan', icon: '🛠️', points: 'artisan', nodes: [
+  { id: 'artisan:eye', name: 'Keen Eye', icon: '🔍', kind: 'passive', max: 5, req: [], row: 0, col: 1, fx: { quality: 0.08 }, desc: 'Better odds of Good to Masterpiece quality when crafting gear, per rank' },
+  { id: 'artisan:thrift', name: 'Thrifty Hands', icon: '♻️', kind: 'passive', max: 5, req: [['artisan:eye', 1]], row: 1, col: 0, fx: { refund: 0.05 }, desc: '+5% resource return rate on every craft per rank (Albion style)' },
+  { id: 'artisan:yield', name: 'Bountiful Harvest', icon: '🧺', kind: 'passive', max: 5, req: [['artisan:eye', 1]], row: 1, col: 2, fx: { yield: 0.06 }, desc: '+6% chance per rank to gather a bonus resource' },
+  { id: 'artisan:swift', name: 'Swift Gatherer', icon: '⚡', kind: 'passive', max: 3, req: [['artisan:yield', 2]], row: 2, col: 2, fx: { gspeed: 0.07 }, desc: '-7% gathering time per rank' },
+  { id: 'artisan:refiner', name: 'Master Refiner', icon: '🔥', kind: 'passive', max: 3, req: [['artisan:thrift', 2]], row: 2, col: 0, fx: { refineX: 0.1 }, desc: '+10% chance per rank to refine two pieces at once' },
+  { id: 'artisan:master', name: 'Masterwork', icon: '🏆', kind: 'passive', max: 3, req: [['artisan:refiner', 1], ['artisan:eye', 5]], row: 3, col: 1, fx: { quality: 0.15 }, desc: 'Large boost to Excellent and Masterpiece odds per rank' },
+] };
+for (const n of TREES.artisan.nodes) n.tree = 'artisan';
 export const NODE = {}; for (const t of Object.values(TREES)) for (const n of t.nodes) { n.tree = t.key; NODE[n.id] = n; }
 
 export const rankOf = (G, id) => (G.tree && G.tree[id]) || (NODE[id] && NODE[id].free ? 1 : 0);
-export function pointsEarned(G) { return 3 + (charLevelForXp(G.xp) - 1) + (G.bonusSp || 0); }
-export function pointsSpent(G) { let s = 0; for (const [id, r] of Object.entries(G.tree || {})) if (NODE[id] && !NODE[id].free) s += r; return s; }
-export function pointsFree(G) { return pointsEarned(G) - pointsSpent(G); }
+const isArt = (id) => id.startsWith('artisan:');
+export function artisanEarned(G) { let t = 0; for (const x of Object.values(G.skills || {})) t += levelForXp(x); return Math.floor(t / 5); }
+export function pointsEarned(G, art = false) { return art ? artisanEarned(G) : 3 + (charLevelForXp(G.xp) - 1) + (G.bonusSp || 0); }
+export function pointsSpent(G, art = false) { let s = 0; for (const [id, r] of Object.entries(G.tree || {})) if (NODE[id] && !NODE[id].free && isArt(id) === art) s += r; return s; }
+export function pointsFree(G, art = false) { return pointsEarned(G, art) - pointsSpent(G, art); }
+export function artisanBonus(G) { const b = { quality: 0, refund: 0, yield: 0, gspeed: 0, refineX: 0 }; for (const n of TREES.artisan.nodes) { const r = rankOf(G, n.id); if (r) for (const [k, v] of Object.entries(n.fx)) b[k] += v * r; } return b; }
 export function canLearn(G, id) {
   const n = NODE[id]; if (!n) return 'Unknown skill';
   if (rankOf(G, id) >= n.max) return 'Maxed';
-  if (pointsFree(G) < 1) return 'No skill points';
+  if (pointsFree(G, isArt(id)) < 1) return isArt(id) ? 'No artisan points' : 'No skill points';
   for (const [r, k] of n.req) if (rankOf(G, r) < k) return `Needs ${NODE[r].name}${NODE[r].max > 1 ? ' ' + k : ''}`;
   return null;
 }
 export function learn(G, id) { if (canLearn(G, id)) return false; G.tree ||= {}; G.tree[id] = rankOf(G, id) + 1; return true; }
-export function respec(G) { G.tree = {}; }
+export function respec(G) { for (const k of Object.keys(G.tree || {})) if (!isArt(k)) delete G.tree[k]; }
 /** Is this ability learned in any tree that holds it? (Weapon "none" uses knuckles.) */
 export function abilityLearned(G, abId) {
   let found = false;

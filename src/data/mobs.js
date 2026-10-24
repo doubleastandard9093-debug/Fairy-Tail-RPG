@@ -51,13 +51,13 @@ export const MOBS = {
   },
   galuna_cultist: {
     name: "Lyon's Cultist", level: 16, hp: 300, dmg: 18, speed: 3, aggro: 12, range: 10, atkCd: 2.0, xp: 220, model: 'mage', opt: { robe: '#2a4a7a' }, scale: 1, ranged: true,
-    drops: [{ id: 'fibre_t3', chance: 0.4 }, { id: 'tea_mp', chance: 0.25 }, { id: 'hide_t3', chance: 0.3 }], jewels: [24, 40],
+    drops: [{ id: 'fibre_t3', chance: 0.4 }, { id: 'tea_mp', chance: 0.25 }, { id: 'hide_t3', chance: 0.3 }, { id: 'hide_t4', chance: 0.15 }, { id: 'lacrima_shard', chance: 0.08 }], jewels: [24, 40],
     bark: ['The Moon Drip must not be interrupted!', 'Reitei Lyon will surpass Ur!'],
   },
   tenrou_boar: {
     name: 'Tenrou Wild Boar', level: 14, hp: 340, dmg: 17, speed: 4, aggro: 10, range: 2.4, atkCd: 1.9, xp: 190, model: 'boar', scale: 1.35,
     charge: { cd: 6, speed: 14, dur: 0.7, dmg: 26 },
-    drops: [{ id: 'hide_t3', chance: 0.6 }, { id: 'hide_t2', chance: 0.5 }], jewels: [18, 32],
+    drops: [{ id: 'hide_t3', chance: 0.6 }, { id: 'hide_t4', chance: 0.25 }, { id: 'hide_t2', chance: 0.5 }], jewels: [18, 32],
     bark: ['*the sacred island snorts at you*'],
   },
   eisen_summon: {
