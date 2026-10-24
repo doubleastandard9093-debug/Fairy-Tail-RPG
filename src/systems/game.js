@@ -1,3 +1,4 @@
+import { setupRealism } from './realism.js';
 import * as THREE from 'three';
 import { ITEMS, WEAPON_TYPES } from '../data/items.js';
 import { ABILITIES, WEAPON_ABILITIES, ARMOR_ABILITY } from '../data/abilities.js';
@@ -28,6 +29,7 @@ export class Game {
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
     this.cam = { yaw: Math.PI, pitch: 0.55, dist: 11, tx: 0, ty: 0, tz: 0 };
     this.world = buildWorld(this.scene);
+    if (GFX.real) this.post = setupRealism(renderer, this.scene, this.camera, this.world);
     this.transit = new Transit(this); this.magic = new MagicFX(this);
     this.t = 0; this.entities = []; this.projectiles = []; this.teles = []; this.traps = []; this.fx = [];
     this.input = { x: 0, z: 0 }; this.autoAttack = S.autoAttack !== false;
@@ -885,5 +887,5 @@ export class Game {
     this.camera.position.set(cx + shake, cy + shake, cz);
     this.camera.lookAt(c.tx, c.ty, c.tz);
   }
-  render() { this.renderer.render(this.scene, this.camera); }
+  render() { if (this.post) this.post.render(); else this.renderer.render(this.scene, this.camera); }
 }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { toon, GFX } from './toon.js';
+import { toon, GFX, addWind, addDetail } from './toon.js';
 import { biomeAt, forestAt, WATER_Y, ROADS_W, RAILS_W } from './fiore.js';
 
 // Streamed terrain: 64 m chunks around the player, two LODs, skirts hide LOD cracks.
@@ -33,7 +33,8 @@ export class Terrain {
   constructor(scene, opts) {
     this.scene = scene; this.o = opts; this.chunks = new Map(); this.queue = [];
     this.radius = GFX.high ? 5 : 3; this.nearR = 1; this.propR = GFX.high ? 2 : 1;
-    this.mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toon('#fff').gradientMap });
+    this.mat = GFX.real ? addDetail(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, envMapIntensity: 0.7 }), { scale: 0.45, amt: 0.38, rim: 0 })
+      : new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toon('#fff').gradientMap });
     // shared prop geometry
     const trunk = new THREE.CylinderGeometry(0.22, 0.38, 2.6, 6); trunk.translate(0, 1.3, 0);
     const crown = new THREE.IcosahedronGeometry(1.6, 1); crown.translate(0, 3.5, 0);
@@ -42,7 +43,8 @@ export class Terrain {
     const grass = new THREE.ConeGeometry(0.07, 0.6, 3); grass.translate(0, 0.3, 0);
     const flower = new THREE.IcosahedronGeometry(0.12, 0); flower.translate(0, 0.16, 0);
     this.geo = { trunk, crown, pine, rock, grass, flower };
-    this.mats = { trunk: toon('#6a4a2a'), leaf: toon('#ffffff'), rock: toon('#ffffff'), grass: toon('#ffffff') };
+    this.mats = { trunk: toon('#6a4a2a'), leaf: GFX.high ? addWind(toon('#ffffff').clone(), 0.0045) : toon('#ffffff'), rock: toon('#ffffff'), grass: GFX.high ? addWind(toon('#ffffff').clone(), 0.35) : toon('#ffffff') };
+    if (GFX.real) { this.mats.rock = toon('#ffffff', { rough: 0.9 }); this.mats.leaf.roughness = 0.7; this.mats.grass.roughness = 0.85; this.mats.grass.side = THREE.DoubleSide; }
     this.cx = null; this.cz = null;
   }
   key(i, j) { return i + ',' + j; }
@@ -117,7 +119,7 @@ export class Terrain {
     const roads = segsNear(ROADS_W, x0, x0 + CH, z0, z0 + CH, 6), rails = segsNear(RAILS_W, x0, x0 + CH, z0, z0 + CH, 6);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
     const trees = [], pines = [], rocks = [];
-    const step = 5.2;
+    const step = GFX.real ? 4.3 : 5.2;
     for (let b = 0; b < CH / step; b++) for (let a = 0; a < CH / step; a++) {
       const r0 = hash(i * 64 + a, j * 64 + b, 1), r1 = hash(i * 64 + a, j * 64 + b, 2), r2 = hash(i * 64 + a, j * 64 + b, 3);
       const x = x0 + (a + r0) * step, z = z0 + (b + r1) * step; const y = H(x, z);
@@ -137,12 +139,12 @@ export class Terrain {
     inst(this.geo.pine, this.mats.leaf, pines, (t, k, im) => { place(t, 0.8 + t[4] * 0.7, 1.1); im.setMatrixAt(k, m); const snowy = t[1] > 16; im.setColorAt(k, snowy ? col.set('#dfe8e4') : col.setHSL(0.36 + t[3] * 0.05, 0.42, 0.24 + t[4] * 0.08)); });
     inst(this.geo.rock, this.mats.rock, rocks, (t, k, im) => { place(t, 0.6 + t[4] * 1.4, 0.7); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.08, 0.06, 0.45 + t[3] * 0.15)); });
     // ground cover (flowers always; grass on High)
-    const nf = GFX.high ? 260 : 70; const fl = []; const fc = ['#ff7ab0', '#ffe060', '#ffffff', '#8ab0ff', '#ff8a5a'];
+    const nf = GFX.real ? 420 : GFX.high ? 260 : 70; const fl = []; const fc = ['#ff7ab0', '#ffe060', '#ffffff', '#8ab0ff', '#ff8a5a'];
     for (let k = 0; k < nf; k++) { const x = x0 + hash(i, j, 100 + k) * CH, z = z0 + hash(j, i, 200 + k) * CH; const y = H(x, z); if (y < WATER_Y + 0.5 || y > 14 || this.o.keepOut(x, z, 0.6)) continue; if (roads.length && segDist(roads, x, z) < 2.5) continue; fl.push([x, y, z, hash(i, j, 300 + k), k]); }
     inst(this.geo.flower, this.mats.grass, fl, (t, k, im) => { p.set(t[0], t[1], t[2]); q.identity(); s.setScalar(0.6 + t[3]); m.compose(p, q, s); im.setMatrixAt(k, m); im.setColorAt(k, col.set(fc[t[4] % 5])); });
     if (GFX.high) {
       const gl = [];
-      for (let k = 0; k < 1400; k++) { const x = x0 + hash(i, j, 1000 + k) * CH, z = z0 + hash(j, i, 3000 + k) * CH; const y = H(x, z); if (y < WATER_Y + 0.5 || y > 16 || this.o.keepOut(x, z, 0.3)) continue; if (roads.length && segDist(roads, x, z) < 2) continue; gl.push([x, y, z, hash(i, j, 5000 + k), hash(j, i, 7000 + k)]); }
+      for (let k = 0, NG = GFX.real ? 3200 : 1400; k < NG; k++) { const x = x0 + hash(i, j, 1000 + k) * CH, z = z0 + hash(j, i, 3000 + k) * CH; const y = H(x, z); if (y < WATER_Y + 0.5 || y > 16 || this.o.keepOut(x, z, 0.3)) continue; if (roads.length && segDist(roads, x, z) < 2) continue; gl.push([x, y, z, hash(i, j, 5000 + k), hash(j, i, 7000 + k)]); }
       inst(this.geo.grass, this.mats.grass, gl, (t, k, im) => { p.set(t[0], t[1], t[2]); q.setFromEuler(new THREE.Euler((t[3] - 0.5) * 0.4, t[4] * 6, 0)); s.set(1, 0.6 + t[3] * 0.9, 1); m.compose(p, q, s); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.27 + t[4] * 0.06, 0.55, 0.3 + t[3] * 0.15)); });
     }
     for (const o of out) { o.matrixAutoUpdate = false; o.updateMatrix(); }

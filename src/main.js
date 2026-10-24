@@ -17,8 +17,8 @@ import { MOBS } from './data/mobs.js';
 
 const S = loadSettings();
 const qs = new URLSearchParams(location.search);
-if (qs.get('q')) S.quality = qs.get('q') === 'high' ? 'high' : 'low';
-GFX.high = S.quality === 'high'; GFX.outlines = GFX.high; GFX.shadows = GFX.high;
+if (qs.get('q')) S.quality = ['high', 'real'].includes(qs.get('q')) ? qs.get('q') : 'low';
+GFX.real = S.quality === 'real'; GFX.high = S.quality === 'high' || GFX.real; GFX.outlines = S.quality === 'high'; GFX.shadows = GFX.high;
 
 function layout() {
   const touchAuto = (navigator.maxTouchPoints > 0 || 'ontouchstart' in window) && matchMedia('(pointer: coarse)').matches;
@@ -48,15 +48,15 @@ async function boot() {
   }
   const canvas = document.createElement('canvas'); canvas.id = 'game'; document.body.prepend(canvas);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: GFX.high, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, GFX.high ? 2.5 : 1.5));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, GFX.real ? 1.5 : GFX.high ? 2.5 : 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
-  if (GFX.shadows) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; }
+  if (GFX.shadows) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = GFX.real ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; }
   const ui = new UI(); ui.audio = audio;
   Object.assign(P.hooks, { log: (m, c) => ui.log(m, c), toast: (m) => ui.toast(m), refresh: () => ui.refresh(), levelUp: () => { ui.refresh(); audio.sfx('level'); }, jobDone: () => {} });
   const game = new Game(renderer, G, S, ui);
   ui.attach(game);
   const inputUpdate = setupInput(game, ui, canvas);
-  const resize = () => { renderer.setSize(innerWidth, innerHeight); game.camera.aspect = innerWidth / innerHeight; game.camera.updateProjectionMatrix(); };
+  const resize = () => { renderer.setSize(innerWidth, innerHeight); game.post?.resize(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio()); game.camera.aspect = innerWidth / innerHeight; game.camera.updateProjectionMatrix(); };
   resize(); addEventListener('resize', resize);
   if (G.jobs.active.some((a) => a.id === 'j_cat' && a.prog < 1)) game.startEscort();
   const fresh = G._fresh; delete G._fresh;

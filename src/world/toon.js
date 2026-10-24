@@ -1,7 +1,49 @@
 import * as THREE from 'three';
 
 // Global graphics flags, set once at boot from settings (quality change reloads the page).
-export const GFX = { high: false, outlines: false, shadows: false };
+export const GFX = { high: false, outlines: false, shadows: false, real: false };
+/** Shared wind clock for foliage sway (advanced by the world each frame). */
+export const WIND = { value: 0 };
+
+// ---- Realistic mode: PBR materials with world-space procedural detail (no UVs needed) ----
+const NOISE_GLSL = `
+float rh(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float vnoise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(rh(i), rh(i + vec3(1,0,0)), f.x), mix(rh(i + vec3(0,1,0)), rh(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(rh(i + vec3(0,0,1)), rh(i + vec3(1,0,1)), f.x), mix(rh(i + vec3(0,1,1)), rh(i + vec3(1,1,1)), f.x), f.y), f.z); }
+float fbm3(vec3 p){ return vnoise(p) * 0.5 + vnoise(p * 2.03) * 0.3 + vnoise(p * 4.11) * 0.2; }`;
+/** Adds world-space fbm detail to albedo + roughness, a soft sky rim, and optional wind sway. */
+export function addDetail(mat, { scale = 1.6, amt = 0.22, rim = 0.18, wind = 0 } = {}) {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uWind = WIND;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP; uniform float uWind;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        ${wind ? `{ vec3 ip = vec3(0.0);
+          #ifdef USE_INSTANCING
+            ip = instanceMatrix[3].xyz;
+          #endif
+          float hgt = max(0.0, position.y); float ph = ip.x * 0.21 + ip.z * 0.17;
+          float sw = (sin(uWind * 1.7 + ph) * 0.6 + sin(uWind * 3.1 + ph * 1.9) * 0.25) * ${wind.toFixed(3)} * hgt * hgt;
+          transformed.x += sw; transformed.z += sw * 0.6; }` : ''}`)
+      .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
+        { vec4 wpp = vec4(transformed, 1.0);
+          #ifdef USE_INSTANCING
+            wpp = instanceMatrix * wpp;
+          #endif
+          vWP = (modelMatrix * wpp).xyz; }`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP;${NOISE_GLSL}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float dn = fbm3(vWP * ${scale.toFixed(3)}); float dn2 = vnoise(vWP * ${(scale * 7.0).toFixed(3)});
+        diffuseColor.rgb *= 1.0 - ${amt.toFixed(3)} * 0.5 + ${amt.toFixed(3)} * (dn * 0.75 + dn2 * 0.25);`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor = clamp(roughnessFactor + (dn - 0.5) * 0.25, 0.04, 1.0);`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        { vec3 vd = normalize(cameraPosition - vWP); vec3 nw = normalize(inverseTransformDirection(normal, viewMatrix));
+          float fr = pow(1.0 - clamp(dot(nw, vd), 0.0, 1.0), 3.0); totalEmissiveRadiance += vec3(0.75, 0.85, 1.0) * fr * ${rim.toFixed(3)} * diffuseColor.rgb; }`);
+  };
+  mat.customProgramCacheKey = () => `det${scale}|${amt}|${rim}|${wind}`;
+  return mat;
+}
 
 let grad3, grad4;
 function gradient(steps) {
@@ -20,11 +62,18 @@ export function toon(color, opts = {}) {
   const key = color + JSON.stringify(opts);
   if (cache.has(key)) return cache.get(key);
   grad3 ||= gradient(3); grad4 ||= gradient(4);
-  const m = new THREE.MeshToonMaterial({ color, gradientMap: opts.soft ? grad4 : grad3, ...stripOpts(opts) });
+  const m = GFX.real ? realMat(color, opts) : new THREE.MeshToonMaterial({ color, gradientMap: opts.soft ? grad4 : grad3, ...stripOpts(opts) });
   cache.set(key, m);
   return m;
 }
-function stripOpts(o) { const r = { ...o }; delete r.soft; return r; }
+function stripOpts(o) { const r = { ...o }; delete r.soft; delete r.rough; delete r.metal; return r; }
+/** PBR stand-in for toon(): roughness guessed from colour (dark metals/stone glossier), detail noise on top. */
+function realMat(color, opts) {
+  const c = new THREE.Color(color); const hsl = {}; c.getHSL(hsl);
+  const metal = opts.metal ?? (hsl.s < 0.12 && hsl.l > 0.45 && hsl.l < 0.75 ? 0.35 : 0);
+  const m = new THREE.MeshStandardMaterial({ color, roughness: opts.rough ?? (metal ? 0.45 : 0.78), metalness: metal, envMapIntensity: 0.9, ...stripOpts(opts) });
+  return addDetail(m, { scale: 2.2, amt: 0.16, rim: 0.22 });
+}
 export function glow(color, opacity = 1) {
   const key = 'glow' + color + opacity;
   if (cache.has(key)) return cache.get(key);
@@ -84,3 +133,21 @@ export function shadowAll(obj, cast = true, receive = false) {
   return obj;
 }
 export function mesh(geo, mat, x = 0, y = 0, z = 0) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); return m; }
+/** Vertex wind sway for instanced foliage (any lit material). Taller vertices sway more. */
+export function addWind(mat, k = 0.1) {
+  const prev = mat.onBeforeCompile;
+  if (GFX.real) return addDetail(mat, { scale: 1.1, amt: 0.25, rim: 0.12, wind: k });
+  mat.onBeforeCompile = (sh, r) => {
+    prev && prev.call(mat, sh, r); sh.uniforms.uWind = WIND;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uWind;').replace('#include <begin_vertex>', `#include <begin_vertex>
+      { vec3 ip = vec3(0.0);
+        #ifdef USE_INSTANCING
+          ip = instanceMatrix[3].xyz;
+        #endif
+        float hgt = max(0.0, position.y); float ph = ip.x * 0.21 + ip.z * 0.17;
+        float sw = (sin(uWind * 1.7 + ph) * 0.6 + sin(uWind * 3.1 + ph * 1.9) * 0.25) * ${k.toFixed(3)} * hgt * hgt;
+        transformed.x += sw; transformed.z += sw * 0.6; }`);
+  };
+  mat.customProgramCacheKey = () => 'wind' + k;
+  return mat;
+}

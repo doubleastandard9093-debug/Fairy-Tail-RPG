@@ -1,10 +1,12 @@
 import * as THREE from 'three';
-import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
+import { toon, glow, mesh, addOutlines, shadowAll, GFX, WIND } from './toon.js';
 import { buildNode, buildCharacter, buildMob, animateCharacter } from './models.js';
 import { NODE_TYPES, NODE_TIERS, NODE_PLACEMENT } from '../data/nodes.js';
 import { NPCS, POIS } from '../data/npcs.js';
 import { drawGuildMark } from './mark.js';
 import { BOSS_ARENA, BOSS_ARENAS } from '../data/mobs.js';
+import { Sky } from 'three/examples/jsm/objects/Sky.js';
+import { Water } from 'three/examples/jsm/objects/Water.js';
 import { mapHeight, biomeAt, PLACES, PLACE, WORLD, WATER_Y, RAILS_W, ROADS_W, distToLines, toWorld } from './fiore.js';
 import { Terrain } from './terrain.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -166,13 +168,20 @@ export function buildWorld(scene) {
     fragmentShader: 'uniform vec3 top, mid, bot; varying vec3 vp; void main(){ float h = normalize(vp).y; vec3 c = h > 0.0 ? mix(mid, top, pow(h, 0.6)) : mix(mid, bot, min(1.0, -h * 4.0)); gl_FragColor = vec4(c, 1.0); }',
   }));
   sky.renderOrder = -1; scene.add(sky); W.sky = sky;
-  scene.fog = new THREE.Fog('#cfe4f4', GFX.high ? 110 : 70, GFX.high ? 330 : 205);
-  W.fogBase = { near: scene.fog.near, far: scene.fog.far, color: new THREE.Color('#cfe4f4'), snow: new THREE.Color('#e4ecf4') };
-  const hemi = new THREE.HemisphereLight('#dff0ff', '#6a8a4a', 1.3); scene.add(hemi);
-  const sun = new THREE.DirectionalLight('#fff2dc', 2.2); sun.position.set(30, 60, 20); scene.add(sun); scene.add(sun.target);
+  if (GFX.real) { // physically based sky (Rayleigh/Mie) instead of the gradient dome; also drives the image-based lighting
+    sky.visible = false; const rs = new Sky(); rs.scale.setScalar(850); const u = rs.material.uniforms;
+    u.turbidity.value = 4.5; u.rayleigh.value = 1.6; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.82;
+    W.sunDir = new THREE.Vector3(30, 60, 20).normalize(); u.sunPosition.value.copy(W.sunDir); rs.material.fog = false;
+    rs.material.fragmentShader = rs.material.fragmentShader.replace('gl_FragColor = vec4( texColor, 1.0 );', 'gl_FragColor = vec4( texColor * 0.3, 1.0 );'); scene.add(rs); W.realSky = rs;
+  }
+  const FOGC = GFX.real ? '#b4c8dc' : '#cfe4f4'; scene.fog = new THREE.Fog(FOGC, GFX.real ? 110 : GFX.high ? 110 : 70, GFX.real ? 620 : GFX.high ? 330 : 205);
+  W.fogBase = { near: scene.fog.near, far: scene.fog.far, color: new THREE.Color(FOGC), snow: new THREE.Color('#e4ecf4') };
+  const hemi = new THREE.HemisphereLight('#dff0ff', '#6a8a4a', GFX.real ? 0.45 : 1.3); scene.add(hemi);
+  const sun = new THREE.DirectionalLight('#fff2dc', GFX.real ? 3.0 : 2.2); sun.position.set(30, 60, 20); scene.add(sun); scene.add(sun.target);
   if (GFX.shadows) {
-    sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
-    Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 160 });
+    sun.castShadow = true; sun.shadow.mapSize.set(GFX.real ? 4096 : 2048, GFX.real ? 4096 : 2048);
+    const sr = GFX.real ? 60 : 45; Object.assign(sun.shadow.camera, { left: -sr, right: sr, top: sr, bottom: -sr, near: 1, far: 180 });
+    if (GFX.real) { sun.shadow.radius = 4; sun.shadow.blurSamples = 16; }
     sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.04;
   }
   W.sun = sun;
@@ -203,9 +212,20 @@ export function buildWorld(scene) {
   });
   {
     const wg = new THREE.PlaneGeometry(1400, 1400, 1, 1); wg.rotateX(-Math.PI / 2);
-    const water = new THREE.Mesh(wg, new THREE.MeshToonMaterial({ color: '#3a8fd0', emissive: '#0c3050', transparent: true, opacity: 0.82, gradientMap: toon('#fff').gradientMap }));
-    water.position.y = WATER_Y; water.userData.noOutline = true; water.renderOrder = 1; scene.add(water); W.water = water;
-    W.anim.push((t) => { water.material.emissive.setHSL(0.57, 0.7, 0.1 + Math.sin(t * 0.8) * 0.015); });
+    let water;
+    if (GFX.real && !(new URLSearchParams(location.search).get('rx') || '').includes('w')) {
+      // planar-reflection water with a procedural ripple normal map, plus a shoreline foam layer from the heightmap
+      water = new Water(new THREE.PlaneGeometry(1400, 1400), { textureWidth: 512, textureHeight: 512, waterNormals: rippleNormals(), sunDirection: W.sunDir.clone(), sunColor: '#fff4e0', waterColor: '#0f4a6a', distortionScale: 2.2, fog: true, alpha: 1 });
+      water.material.uniforms.size.value = 2.6; water.rotation.x = -Math.PI / 2; water.userData.noOutline = true; scene.add(water); W.water = water;
+      W.anim.push((t) => { water.material.uniforms.time.value = t * 0.6; });
+      W.foam = shoreFoam(scene); W.anim.push((t) => { W.foam.material.uniforms.uT.value = t; });
+    } else {
+      water = new THREE.Mesh(wg, new THREE.MeshToonMaterial({ color: '#3a8fd0', emissive: '#0c3050', transparent: true, opacity: 0.82, gradientMap: toon('#fff').gradientMap }));
+      water.userData.noOutline = true; water.renderOrder = 1; scene.add(water); W.water = water;
+      W.anim.push((t) => { water.material.emissive.setHSL(0.57, 0.7, 0.1 + Math.sin(t * 0.8) * 0.015); });
+    }
+    water.position.y = WATER_Y;
+    W.anim.push((t) => { WIND.value = t; });
   }
   // ---------------- Town ----------------
   const wood = toon('#8a5a34'), woodD = toon('#5a3a22'), plaster = toon('#f2e6cc'), stoneM = toon('#a8a098'), roofR = toon('#c0503a'), roofB = toon('#3a5aa0'), roofG = toon('#4a8a5a'), roofP = toon('#8a4aa0');
@@ -651,7 +671,7 @@ export function buildWorld(scene) {
         x.fillStyle = '#3a2414'; x.font = '18px Georgia, serif'; x.fillText(Math.round(r.fame).toLocaleString(), 428, yy); });
       b.tex.needsUpdate = true; }
   };
-  fameBoard(11, 9, -0.6, 'fairy');
+  fameBoard(11, 9, -2.14, 'fairy');
   for (const [pid, key] of [['bluepegasus', 'pegasus'], ['lamiascale', 'lamia'], ['oak', 'phantom']]) { const P0 = PLACE[pid].pos; fameBoard(P0[0] + 6, P0[1] + 8, 0.3, key); }
   // Galuna Island: landing village and the Moon temple
   { const Gp = PLACE.galuna.pos; const g = zoneGroup(Gp[0], Gp[1], 110); const Hp = PLACE.hargeon.pos;
@@ -702,7 +722,7 @@ export function buildWorld(scene) {
   for (const it of W.interactables) if (it.obj) it.obj.userData.dyn = true;
   for (const z of W.groups) bakeStatic(z.g);
   {
-    const keep = new Set([W.sky, W.water, ...W.groups.map((z) => z.g), ...(W.rails || [])]);
+    const keep = new Set([W.sky, W.water, W.realSky, W.foam, ...W.groups.map((z) => z.g), ...(W.rails || [])]);
     const town = new THREE.Group(); const movers = scene.children.filter((o) => !keep.has(o) && !o.isLight && (o.isMesh || o.isGroup) && !o.userData.dyn);
     for (const o of movers) town.add(o); scene.add(town); bakeStatic(town);
   }
@@ -735,7 +755,7 @@ export function buildWorld(scene) {
     W.water.position.set(Math.round(playerPos.x / 50) * 50, WATER_Y, Math.round(playerPos.z / 50) * 50);
     for (const id in W.npcs) { const it = W.npcs[id]; const d = Math.hypot(playerPos.x - it.x, playerPos.z - it.z); if (d > 120) continue; if (it.char.parts.wing1) { const b = it.char.parts.body; b.position.y = Math.sin(t * 3) * 0.12; it.char.parts.wing1.rotation.z = 0.5 + Math.sin(t * 18) * 0.5; it.char.parts['wing-1'].rotation.z = -0.5 - Math.sin(t * 18) * 0.5; } else if (it.npc === 'plue') { const b = it.char.parts.body; b.position.x = Math.sin(t * 40) * 0.012; b.rotation.z = Math.sin(t * 33) * 0.04; } else if (it.char.parts.armL && d < 60) animateCharacter(it.char, { t: t + it.x, move: 0, atk: -1, cast: 0, look: d < 6 ? Math.max(-0.6, Math.min(0.6, Math.sin(t * 0.7 + it.x) * 0.3)) : 0 }); else it.char.parts.head.rotation.y = 0; }
     if (GFX.shadows) { W.sun.position.set(playerPos.x + 30, playerPos.y + 60, playerPos.z + 20); W.sun.target.position.set(playerPos.x, playerPos.y, playerPos.z); }
-    W.sky.position.set(playerPos.x, playerPos.y, playerPos.z);
+    W.sky.position.set(playerPos.x, playerPos.y, playerPos.z); if (W.realSky) W.realSky.position.set(playerPos.x, 0, playerPos.z); if (W.foam) W.foam.position.set(Math.round(playerPos.x / 50) * 50, WATER_Y + 0.03, Math.round(playerPos.z / 50) * 50);
     // snowfall + whiter fog in the snowfield
     const snowy = playerPos.z < -400 && biomeAt(playerPos.x, playerPos.z) !== 0 && (height(playerPos.x, playerPos.z) > 14 || Math.hypot(playerPos.x - PLACE.hakobe.pos[0], playerPos.z - PLACE.hakobe.pos[1]) < 140);
     W.snow.visible = snowy;
@@ -744,4 +764,47 @@ export function buildWorld(scene) {
   };
   W.flush = (x, z) => W.terrain.flush(x, z);
   return W;
+}
+
+/** Tileable ripple normal map for the Water shader, drawn from summed sine waves (no image assets). */
+function rippleNormals() {
+  const N = 256, cv = document.createElement('canvas'); cv.width = cv.height = N; const x = cv.getContext('2d'); const img = x.createImageData(N, N);
+  const waves = []; let sd = 7; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 14; i++) waves.push([Math.round(1 + rnd() * 6) * (rnd() < 0.5 ? -1 : 1), Math.round(rnd() * 6) * (rnd() < 0.5 ? -1 : 1), rnd() * 6.28, 0.5 / (1 + i * 0.35)]);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { let dx = 0, dz = 0; const u = i / N * 6.2832, v = j / N * 6.2832;
+    for (const [a, b, p, amp] of waves) { const c = Math.cos(a * u + b * v + p) * amp; dx += c * a; dz += c * b; }
+    const nx = -dx * 0.06, nz = -dz * 0.06, l = Math.hypot(nx, nz, 1); const k = (j * N + i) * 4;
+    img.data[k] = (nx / l * 0.5 + 0.5) * 255; img.data[k + 1] = (nz / l * 0.5 + 0.5) * 255; img.data[k + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[k + 3] = 255; }
+  x.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+/** Shore foam: a depth texture baked from the terrain height around the coasts, animated as breaking bands. */
+function shoreFoam(scene) {
+  const RES = 2.5; const w = Math.min(1024, Math.ceil((WORLD.maxX - WORLD.minX + 200) / RES)), h = Math.min(1024, Math.ceil((WORLD.maxZ - WORLD.minZ + 200) / RES));
+  const ox = WORLD.minX - 100, oz = WORLD.minZ - 100, sx = (WORLD.maxX - WORLD.minX + 200) / w, sz = (WORLD.maxZ - WORLD.minZ + 200) / h;
+  const data = new Uint8Array(w * h);
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const d = WATER_Y - height(ox + i * sx, oz + j * sz); data[j * w + i] = Math.max(0, Math.min(255, (d + 1) * 64)); }
+  const tex = new THREE.DataTexture(data, w, h, THREE.RedFormat); tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
+  const g = new THREE.PlaneGeometry(1400, 1400, 1, 1); g.rotateX(-Math.PI / 2);
+  const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, fog: true,
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uDepth: { value: null }, uO: { value: new THREE.Vector4(ox, oz, w * sx, h * sz) }, uT: { value: 0 } }]),
+    vertexShader: `varying vec3 vW;
+      #include <fog_pars_vertex>
+      void main(){ vec4 wp = modelMatrix * vec4(position,1.0); vW = wp.xyz; vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
+      #include <fog_vertex>
+      }`,
+    fragmentShader: `uniform sampler2D uDepth; uniform vec4 uO; uniform float uT; varying vec3 vW;
+      #include <fog_pars_fragment>
+      float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h2(i), h2(i+vec2(1,0)), f.x), mix(h2(i+vec2(0,1)), h2(i+vec2(1,1)), f.x), f.y); }
+      void main(){ vec2 uv = (vW.xz - uO.xy) / uO.zw; float d = texture2D(uDepth, uv).r * 255.0 / 64.0 - 1.0; // metres below the surface
+        if (d < 0.0 || d > 2.2) discard;
+        float n = n2(vW.xz * 0.9 + uT * 0.3) * 0.6 + n2(vW.xz * 3.1 - uT * 0.5) * 0.4;
+        float edge = smoothstep(0.55, 0.0, d);
+        float bands = smoothstep(0.55, 0.95, sin(d * 9.0 - uT * 1.6 + n * 3.0) * 0.5 + 0.5) * smoothstep(2.2, 0.4, d);
+        float a = clamp(edge * (0.55 + n * 0.5) + bands * 0.45 * n, 0.0, 0.9);
+        gl_FragColor = vec4(vec3(0.95, 0.98, 1.0), a);
+        #include <fog_fragment>
+      }` });
+  mat.uniforms.uDepth.value = tex;
+  const m = new THREE.Mesh(g, mat); m.renderOrder = 2; m.userData.noOutline = true; m.position.y = WATER_Y + 0.03; scene.add(m); return m;
 }
