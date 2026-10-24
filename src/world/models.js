@@ -461,6 +461,13 @@ export function buildMob(model, opt = {}) {
       l.userData.shin = shin; parts.legs.push(l);
     }
     demon.visible = false;
+  } else if (model === 'wizard') {
+    // Story-boss wizards (Jose, Jellal): a full character, a phase aura and a few signature details
+    const c = buildCharacter(opt.look || {}); g.add(c.group); parts.char = c;
+    const cape = mesh(new THREE.BoxGeometry(0.9, 1.3, 0.06), toon(opt.look?.outfitColor || '#222'), 0, 1.05, -0.26); cape.rotation.x = 0.12; c.group.add(cape); parts.cape = cape;
+    if (opt.mustache) { const mu = mesh(new THREE.BoxGeometry(0.26, 0.05, 0.05), toon('#1a1420'), 0, -0.08, 0.3); c.parts.head.add(mu); }
+    if (opt.tattoo) { for (const [y, l] of [[0.1, 0.22], [0.02, 0.3], [-0.06, 0.18]]) { const tt = mesh(new THREE.BoxGeometry(0.03, l, 0.02), toon('#c0202a'), -0.12, y, 0.3); tt.rotation.z = 0.2; c.parts.head.add(tt); } }
+    const aura = mesh(new THREE.SphereGeometry(1.1, 16, 12), glow(opt.aura || '#ffffff'), 0, 1, 0); aura.material = aura.material.clone(); aura.material.transparent = true; aura.material.opacity = 0.12; aura.material.depthWrite = false; aura.scale.set(1, 1.5, 1); g.add(aura); parts.aura = aura;
   } else if (model === 'mage') {
     // Eisenwald dark-guild mage: hooded, cloaked humanoid with a scythe-staff
     const c = buildCharacter({ hair: 'short', hairColor: '#1a1a22', outfit: 'mage', outfitColor: opt.robe || '#2a2236', skin: '#d8b8a0', eyeColor: '#c02a2a' });
@@ -485,6 +492,9 @@ export function animateMob(m, model, t, move, atk) {
   } else if (model === 'ram') { p.body.position.y = Math.abs(Math.sin(t * 8)) * 0.15 * move; p.body.rotation.x = atk > 0 ? Math.sin(atk * Math.PI) * 0.4 : 0; }
   else if (model === 'maiden') { animateCharacter(p.char, { t, move: 0, atk: -1, cast: atk > 0 ? 1 : 0.3 }); p.char.group.position.y = 0.3 + Math.sin(t * 2) * 0.1; p.ring.rotation.z = t; }
   else if (model === 'lullaby') animateLullaby(p, t, move, atk);
+  else if (model === 'wizard') { const e = p.st || {}; const st = { phase: e.phase, trans: e.transition > 0, dashing: e.bossCharge && e.bossCharge.go }; animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: e.castLock > 0 || st.trans ? 1 : atk > 0 ? 0.8 : 0.15 });
+    const ph = st.phase || 1; p.aura.material.opacity = (st.trans ? 0.45 : 0.08 + ph * 0.07) + Math.sin(t * 6) * 0.03; p.aura.scale.setScalar(1 + ph * 0.18 + (st.trans ? Math.sin(t * 20) * 0.1 : 0)); p.aura.scale.y *= 1.5; p.cape.rotation.x = 0.12 + move * 0.5 + Math.sin(t * 3) * 0.05;
+    if (st.dashing) p.char.group.rotation.x = 0.5; else p.char.group.rotation.x = 0; }
   else if (model === 'mage') animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: atk > 0 ? 0.8 : 0 });
   else if (model === 'vulcan') { p.legs.forEach((l, i) => { l.rotation.x = Math.sin(t * 8 + i * Math.PI) * 0.5 * move; }); p.arms.forEach((a, i) => { a.rotation.x = Math.sin(t * 8 + i * Math.PI + Math.PI) * 0.5 * move - (atk > 0 ? Math.sin(atk * Math.PI) * 2.2 : 0); }); p.body.position.y = Math.abs(Math.sin(t * 8)) * 0.08 * move; p.head.rotation.z = Math.sin(t * 1.5) * 0.08; }
   else if (model === 'lizard') { animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: 0 }); p.tail.rotation.z = Math.sin(t * 3) * 0.3; }

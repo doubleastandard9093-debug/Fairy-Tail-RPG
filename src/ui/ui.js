@@ -13,7 +13,7 @@ import { derived, countItem, addItem, removeItem, skillLevel, totalLevel, guildR
 import { xpForLevel, levelForXp, progressToNext, charXpForLevel } from '../core/xp.js';
 import * as P from '../systems/progress.js';
 import { TOWN } from '../world/world.js';
-import { BOSS_ARENA } from '../data/mobs.js';
+import { BOSS_ARENA, BOSS_ARENAS } from '../data/mobs.js';
 import { PARTY, unisonFor } from '../data/combos.js';
 import { RANK_PERKS, MEMBERS, RIVALS } from '../data/guilds.js';
 import { PLACES, PLACE, STATIONS, GW, GH, S as MAP_S, ORIGIN, toMap, biomeAt, mapHeight, ROADS, RAILS, FERRY, FERRY_COST, trainCost } from '../world/fiore.js';
@@ -209,7 +209,7 @@ export class UI {
     x.strokeStyle = '#e0c890'; x.lineWidth = 1.4; for (const l of ROADS) { x.beginPath(); l.forEach(([mx, my], k) => (k ? x.lineTo(mx / 2, my / 2) : x.moveTo(mx / 2, my / 2))); x.stroke(); }
     x.strokeStyle = '#3a3040'; x.lineWidth = 1.2; x.setLineDash([2, 1.5]); for (const l of RAILS) { x.beginPath(); l.forEach(([mx, my], k) => (k ? x.lineTo(mx / 2, my / 2) : x.moveTo(mx / 2, my / 2))); x.stroke(); } x.setLineDash([]);
     x.fillStyle = '#c8b898'; x.fillRect(toX(TOWN.minX), toY(TOWN.minZ), (TOWN.maxX - TOWN.minX) / cell, (TOWN.maxZ - TOWN.minZ) / cell);
-    x.fillStyle = '#8a7a6a'; x.beginPath(); x.arc(toX(BOSS_ARENA.x), toY(BOSS_ARENA.z), BOSS_ARENA.r / cell, 0, 7); x.fill();
+    for (const A of Object.values(BOSS_ARENAS)) { x.fillStyle = A.floor; x.beginPath(); x.arc(toX(A.x), toY(A.z), A.r / cell, 0, 7); x.fill(); }
     this._mapRectsDrawn = false; this.mapCtx = x; this.mapToX = toX; this.mapToY = toY;
   }
   drawMap() {

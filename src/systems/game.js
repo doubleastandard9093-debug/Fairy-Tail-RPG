@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { ITEMS, WEAPON_TYPES } from '../data/items.js';
 import { ABILITIES, WEAPON_ABILITIES, ARMOR_ABILITY } from '../data/abilities.js';
 import { SCHOOLS } from '../data/schools.js';
-import { MOBS, ALLIES, SPAWNS, BOSS_ARENA } from '../data/mobs.js';
+import { MOBS, ALLIES, SPAWNS, BOSS_ARENA, BOSS_ARENAS, arenaOf } from '../data/mobs.js';
 import { NODE_TYPES, NODE_TIERS, NODE_RESPAWN } from '../data/nodes.js';
 import { POIS } from '../data/npcs.js';
 import { derived, countItem, addItem, skillLevel, classRank, canAdd, saveGame } from '../core/state.js';
@@ -176,6 +176,7 @@ export class Game {
     const e = { kind: 'mob', id, tpl, obj: m.group, model: m, pos: new THREE.Vector3(x, groundAt(x, z), z), home: new THREE.Vector3(x, 0, z), rot: this.rand() * 6,
       hp: tpl.hp, maxHp: tpl.hp, aggro: false, atkCd: 1, atk: -1, stun: 0, slow: 0, slowT: 0, burn: null, dead: false, respawn: 0, wander: null, radius: tpl.radius || (tpl.boss ? 2.2 : 0.7), temp: !!tpl.temp,
       teleCds: {}, castLock: 0, chargeCd: 3, charge: null, bark: 4 + this.rand() * 10 };
+    if (tpl.boss) { e.phase = 1; e.transition = 0; m.parts.st = e; }
     if (tpl.model === 'lullaby') { e.form = 'flute'; e.phase = 1; e.transform = 0; e.slam = -1; e.singing = 0; m.parts.st = e; }
     m.group.userData.entity = e; m.group.traverse((o) => { o.userData.entity = e; });
     this.scene.add(m.group); this.entities.push(e); return e;
@@ -193,6 +194,7 @@ export class Game {
   damageMob(m, amt, ab, from = 'player') {
     if (m.dead) return;
     if (m.form === 'flute') { if (from === 'player') this.ui.floatText(m.pos, 3, 'Immune', 'heal'); return; }
+    if (m.transition > 0 || this.shielded(m)) { if (from === 'player') this.ui.floatText(m.pos, m.tpl.boss ? 6 : 3, m.transition > 0 ? 'Immune' : 'Shielded', 'heal'); return; }
     const d = derived(this.G); const crit = from === 'player' && this.rand() < d.crit;
     let dmg = Math.max(1, Math.round(amt * (0.9 + this.rand() * 0.2) * (crit ? 1.6 : 1)));
     m.hp -= dmg; m.aggro = true; if (from === 'player' || from === 'ally') this.magic.fill(from); if (from !== 'dot') this.ui.sfx('hit'); if (from === 'player') this.player.combatT = 6;
@@ -209,13 +211,18 @@ export class Game {
   }
   bossPhaseCheck(m) {
     for (const ph of m.tpl.phases) if (m.phase < ph.n && m.hp / m.maxHp <= ph.at) {
-      m.phase = ph.n; this.ui.toast('☠ ' + ph.line); this.ui.log(ph.line, 'warn'); this.ui.shake(0.6);
+      m.phase = ph.n; m.transition = ph.trans || 0; m.castLock = 0; m.bossCharge = null; if (ph.trans) this.ui.bossCast('Phase ' + ph.n, ph.trans);
+      this.teles = this.teles.filter((t) => { if (t.owner === m) { this.scene.remove(t.group); return false; } return true; });
+      if (ph.heal) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * ph.heal);
+      if (ph.shield) { m.shieldMobs = []; for (let i = 0; i < ph.shield.count; i++) { const a = i / ph.shield.count * Math.PI * 2; const e = this.makeMob(ph.shield.mob, m.pos.x + Math.sin(a) * 6, m.pos.z + Math.cos(a) * 6); e.aggro = true; e.shieldFor = m; m.shieldMobs.push(e); this.fxBurst(e.pos, '#9a5aff', 18); } }
+      this.ui.toast('☠ ' + ph.line); this.ui.log(ph.line, 'warn'); this.ui.shake(0.6);
       this.fxRing(m.pos, 8, ph.n >= 3 ? '#ff4a2a' : '#ffd23a', true); this.ui.bossPhase?.(m);
       for (const k in m.teleCds) m.teleCds[k] = Math.min(m.teleCds[k], 1.5);
     }
   }
+  shielded(m) { if (!m.shieldMobs) return false; const alive = m.shieldMobs.some((x) => !x.dead && this.entities.includes(x)); if (!alive) { m.shieldMobs = null; this.ui.toast(`💥 The shield breaks! ${m.tpl.short || m.tpl.name} is exposed!`); this.ui.log(`The shield around ${m.tpl.short || m.tpl.name} shatters.`, 'warn'); this.fxRing(m.pos, 6, '#ffffff', true); } return alive; }
   clearSummons() { for (const e of [...this.entities]) if (e.temp) this.removeEntity(e); }
-  resetBoss(m) { m.form = 'flute'; m.phase = 1; m.transform = 0; m.transforming = 0; m.slam = -1; m.singing = 0; m.castLock = 0; this.clearSummons(); }
+  resetBoss(m) { if (m.tpl.model === 'lullaby') m.form = 'flute'; m.phase = 1; m.transition = 0; m.shieldMobs = null; m.bossCharge = null; m.hp = m.maxHp; if (m.tpl.model !== 'lullaby') this.ui.bossPhase?.(m); m.transform = 0; m.transforming = 0; m.slam = -1; m.singing = 0; m.castLock = 0; this.clearSummons(); }
   killMob(m) {
     const G = this.G; m.dead = true; m.hp = 0; m.respawn = m.tpl.boss ? 120 : 22; m.obj.visible = false; m.charge = null; m.castLock = 0;
     this.teles = this.teles.filter((t) => { if (t.owner === m) { this.scene.remove(t.group); return false; } return true; });
@@ -231,11 +238,11 @@ export class Game {
     P.onKill(G, m.id);
     if (this.player.target === m) this.setTarget(null);
     if (m.temp) { this.removeEntity(m); this.ui.refresh(); return; }
-    if (m.tpl.boss) { this.clearSummons(); this.ui.toast('🏆 Lullaby shatters! The Song of Death is cancelled due to fairies.'); this.ui.boss(null); for (const e of this.entities) if (e.kind === 'ally' && e.guildmate) e.until = this.t + 6; }
+    if (m.tpl.boss) { this.clearSummons(); G.bossKills = G.bossKills || {}; G.bossKills[m.id] = (G.bossKills[m.id] || 0) + 1; this.ui.toast(m.tpl.defeat || `🏆 ${m.tpl.name} defeated!`); this.emote?.('cheer', 2.5); this.ui.boss(null); for (const e of this.entities) if (e.kind === 'ally' && e.guildmate) e.until = this.t + 6; }
     this.ui.refresh();
   }
   respawnMob(m) {
-    m.dead = false; m.hp = m.maxHp; m.pos.copy(m.home); m.pos.y = groundAt(m.home.x, m.home.z); m.obj.visible = true; m.aggro = false; m.burn = null; m.stun = 0; m.teleCds = {}; if (m.tpl.model === 'lullaby') this.resetBoss(m);
+    m.dead = false; m.hp = m.maxHp; m.pos.copy(m.home); m.pos.y = groundAt(m.home.x, m.home.z); m.obj.visible = true; m.aggro = false; m.burn = null; m.stun = 0; m.teleCds = {}; if (m.tpl.boss) this.resetBoss(m);
   }
 
   // ------------------------------------------------------------------ allies & escort
@@ -389,7 +396,7 @@ export class Game {
     const G = this.G, pl = this.player; const d = derived(G);
     G.hp = d.maxHp; G.mp = d.maxMp; G.adr = 0; pl.dead = 0; pl.pos.set(0, 0, 9); pl.buffs = [];
     for (const e of [...this.entities]) if (e.kind === 'ally') this.removeEntity(e);
-    for (const e of this.entities) if (e.kind === 'mob' && e.aggro) { e.aggro = false; e.hp = e.maxHp; if (e.form) this.resetBoss(e); }
+    for (const e of this.entities) if (e.kind === 'mob' && e.aggro) { e.aggro = false; e.hp = e.maxHp; if (e.tpl && e.tpl.boss) this.resetBoss(e); }
     this.ui.boss(null);
     this.ui.log('Mirajane has Elfman carry you back to the fountain. "Again? I am starting a punch card for you."', 'npc');
   }
@@ -539,15 +546,17 @@ export class Game {
     // world systems
     this.updateEntities(dt); this.updateProjectiles(dt); this.updateTeles(dt); this.updateTraps(dt); this.updateFx(dt); this.magic.update(dt); P.tickRivals(this.G, dt);
     for (const n of this.world.nodes) if (n.respawn > 0) { n.respawn -= dt; if (n.respawn <= 0) { n.respawn = 0; n.uses = NODE_TIERS[n.tier].uses; n.obj.scale.setScalar(1); } }
-    // boss party: guildmates join on the S-rank job or the final quest stage
-    const inArena = Math.hypot(pl.pos.x - BOSS_ARENA.x, pl.pos.z - BOSS_ARENA.z) < BOSS_ARENA.r + 6;
-    const boss = this.entities.find((e) => e.tpl && e.tpl.boss);
-    const wantsParty = G.jobs.active.some((a) => a.id === 'j_lullaby') || (G.quests.q_lullaby && G.quests.q_lullaby.stage === 3);
-    if (inArena && boss && !boss.dead && wantsParty && !this.entities.some((e) => e.guildmate)) {
-      this.summon('gm_natsu', 0, 1 + d.level * 0.05, { guildmate: true }); this.summon('gm_wendy', 0, 1 + d.level * 0.05, { guildmate: true }); this.summon('gm_erza', 0, 1 + d.level * 0.05, { guildmate: true });
-      this.ui.toast('⚔️ Natsu, Wendy and Erza join your party! Erza requips into Heart Kreuz!');
+    // boss party: guildmates join on the boss's S-rank job or its quest stage (one arena at a time)
+    let boss = null, bd = 1e9;
+    for (const e of this.entities) if (e.tpl && e.tpl.boss && !e.dead) { const A = arenaOf(e.tpl); const dd = Math.hypot(pl.pos.x - A.x, pl.pos.z - A.z); if (dd < bd) { bd = dd; boss = e; } }
+    const arena = boss ? arenaOf(boss.tpl) : BOSS_ARENA; const inArena = boss && bd < arena.r + 6;
+    const pty = boss && boss.tpl.party;
+    const wantsParty = pty && (G.jobs.active.some((a) => pty.jobs.includes(a.id)) || (pty.quest && G.quests[pty.quest[0]] && G.quests[pty.quest[0]].stage === pty.quest[1]));
+    if (inArena && wantsParty && !this.entities.some((e) => e.guildmate)) {
+      for (const id of pty.ids) this.summon(id, 0, 1 + d.level * 0.05, { guildmate: true });
+      this.ui.toast(pty.line);
     }
-    if (!inArena) for (const e of [...this.entities]) if (e.guildmate && dist2(e.pos, BOSS_ARENA) > BOSS_ARENA.r + 30) this.removeEntity(e);
+    for (const e of [...this.entities]) if (e.guildmate && (!inArena && Object.values(BOSS_ARENAS).every((A) => dist2(e.pos, A) > A.r + 30))) this.removeEntity(e);
     this.ui.boss(boss && !boss.dead && boss.aggro ? boss : null);
     // camera + world
     this.updateCamera(dt);
@@ -626,10 +635,10 @@ export class Game {
     m.moving = 0;
     if (m.stun > 0) { m.stun -= dt; return; }
     const homeD = dist2(m.pos, m.home);
-    if (m.aggro && (pl.dead || dist2(pl.pos, m.pos) > 90)) { m.aggro = false; m.hp = m.maxHp; m.burn = null; if (m.form) this.resetBoss(m); }
+    if (m.aggro && (pl.dead || dist2(pl.pos, m.pos) > 90)) { m.aggro = false; m.hp = m.maxHp; m.burn = null; if (tpl.boss) this.resetBoss(m); }
     const pd = pl.dead ? 1e9 : dist2(pl.pos, m.pos);
     if (!m.aggro) {
-      const canSee = tpl.boss ? Math.hypot(pl.pos.x - BOSS_ARENA.x, pl.pos.z - BOSS_ARENA.z) < BOSS_ARENA.r : pd < tpl.aggro;
+      const canSee = tpl.boss ? Math.hypot(pl.pos.x - arenaOf(tpl).x, pl.pos.z - arenaOf(tpl).z) < arenaOf(tpl).r : pd < tpl.aggro;
       if (canSee && !pl.dead) { m.aggro = true; if (tpl.bark) this.ui.log(`${tpl.name}: "${tpl.bark[Math.floor(this.rand() * tpl.bark.length)]}"`, 'npc'); }
       else {
         // wander
@@ -640,7 +649,7 @@ export class Game {
         m.pos.y = groundAt(m.pos.x, m.pos.z); return;
       }
     }
-    if (homeD > (tpl.leash || 32) || pl.dead) { if (m.temp) { this.removeEntity(m); return; } m.aggro = false; m.hp = m.maxHp; m.wander = m.home.clone(); m.castLock = 0; if (m.form) this.resetBoss(m); return; }
+    if (homeD > (tpl.leash || 32) || pl.dead) { if (m.temp) { this.removeEntity(m); return; } m.aggro = false; m.hp = m.maxHp; m.wander = m.home.clone(); m.castLock = 0; if (tpl.boss) this.resetBoss(m); return; }
     // choose a victim: taunting ally near the mob, else player
     let victim = { ref: 'player', pos: pl.pos };
     let best = pd;
@@ -676,7 +685,7 @@ export class Game {
     m.atkCd -= dt;
     if (m.atkCd <= 0 && vd <= tpl.range + 0.5) {
       m.atkCd = tpl.atkCd * (1 + m.slow); m.atk = 0;
-      if (tpl.ranged) this.fireProj(m.pos, victim.ref === 'player' ? { pos: pl.pos } : victim.ref, null, { speed: 16 }, tpl.dmg, 'mob', '#9a7aff', { y: tpl.float || 1, size: 0.3 });
+      if (tpl.ranged) this.fireProj(m.pos, victim.ref === 'player' ? { pos: pl.pos } : victim.ref, null, { speed: 16 }, tpl.dmg, 'mob', tpl.projColor || '#9a7aff', { y: tpl.float || 1, size: 0.3 });
       else this.hurt(victim.ref, tpl.dmg * (0.85 + this.rand() * 0.3), tpl.name);
     }
     m.pos.y = groundAt(m.pos.x, m.pos.z);
@@ -684,6 +693,8 @@ export class Game {
   bossThink(m, dt, victim) {
     const tpl = m.tpl;
     if (m.slam >= 1) { m.slam += dt * 2; if (m.slam > 1.7) m.slam = -1; }
+    if (m.transition > 0) { m.transition -= dt; m.moving = 0; if (m.transition <= 0) { this.ui.shake(0.5); this.fxRing(m.pos, 9, tpl.projColor || '#ffd23a', true); } return true; }
+    if (m.shieldMobs) this.shielded(m);
     if (m.form === 'flute') {
       // Transformation: the flute rises, plays, and the wooden demon grows out of it.
       if (!m.transforming) { m.transforming = 3.6; this.ui.log('🎵 The cursed flute floats up and begins to play... Lullaby awakens!', 'warn'); this.ui.bossCast('Awakening', 3.6); this.ui.toast('🎵 Lullaby is transforming!'); }
@@ -707,7 +718,7 @@ export class Game {
     if (ready.length && dist2(victim.pos, m.pos) < 20) {
       const t = ready[Math.floor(this.rand() * ready.length)]; m.teleCds[t.id] = t.cd * cdMul; m.castT = t;
       const rot = Math.atan2(victim.pos.x - m.pos.x, victim.pos.z - m.pos.z); m.rot = rot;
-      this.ui.log(`⚠️ Lullaby prepares ${t.name}!`, 'warn'); this.ui.sfx?.('warn'); this.ui.bossCast(t.name, t.windup);
+      this.ui.log(`⚠️ ${tpl.short || tpl.name} prepares ${t.name}!`, 'warn'); this.ui.sfx?.('warn'); this.ui.bossCast(t.name, t.windup);
       if (t.song) m.singing = 1;
       if (t.at === 'summon') {
         for (let i = 0; i < t.count; i++) { const a = rot + (i ? 1.3 : -1.3); const x = m.pos.x + Math.sin(a) * 5, z = m.pos.z + Math.cos(a) * 5;
@@ -715,10 +726,13 @@ export class Game {
       } else if (t.at === 'targets') {
         const victims = this.allyTargets().filter((v) => !v.dead).slice(0, t.count);
         for (const v of victims) this.addTele({ shape: 'circle', x: v.pos.x, z: v.pos.z, radius: t.radius, windup: t.windup, dmg: t.dmg, owner: m, name: t.name });
+      } else if (t.at === 'victim') {
+        this.addTele({ shape: 'circle', x: victim.pos.x, z: victim.pos.z, radius: t.radius, windup: t.windup, dmg: t.dmg, owner: m, name: t.name });
       } else if (t.shape === 'rect') {
+        if (t.dash) m.bossCharge = { rot, left: t.length - 2, go: false };
         this.addTele({ shape: 'rect', x: m.pos.x, z: m.pos.z, rot, length: t.length, width: t.width, windup: t.windup, dmg: t.dmg, owner: m, name: t.name });
       } else this.addTele({ shape: t.shape, x: m.pos.x, z: m.pos.z, radius: t.radius, inner: t.inner, windup: t.windup, dmg: t.dmg, owner: m, name: t.name, song: t.song });
-      if (t.song) { this.ui.toast('🎵 Song of Death! Get close to Lullaby to escape the sound!'); }
+      if (t.song && tpl.model === 'lullaby') { this.ui.toast('🎵 Song of Death! Get close to Lullaby to escape the sound!'); }
       m.castLock = t.windup; return true;
     }
     return false;

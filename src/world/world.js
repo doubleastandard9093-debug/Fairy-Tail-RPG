@@ -4,7 +4,7 @@ import { buildNode, buildCharacter, buildMob, animateCharacter } from './models.
 import { NODE_TYPES, NODE_TIERS, NODE_PLACEMENT } from '../data/nodes.js';
 import { NPCS, POIS } from '../data/npcs.js';
 import { drawGuildMark } from './mark.js';
-import { BOSS_ARENA } from '../data/mobs.js';
+import { BOSS_ARENA, BOSS_ARENAS } from '../data/mobs.js';
 import { mapHeight, biomeAt, PLACES, PLACE, WORLD, WATER_Y, RAILS_W, ROADS_W, distToLines, toWorld } from './fiore.js';
 import { Terrain } from './terrain.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -27,7 +27,10 @@ function initFlat() {
   if (flatReady) return; flatReady = true;
   FLAT.push({ rect: TOWN, r: 0, blend: 30, h: 0 });
   FLAT.push({ x: CATHEDRAL.x, z: CATHEDRAL.z, r: 17, blend: 16, h: 0.3 });
-  FLAT.push({ x: BOSS_ARENA.x, z: BOSS_ARENA.z, r: BOSS_ARENA.r + 1, blend: 5, h: 3 });
+  for (const A of Object.values(BOSS_ARENAS)) {
+    FLAT.push({ x: A.x, z: A.z, r: A.r + 1, blend: 5, h: A.h });
+    if (A.causeway) { const [gx, gz] = A.gate; for (let k = 0; k <= 8; k++) { const t = k / 8; FLAT.push({ x: gx + (A.x - gx) * t, z: gz + (A.z - gz) * t, r: 4, blend: 3, h: A.h }); } }
+  }
   for (const p of PLACES) {
     const base = mapHeight(p.pos[0], p.pos[1]);
     if (p.id === 'hargeon') FLAT.push({ x: p.pos[0], z: p.pos[1], r: 34, blend: 20, h: Math.max(1.4, base) });
@@ -179,11 +182,12 @@ export function buildWorld(scene) {
   W.keepOut = (x, z, pad) => {
     if (inTownPad(x, z, pad + 2)) return true;
     for (const f of FLAT) if (!f.rect && f.r < 40 && Math.hypot(x - f.x, z - f.z) < f.r * 0.85 + pad) return true;
-    if (Math.hypot(x - BOSS_ARENA.x, z - BOSS_ARENA.z) < BOSS_ARENA.r + 4) return true;
+    for (const A of Object.values(BOSS_ARENAS)) if (Math.hypot(x - A.x, z - A.z) < A.r + 4) return true;
     for (const b of W.boxes) if (x > b.minX - pad && x < b.maxX + pad && z > b.minZ - pad && z < b.maxZ + pad) return true;
     for (const c of W.circles) if (c.r > 1.5 && Math.hypot(x - c.x, z - c.z) < c.r + pad) return true;
     return false;
   };
+  const ARENA_LIST = Object.values(BOSS_ARENAS).map((A) => ({ ...A, col: new THREE.Color(A.floor) }));
   const eastForest = PLACE.eastforest.pos;
   W.terrain = new Terrain(scene, {
     height, keepOut: (x, z, pad) => W.keepOut(x, z, pad),
@@ -192,7 +196,7 @@ export function buildWorld(scene) {
     paint: (x, z, c, n) => {
       if (inTownPad(x, z, 0)) { const plaza = Math.hypot(x, z - 2) < 13; const road = Math.abs(x) < 3 && z > -14; const lanes = (Math.abs(z + 2) < 2.5 && Math.abs(x) < 24) || (Math.abs(z - 20) < 2.5 && Math.abs(x) < 24) || (Math.abs(x) < 3 && z < -34) || (z > -13 && z < -5 && x < -24) || (z > -19 && z < -9 && x > 24);
         if (plaza || road || lanes) c.set('#b8b0a4').multiplyScalar(0.9 + n * 0.15); }
-      const da = Math.hypot(x - BOSS_ARENA.x, z - BOSS_ARENA.z); if (da < BOSS_ARENA.r) c.lerp(new THREE.Color('#8a7a6a'), smooth(BOSS_ARENA.r, BOSS_ARENA.r - 6, da));
+      for (const A of ARENA_LIST) { const da = Math.hypot(x - A.x, z - A.z); if (da < A.r) c.lerp(A.col, smooth(A.r, A.r - 6, da)); }
     },
   });
   {
@@ -593,6 +597,38 @@ export function buildWorld(scene) {
       const p = mesh(new THREE.CylinderGeometry(0.9, 1.3, 5 + R() * 4, 6), toon('#7a7068'), x, height(x, z) + 2.5, z); p.rotation.z = (R() - 0.5) * 0.2; g.add(p);
       const cr = mesh(new THREE.OctahedronGeometry(0.5, 0), glow('#ff8a3a'), x, height(x, z) + 6.8, z); g.add(cr); W.circles.push({ x, z, r: 1.2 }); }
     addOutlines(g); shadowAll(g); }
+  // Story-boss arenas: Phantom Lord's guild (Oak Town) and the Tower of Heaven (off Akane Beach)
+  for (const key of ['phantom', 'heaven']) {
+    const A = BOSS_ARENAS[key]; const g = zoneGroup(A.x, A.z, 70); const [gx, gz] = A.gate; const gap = Math.atan2(gz - A.z, gx - A.x);
+    for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; if (Math.abs(Math.atan2(Math.sin(a - gap), Math.cos(a - gap))) < 0.4) continue; const x = A.x + Math.cos(a) * (A.r + 1), z = A.z + Math.sin(a) * (A.r + 1);
+      const hh = key === 'heaven' ? 7 : 6 + R() * 3; const p = mesh(new THREE.BoxGeometry(1.6, hh, 1.6), toon(A.pillar), x, A.h + hh / 2, z); p.rotation.y = -a; g.add(p);
+      const cr = mesh(new THREE.OctahedronGeometry(0.55, 0), glow(A.gem), x, A.h + hh + 0.8, z); g.add(cr); W.circles.push({ x, z, r: 1.2 }); }
+    // floor sigil
+    const sig = mesh(new THREE.RingGeometry(A.r - 3, A.r - 2.4, 64), glow(A.gem), A.x, A.h + 0.06, A.z); sig.rotation.x = -Math.PI / 2; sig.material.transparent = true; sig.material.opacity = 0.5; g.add(sig);
+    const bx = A.x - Math.cos(gap) * (A.r + 16), bz = A.z - Math.sin(gap) * (A.r + 16); const by = A.h;
+    if (key === 'phantom') {
+      // Phantom Lord's fortress guild hall: a dark keep with six towers (it can walk; it chooses not to today)
+      const wallM = toon('#3a3448'), roofM = toon('#24202e');
+      const keep = mesh(new THREE.BoxGeometry(22, 14, 14), wallM, bx, by + 7, bz); keep.rotation.y = -gap + Math.PI / 2; g.add(keep);
+      for (let k = 0; k < 6; k++) { const a = -gap + Math.PI / 2 + (k - 2.5) * 0.5; const tx = bx + Math.sin(a) * 13, tz = bz + Math.cos(a) * 13 * 0.6;
+        const tw = mesh(new THREE.CylinderGeometry(1.8, 2.2, 20, 8), wallM, tx, by + 10, tz); g.add(tw);
+        const cap = mesh(new THREE.ConeGeometry(2.6, 5, 8), roofM, tx, by + 22.5, tz); g.add(cap);
+        const fl = mesh(new THREE.BoxGeometry(0.1, 1.6, 2.2), toon('#6a3a9a'), tx, by + 26, tz + 1.1); g.add(fl); W.circles.push({ x: tx, z: tz, r: 2.4 }); }
+      const cannon = mesh(new THREE.CylinderGeometry(1.1, 1.5, 12, 10), toon('#2a2a30'), bx + Math.cos(gap) * 7, by + 12, bz + Math.sin(gap) * 7); cannon.rotation.z = Math.PI / 2; cannon.rotation.y = -gap; g.add(cannon);
+      const muzzle = mesh(new THREE.SphereGeometry(0.9, 10, 8), glow('#9a5aff'), bx + Math.cos(gap) * 13, by + 12, bz + Math.sin(gap) * 13); g.add(muzzle);
+      W.circles.push({ x: bx, z: bz, r: 11 });
+      sign(g, gx, gz, 'PHANTOM LORD - KEEP OUT', -gap - Math.PI / 2);
+    } else {
+      // The Tower of Heaven: tiered black-stone tower, an Etherion-charged lacrima crystal at the top
+      const stone = toon('#3e3e4c'), trim = toon('#6a6a7a'); let y = by, r0 = 13;
+      for (let k = 0; k < 9; k++) { const hh = 9 - k * 0.4, r1 = r0 * 0.86; const t = mesh(new THREE.CylinderGeometry(r1, r0, hh, 12), k % 2 ? trim : stone, bx, y + hh / 2, bz); g.add(t); y += hh; r0 = r1; }
+      const spire = mesh(new THREE.ConeGeometry(r0, 10, 12), stone, bx, y + 5, bz); g.add(spire);
+      const crys = mesh(new THREE.OctahedronGeometry(4, 0), glow('#ffe08a'), bx, y + 14, bz); crys.scale.y = 1.8; g.add(crys); W.anim.push((t) => { crys.rotation.y = t * 0.6; crys.position.y = y + 14 + Math.sin(t * 1.3) * 0.6; });
+      W.circles.push({ x: bx, z: bz, r: 13 });
+      sign(g, gx, gz, 'TOWER OF HEAVEN', -gap - Math.PI / 2);
+    }
+    addOutlines(g); shadowAll(g);
+  }
   // Galuna Island: landing village and the Moon temple
   { const Gp = PLACE.galuna.pos; const g = zoneGroup(Gp[0], Gp[1], 110); const Hp = PLACE.hargeon.pos;
     pier(g, 'galuna', Gp, [Hp[0] - Gp[0], Hp[1] - Gp[1]], 14); const d = W.docks.galuna;

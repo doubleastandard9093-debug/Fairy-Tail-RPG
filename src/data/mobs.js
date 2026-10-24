@@ -42,6 +42,8 @@ export const MOBS = {
       { at: 0.3, n: 3, cdMul: 0.6, line: 'Lullaby\'s eyes turn red. The Song of Death plays faster (final phase)!' },
     ],
     drops: [{ id: 'tyrant_core', chance: 1 }, { id: 'ore_t3', chance: 1, min: 3, max: 5 }, { id: 'sword2h_t4', chance: 0.25 }, { id: 'stew', chance: 1, min: 2, max: 2 }], jewels: [300, 500],
+    arena: 'canyon', short: 'Lullaby', defeat: '🏆 Lullaby shatters! The Song of Death is cancelled due to fairies.',
+    party: { jobs: ['j_lullaby'], quest: ['q_lullaby', 3], ids: ['gm_natsu', 'gm_wendy', 'gm_erza'], line: '⚔️ Natsu, Wendy and Erza join your party! Erza requips into Heart Kreuz!' },
     bark: ['I SHALL PLAY THE SONG OF DEATH!', 'Why are you not dead? My song is VERY good.', 'Fairy flies! I will devour your souls!'],
   },
   bora_thug: {
@@ -63,6 +65,49 @@ export const MOBS = {
   eisen_summon: {
     name: 'Eisenwald Mage (summoned)', level: 12, hp: 160, dmg: 12, speed: 3, aggro: 30, range: 10, atkCd: 2.4, xp: 40, model: 'mage', scale: 1, ranged: true, temp: true,
     drops: [], jewels: [2, 6], bark: ['For Erigor!', 'Lullaby will play for us all!'],
+  },
+  jose: {
+    name: 'Master Jose Porla, Phantom Lord', short: 'Jose', level: 26, hp: 5200, dmg: 26, speed: 3.2, aggro: 18, range: 11, atkCd: 2.2, xp: 3200, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.4, scale: 1.7,
+    opt: { look: { hair: 'long', hairColor: '#1a1420', outfit: 'mage', outfitColor: '#3a2a5a', skin: '#d8c0a8', eyeColor: '#8a2a8a' }, aura: '#7a3aff', mustache: true },
+    arena: 'phantom', defeat: '🏆 Master Jose falls! Phantom Lord\'s war on Fairy Tail is over.', projColor: '#8a4aff',
+    // Phase 1: Dead Wave lines and Shade bolts. Phase 2 (65%): the Shades shield him until destroyed. Phase 3 (30%): full Wizard Saint power.
+    telegraphs: [
+      { id: 'wave', name: 'Dead Wave', shape: 'rect', length: 22, width: 5, windup: 1.6, dmg: 60, cd: 7, at: 'self', phase: 1 },
+      { id: 'shade', name: 'Shade Bolts', shape: 'circle', radius: 3, windup: 1.3, dmg: 42, cd: 8, at: 'targets', count: 3, phase: 1 },
+      { id: 'cage', name: 'Shade Cage', shape: 'ring', inner: 5, radius: 16, windup: 2.6, dmg: 70, cd: 15, at: 'self', phase: 2 },
+      { id: 'summon', name: 'Shade: Phantom Legion', shape: 'circle', radius: 2.2, windup: 1.8, dmg: 0, cd: 20, at: 'summon', count: 2, mob: 'jose_shade', phase: 2 },
+      { id: 'quake', name: 'Wizard Saint\'s Wrath', shape: 'circle', radius: 9, windup: 2.4, dmg: 85, cd: 13, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.65, n: 2, cdMul: 0.85, trans: 2.4, shield: { mob: 'jose_shade', count: 4 }, line: 'Jose: "Shades, rise!" A wall of Shades shields Jose. Destroy them (phase 2).' },
+      { at: 0.3, n: 3, cdMul: 0.6, trans: 2.4, line: 'Jose\'s magic power explodes! A Wizard Saint at full strength (final phase).' },
+    ],
+    drops: [{ id: 'lacrima_shard', chance: 1, min: 2, max: 3 }, { id: 'ore_t4', chance: 1, min: 3, max: 5 }, { id: 'stew', chance: 1, min: 2, max: 2 }], jewels: [600, 900],
+    party: { jobs: ['j_s_phantom'], ids: ['gm_natsu', 'gm_erza', 'gm_wendy'], line: '⚔️ Natsu, Erza and Wendy storm Phantom Lord\'s guild with you!' },
+    bark: ['Fairy Tail... I will crush you like insects.', 'Do you know what a Wizard Saint is, child?', 'Phantom Lord is the strongest guild in Fiore!'],
+  },
+  jose_shade: {
+    name: 'Shade', level: 20, hp: 260, dmg: 16, speed: 4, aggro: 40, range: 9, atkCd: 2.0, xp: 60, model: 'wisp', scale: 1.6, ranged: true, temp: true, projColor: '#8a4aff',
+    drops: [], jewels: [4, 8], bark: ['*a hollow, ghostly moan*'],
+  },
+  jellal: {
+    name: 'Jellal, Tower of Heaven', short: 'Jellal', level: 32, hp: 7200, dmg: 30, speed: 3.6, aggro: 18, range: 11, atkCd: 2.0, xp: 4800, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.4, scale: 1.55,
+    opt: { look: { hair: 'spiky', hairColor: '#2a58c8', outfit: 'mage', outfitColor: '#1e2030', skin: '#e8d0b8', eyeColor: '#2a2a3a' }, aura: '#ffd86a', tattoo: true },
+    arena: 'heaven', defeat: '🏆 Jellal is beaten! The Etherion lacrima cracks and the Tower of Heaven begins to fall.', projColor: '#ffe28a',
+    // Phase 1: Heavenly Body magic. Phase 2 (60%): meteor dashes and Altairis. Phase 3 (25%): fused with Etherion, casts Sema.
+    telegraphs: [
+      { id: 'meteor', name: 'Meteor', shape: 'rect', length: 20, width: 4, windup: 1.1, dmg: 55, cd: 6, at: 'self', dash: true, phase: 1 },
+      { id: 'chariot', name: 'Grand Chariot', shape: 'circle', radius: 3.2, windup: 1.5, dmg: 48, cd: 9, at: 'targets', count: 4, phase: 1 },
+      { id: 'altairis', name: 'Altairis', shape: 'circle', radius: 7, windup: 2.6, dmg: 80, cd: 14, at: 'victim', phase: 2 },
+      { id: 'sema', name: 'Sema', shape: 'ring', inner: 4, radius: 19, windup: 3.2, dmg: 110, cd: 17, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, line: 'Jellal: "Feel the power of the heavens!" He moves at the speed of a Meteor (phase 2).' },
+      { at: 0.25, n: 3, cdMul: 0.6, trans: 3, heal: 0.08, line: 'Jellal fuses with the Etherion lacrima and shines with stolen power (final phase)!' },
+    ],
+    drops: [{ id: 'lacrima_shard', chance: 1, min: 3, max: 4 }, { id: 'ore_t4', chance: 1, min: 4, max: 6 }, { id: 'tea_mp', chance: 1, min: 3, max: 3 }], jewels: [900, 1300],
+    party: { jobs: ['j_s_jellal'], ids: ['gm_erza', 'gm_natsu', 'gm_wendy'], line: '⚔️ Erza, Natsu and Wendy climb the Tower of Heaven with you!' },
+    bark: ['Erza... you came all this way to die?', 'Zeref will be reborn in this tower.', 'This is the Tower of Heaven. I am its god.'],
   },
 };
 // Ally templates (celestial spirits and boss-party guildmates)
@@ -92,5 +137,14 @@ export const SPAWNS = [
   { mob: 'galuna_cultist', count: 6, c: [-640, 90], r: 50 },    // Galuna Island
   { mob: 'tenrou_boar', count: 5, c: [-360, 225], r: 50 },      // Tenrou Island
   { mob: 'grumblejaw', count: 1, at: [-363.2, -60.8] },          // Clover Canyon
+  { mob: 'jose', count: 1, at: [-128, -272] },                   // Phantom Lord HQ, Oak Town (map 617,250)
+  { mob: 'jellal', count: 1, at: [424, -150.4] },                // Tower of Heaven, off Akane Beach (map 962,326)
 ];
 export const BOSS_ARENA = { x: -363.2, z: -60.8, r: 22 }; // Clover Canyon (map px 470,382)
+// Every story boss fights inside its own arena. gate = the side the entrance faces (world x,z of the approach).
+export const BOSS_ARENAS = {
+  canyon: { ...BOSS_ARENA, name: 'Clover Canyon', pillar: '#7a7068', gem: '#ff8a3a', floor: '#8a7a6a', h: 3 },
+  phantom: { x: -128, z: -272, r: 22, name: 'Phantom Lord Guild, Oak Town', pillar: '#3a3448', gem: '#9a5aff', floor: '#5a5068', h: 3, gate: [-128, -230] },
+  heaven: { x: 424, z: -150.4, r: 22, name: 'Tower of Heaven', pillar: '#4a4a58', gem: '#ffe08a', floor: '#6a6a78', h: 2.5, gate: [380, -168], causeway: true },
+};
+export const arenaOf = (tpl) => BOSS_ARENAS[tpl.arena || 'canyon'];

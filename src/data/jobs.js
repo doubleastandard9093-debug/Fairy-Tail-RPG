@@ -72,6 +72,10 @@ export const JOBS = [
     desc: 'A Vulcan horde is taking over bodies on Mt. Hakobe. Macao barely got out. Clear the mountain.', reward: { jewels: 1800, gp: 380, xp: 3000, items: { lacrima_shard: 1 } } },
   { id: 'j_s_tower', rank: 'S', type: 'kill', mob: 'wisp', n: 10, title: 'S-Class: Whispers of the Tower', client: 'Erza', zone: 'oshibana', sclass: true,
     desc: 'Dark mages with the Tower of Heaven\'s mark are gathering near Oshibana. Erza will not say why. Do not ask her why.', reward: { jewels: 2200, gp: 420, xp: 3400, items: { lacrima_shard: 2 } } },
+  { id: 'j_s_phantom', rank: 'S', type: 'boss', mob: 'jose', n: 1, title: 'S-Class: Phantom Lord War', client: 'Master Makarov', zone: 'oak', sclass: true,
+    desc: 'Phantom Lord shot our guild hall with the Jupiter cannon and took Lucy. We are going to Oak Town. Bring the whole guild. Bring Natsu twice.', reward: { jewels: 3600, gp: 600, xp: 5200, items: { lacrima_shard: 2 } } },
+  { id: 'j_s_jellal', rank: 'S', type: 'boss', mob: 'jellal', n: 1, title: 'S-Class: Climb the Tower of Heaven', client: 'Erza', zone: 'akane', sclass: true,
+    desc: 'Erza\'s childhood friends took her to the Tower of Heaven, off Akane Beach. Jellal is waiting at the top with the Etherion. Erza says she will go alone. She will not.', reward: { jewels: 4800, gp: 800, xp: 7000, items: { lacrima_shard: 3 } } },
   { id: 'j_s_ore', rank: 'S', type: 'deliver', item: 'bar_t4', n: 3, title: 'S-Class: Adamantine for Crocus', client: 'Royal Army of Fiore', zone: 'crocus', sclass: true,
     desc: 'The palace wants Adamantine bars for the Eclipse project. They will not say what Eclipse is. It is probably fine.', reward: { jewels: 2400, gp: 450, xp: 3000 } },
 ];
