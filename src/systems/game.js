@@ -157,6 +157,7 @@ export class Game {
     if (npcId) this.summon(PARTY[npcId].ally, 0, 1 + derived(this.G).level * 0.06, { party: true });
     this.ui.refresh(); saveGame?.(this.G);
   }
+  emote(kind = 'salute', dur = 2.2) { const pl = this.player; if (pl.dead) return; pl.emote = { kind, until: this.t + dur }; if (kind === 'salute') this.ui.log('You raise the Fairy Tail sign. Somewhere, Laxus pretends not to notice.', 'npc'); }
   validTarget() { const t = this.player.target; return t && !t.dead && t.kind === 'mob' ? t : null; }
   setTarget(m) { this.player.target = m; this.ui.setTarget(m); }
 
@@ -533,7 +534,7 @@ export class Game {
     if (pl.atk >= 0) { pl.atk += dt * 3.2; if (pl.atk >= 1) pl.atk = -1; }
     pl.cast = Math.max(0, pl.cast - dt);
     const g = pl.char.group; g.position.copy(pl.pos); g.rotation.y = pl.rot;
-    animateCharacter(pl.char, { t: this.t, move: mv, atk: pl.atk, kind: pl.atkKind, cast: pl.cast > 0 ? Math.min(1, pl.cast * 3) : 0, dead: !!pl.dead });
+    animateCharacter(pl.char, { t: this.t, move: mv, atk: pl.atk, kind: pl.atkKind, cast: pl.cast > 0 ? Math.min(1, pl.cast * 3) : 0, dead: !!pl.dead, emote: pl.emote && this.t < pl.emote.until && mv < 0.1 ? pl.emote.kind : null });
     if (pl.iframes > 0 && pl.dash) g.rotation.x = 0; // roll is implied by the dash burst
     // world systems
     this.updateEntities(dt); this.updateProjectiles(dt); this.updateTeles(dt); this.updateTraps(dt); this.updateFx(dt); this.magic.update(dt);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
-import { buildNode, buildCharacter, buildMob } from './models.js';
+import { buildNode, buildCharacter, buildMob, animateCharacter } from './models.js';
 import { NODE_TYPES, NODE_TIERS, NODE_PLACEMENT } from '../data/nodes.js';
 import { NPCS, POIS } from '../data/npcs.js';
 import { drawGuildMark } from './mark.js';
@@ -673,7 +673,7 @@ export function buildWorld(scene) {
     W.terrain.update(playerPos.x, playerPos.z, 2);
     const vis = scene.fog.far + 30; for (const z of W.groups) z.g.visible = Math.hypot(playerPos.x - z.x, playerPos.z - z.z) < z.r + vis;
     W.water.position.set(Math.round(playerPos.x / 50) * 50, WATER_Y, Math.round(playerPos.z / 50) * 50);
-    for (const id in W.npcs) { const it = W.npcs[id]; const d = Math.hypot(playerPos.x - it.x, playerPos.z - it.z); if (d > 120) continue; if (it.char.parts.wing1) { const b = it.char.parts.body; b.position.y = Math.sin(t * 3) * 0.12; it.char.parts.wing1.rotation.z = 0.5 + Math.sin(t * 18) * 0.5; it.char.parts['wing-1'].rotation.z = -0.5 - Math.sin(t * 18) * 0.5; } else if (it.npc === 'plue') { const b = it.char.parts.body; b.position.x = Math.sin(t * 40) * 0.012; b.rotation.z = Math.sin(t * 33) * 0.04; } else it.char.parts.head.rotation.y = d < 6 ? Math.max(-0.6, Math.min(0.6, Math.sin(t * 0.7 + it.x) * 0.3)) : 0; }
+    for (const id in W.npcs) { const it = W.npcs[id]; const d = Math.hypot(playerPos.x - it.x, playerPos.z - it.z); if (d > 120) continue; if (it.char.parts.wing1) { const b = it.char.parts.body; b.position.y = Math.sin(t * 3) * 0.12; it.char.parts.wing1.rotation.z = 0.5 + Math.sin(t * 18) * 0.5; it.char.parts['wing-1'].rotation.z = -0.5 - Math.sin(t * 18) * 0.5; } else if (it.npc === 'plue') { const b = it.char.parts.body; b.position.x = Math.sin(t * 40) * 0.012; b.rotation.z = Math.sin(t * 33) * 0.04; } else if (it.char.parts.armL && d < 60) animateCharacter(it.char, { t: t + it.x, move: 0, atk: -1, cast: 0, look: d < 6 ? Math.max(-0.6, Math.min(0.6, Math.sin(t * 0.7 + it.x) * 0.3)) : 0 }); else it.char.parts.head.rotation.y = 0; }
     if (GFX.shadows) { W.sun.position.set(playerPos.x + 30, playerPos.y + 60, playerPos.z + 20); W.sun.target.position.set(playerPos.x, playerPos.y, playerPos.z); }
     W.sky.position.set(playerPos.x, playerPos.y, playerPos.z);
     // snowfall + whiter fog in the snowfield

@@ -204,7 +204,7 @@ export class MagicFX {
       g.ui.shake?.(0.8); const d = derived(g.G); const dmg = (14 + d.level * 3) * u.mult * (1 + (g.G.stats.INT || 0) * 0.035);
       for (const m of g.mobsNear(at, u.radius + 0.5)) g.damageMob(m, dmg, { effect: { stun: 1.5 } });
     }, 650);
-    g.G.unisons = (g.G.unisons || 0) + 1;
+    g.G.unisons = (g.G.unisons || 0) + 1; setTimeout(() => g.emote?.('cheer', 1.6), 1500);
   }
   update(dt) {
     const g = this.g, G = g.G; if (!G.party || !PARTY[G.party]) return;

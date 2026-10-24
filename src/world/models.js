@@ -1,4 +1,4 @@
-import { guildMarkTexture } from './mark.js';
+import { guildMarkTexture, MARK_SIZES } from './mark.js';
 import * as THREE from 'three';
 import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
 
@@ -53,14 +53,19 @@ export function buildCharacter(look = {}) {
   const head = new THREE.Group(); head.position.set(0, 1.66, 0); body.add(head);
   const skull = mesh(G.sph(0.3, 20, 16), skin); skull.scale.set(1, 1.05, 0.98); head.add(skull);
   const jaw = mesh(G.sph(0.2, 14, 10), skin, 0, -0.14, 0.06); jaw.scale.set(1.05, 0.8, 0.95); head.add(jaw);
+  const eyes = [];
   for (const s of [-1, 1]) {
-    const eye = mesh(G.sph(0.065, 12, 10), dark, s * 0.11, -0.01, 0.255); eye.scale.set(0.8, 1.25, 0.4); head.add(eye);
-    const iris = mesh(G.sph(0.045, 10, 8), toon(L.eyeColor || shade(L.hairColor, 0.8)), s * 0.11, -0.025, 0.272); iris.scale.set(0.8, 1.1, 0.3); head.add(iris);
-    const hl = mesh(G.sph(0.018, 6, 6), white, s * 0.11 + 0.015, 0.02, 0.285); head.add(hl);
+    const eyeG = new THREE.Group(); eyeG.position.set(0, -0.01, 0); head.add(eyeG); eyes.push(eyeG);
+    const eye = mesh(G.sph(0.065, 12, 10), dark, s * 0.11, -0.01, 0.255); eye.scale.set(0.8, 1.25, 0.4); eye.position.y = 0; eyeG.add(eye);
+    const iris = mesh(G.sph(0.045, 10, 8), toon(L.eyeColor || shade(L.hairColor, 0.8)), s * 0.11, -0.015, 0.272); iris.scale.set(0.8, 1.1, 0.3); eyeG.add(iris);
+    const hl = mesh(G.sph(0.018, 6, 6), white, s * 0.11 + 0.015, 0.03, 0.285); eyeG.add(hl);
+    const hl2 = mesh(G.sph(0.009, 5, 4), white, s * 0.11 - 0.014, -0.035, 0.285); eyeG.add(hl2);
+    const lash = mesh(G.box(0.1, 0.016, 0.02), dark, s * 0.11, 0.07, 0.268); lash.rotation.z = -s * 0.12; eyeG.add(lash);
     const brow = mesh(G.box(0.09, 0.018, 0.02), toon(shade(L.hairColor, 0.6)), s * 0.11, 0.1, 0.27); brow.rotation.z = -s * 0.15; head.add(brow);
     const ear = mesh(G.sph(0.05, 8, 6), skin, s * 0.295, -0.02, 0); ear.scale.set(0.5, 1, 0.8); head.add(ear);
   }
   const mouth = mesh(G.box(0.06, 0.012, 0.01), toon('#a04040'), 0, -0.17, 0.235); head.add(mouth);
+  const grin = mesh(new THREE.SphereGeometry(0.045, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), toon('#7a2030'), 0, -0.16, 0.225); grin.scale.set(1.1, 0.7, 0.4); grin.visible = false; head.add(grin);
   const blush = toon('#ff9a9a', { transparent: true, opacity: 0.5 });
   for (const s of [-1, 1]) { const b = mesh(G.sph(0.035, 8, 6), blush, s * 0.17, -0.1, 0.215); b.scale.set(1, 0.5, 0.3); b.userData.noOutline = true; head.add(b); }
   buildHair(head, L.hair, hairM);
@@ -96,17 +101,23 @@ export function buildCharacter(look = {}) {
     const sm = toon(L.scarf); const sc = mesh(new THREE.TorusGeometry(0.15, 0.065, 8, 16), sm, 0, 1.41, 0); sc.rotation.x = Math.PI / 2; body.add(sc);
     for (const [x, r] of [[0.06, 0.25], [-0.04, -0.2]]) { const t = mesh(G.box(0.11, 0.42, 0.035), sm, x, 1.2, -0.21); t.rotation.z = r; body.add(t); }
   }
-  // Guild mark decal
+  // Guild mark decal (placement + size picked at character creation)
+  let markMesh = null, markYaw = 0;
   if (L.mark) {
     const mm = new THREE.MeshBasicMaterial({ map: guildMarkTexture(L.mark.color), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-    const p = mesh(new THREE.PlaneGeometry(0.17, 0.17), mm); p.userData.noOutline = true; p.castShadow = false;
-    const place = L.mark.place || 'right arm';
+    const sz = MARK_SIZES[L.mark.size] || MARK_SIZES.medium;
+    const p = mesh(new THREE.PlaneGeometry(sz, sz), mm); p.userData.noOutline = true; p.castShadow = false; markMesh = p;
+    const place = L.mark.place || 'right arm'; const sd = place.startsWith('left') ? -1 : 1;
     if (place === 'chest') { p.position.set(0.1, 1.27, 0.2); body.add(p); }
-    else if (place === 'right hand') { p.scale.setScalar(0.6); p.position.set(0.07, -0.3, 0); p.rotation.y = Math.PI / 2; armR.userData.fore.add(p); }
-    else { const s = place === 'left arm' ? -1 : 1; const arm = s < 0 ? armL : armR; p.position.set(s * 0.079, -0.14, 0); p.rotation.y = s * Math.PI / 2; arm.add(p); }
+    else if (place === 'stomach') { p.position.set(0, 1.07, 0.195); body.add(p); }
+    else if (place === 'back') { p.position.set(0, 1.22, -0.205); p.rotation.y = Math.PI; body.add(p); markYaw = Math.PI; }
+    else if (place.endsWith('hand')) { p.scale.setScalar(0.6); p.position.set(sd * 0.07, -0.3, 0); p.rotation.y = sd * Math.PI / 2; (sd < 0 ? armL : armR).userData.fore.add(p); markYaw = -sd * Math.PI / 2; }
+    else if (place.endsWith('shoulder')) { p.scale.setScalar(0.85); p.position.set(sd * 0.082, -0.03, 0); p.rotation.y = sd * Math.PI / 2; (sd < 0 ? armL : armR).add(p); markYaw = -sd * Math.PI / 2; }
+    else if (place.endsWith('thigh')) { p.position.set(sd * 0.07, -0.2, 0.068); p.rotation.y = sd * 0.8; (sd < 0 ? legL : legR).add(p); markYaw = -sd * 0.8; }
+    else { const arm = sd < 0 ? armL : armR; p.position.set(sd * 0.079, -0.16, 0); p.rotation.y = sd * Math.PI / 2; arm.add(p); markYaw = -sd * Math.PI / 2; }
   }
 
-  const parts = { body, head, torso, armL, armR, legL, legR, gem, weapon: null, bowHand: null };
+  const parts = { body, head, torso, armL, armR, legL, legR, gem, weapon: null, bowHand: null, eyes, mouth, grin, mark: markMesh, markYaw, pose: L.preset || null, seed: Math.random() * 10 };
   if (L.preset || L.build) dressPreset(L, parts, { skin, cloth, cloth2, hair: hairM });
   root.scale.setScalar(L.scale);
   addOutlines(root); shadowAll(root, true, false);
@@ -202,14 +213,29 @@ export function equipVisual(char, weaponType, tier, schoolColor) {
 
 /** Procedural animation. st: { move (0..1), t, atk (0..1 swing progress or -1), cast, dead } */
 export function animateCharacter(char, st) {
-  const p = char.parts; const t = st.t;
-  const sw = Math.sin(t * 9) * 0.75 * st.move;
+  const p = char.parts; const t = st.t; const mv = st.move || 0;
+  const run = mv > 0.6 ? 1 : mv / 0.6; const fr = 9 + run * 2;
+  const sw = Math.sin(t * fr) * 0.75 * mv;
   p.legL.rotation.x = sw; p.legR.rotation.x = -sw;
-  p.legL.userData.shin.rotation.x = Math.max(0, -Math.sin(t * 9 - 0.6)) * 0.9 * st.move;
-  p.legR.userData.shin.rotation.x = Math.max(0, Math.sin(t * 9 - 0.6)) * 0.9 * st.move;
-  p.body.position.y = Math.abs(Math.cos(t * 9)) * 0.06 * st.move + Math.sin(t * 2) * 0.01;
+  p.legL.userData.shin.rotation.x = Math.max(0, -Math.sin(t * fr - 0.6)) * (0.9 + run * 0.4) * mv;
+  p.legR.userData.shin.rotation.x = Math.max(0, Math.sin(t * fr - 0.6)) * (0.9 + run * 0.4) * mv;
+  p.body.position.y = (p.bodyLift || 0) + Math.abs(Math.cos(t * fr)) * 0.07 * mv + Math.sin(t * 2) * 0.01;
+  // breathing + blinking
+  const br = Math.sin(t * 2.2 + (p.seed || 0)) * 0.018; p.torso.scale.y = 1 + br; p.head.position.y = 1.66 + br * 0.6;
+  if (p.eyes) { const bt = (t + (p.seed || 0)) % 3.7; const bl = bt < 0.12 ? 0.12 : 1; for (const e of p.eyes) e.scale.y = st.dead ? 0.1 : bl; }
   const idle = Math.sin(t * 2.2) * 0.04;
-  let aR = -sw * 0.8 + idle, aL = sw * 0.8 - idle, fR = -0.25, fL = -0.25, zR = 0.08, zL = -0.08;
+  let aR = -sw * (0.8 + run * 0.5) + idle, aL = sw * (0.8 + run * 0.5) - idle, fR = -0.25 - run * 0.9 * mv, fL = -0.25 - run * 0.9 * mv, zR = 0.08, zL = -0.08;
+  const still = mv < 0.1 && !(st.atk >= 0) && !(st.cast > 0) && !st.dead;
+  // signature idle poses for the main cast
+  if (still && p.pose && !st.emote) {
+    const b = Math.sin(t * 3) * 0.05;
+    if (p.pose === 'natsu') { aR = aL = -0.85 + b; fR = fL = -1.7; zR = 0.28; zL = -0.28; }
+    else if (p.pose === 'erza') { aR = aL = -1.05; fR = fL = -1.85; zR = -0.42; zL = 0.42; }
+    else if (p.pose === 'gray') { aR = 0.18; aL = 0.18; fR = fL = -0.5; zR = 0.16; zL = -0.16; }
+    else if (p.pose === 'lucy') { aR = 0.15; zR = 0.75; fR = -1.9; }
+    else if (p.pose === 'wendy') { aR = aL = -0.55; fR = fL = -1.0; zR = -0.32; zL = 0.32; }
+    else if (p.pose === 'gajeel') { aR = aL = -1.0; fR = fL = -1.8; zR = -0.4; zL = 0.4; }
+  }
   if (st.atk >= 0) {
     const k = st.atk; const wind = k < 0.35 ? k / 0.35 : 1 - (k - 0.35) / 0.65;
     aR = -2.4 * wind + (k > 0.35 ? 1.2 * (1 - wind) * 0.5 : 0); fR = -0.6 * wind; zR = 0.3 * wind;
@@ -217,10 +243,14 @@ export function animateCharacter(char, st) {
     if (st.kind === 'punch') { aR = -1.6 * wind; fR = -0.1; aL = -0.6; fL = -1.4; }
   }
   if (st.cast > 0) { const c = Math.min(1, st.cast); aR = aL = -1.5 * c; fR = fL = -0.2; zR = 0.3 * c; zL = -0.3 * c; }
+  // emotes: 'salute' = the Fairy Tail sign (arm raised, finger to the sky), 'cheer' = both arms up
+  if (st.emote === 'salute') { aR = -2.95; zR = -0.12; fR = 0; } else if (st.emote === 'cheer') { const j = Math.sin(t * 10) * 0.15; aR = aL = -2.7 + j; zR = 0.35; zL = -0.35; fR = fL = -0.2; }
   p.armR.rotation.set(aR, 0, zR); p.armL.rotation.set(aL, 0, zL);
   p.armR.userData.fore.rotation.x = fR; p.armL.userData.fore.rotation.x = fL;
-  p.head.rotation.y = Math.sin(t * 0.7) * 0.08;
-  if (st.dead) { p.body.rotation.x = -1.4; p.body.position.y = 0.2; } else p.body.rotation.x = st.move * 0.08;
+  if (p.grin) { const g = !!st.emote || (st.atk >= 0 && p.pose === 'natsu'); p.grin.visible = g; p.mouth.visible = !g; }
+  p.head.rotation.y = st.look != null ? st.look : Math.sin(t * 0.7) * 0.08;
+  p.head.rotation.x = st.emote === 'salute' ? -0.15 : 0;
+  if (st.dead) { p.body.rotation.x = -1.4; p.body.position.y = 0.2; } else p.body.rotation.x = mv * (0.08 + run * 0.12) + (st.cast > 0 ? -0.05 : 0);
 }
 
 // ------------------------------- Mobs -----------------------------------

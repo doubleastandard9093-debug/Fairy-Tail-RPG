@@ -36,5 +36,8 @@ export function guildMarkDataURL(color = '#e0303a', size = 256, outline = '#1a10
   const c = document.createElement('canvas'); c.width = c.height = size; const x = c.getContext('2d');
   drawGuildMark(x, size / 2, size / 2, size * 0.86, color, outline); return c.toDataURL();
 }
-export const MARK_PLACES = ['right arm', 'left arm', 'chest', 'right hand'];
+export const MARK_PLACES = ['right arm', 'left arm', 'right shoulder', 'left shoulder', 'chest', 'stomach', 'back', 'right hand', 'left hand', 'right thigh', 'left thigh'];
+/** Who in the guild wears their mark there (shown as a hint while choosing). */
+export const MARK_HINTS = { 'right shoulder': 'like Natsu', 'left shoulder': 'like Wendy and Gajeel', 'chest': 'like Gray', 'right hand': 'like Lucy', 'left arm': 'like Erza', 'left thigh': 'like Juvia and Mirajane', 'back': 'like Levy', 'stomach': 'like Cana' };
+export const MARK_SIZES = { small: 0.12, medium: 0.17, large: 0.24 };
 export const MARK_COLORS = ['#e0303a', '#ff7ab0', '#3a68d0', '#20a060', '#f0c030', '#1a1a1a', '#ffffff', '#9a50ff'];
