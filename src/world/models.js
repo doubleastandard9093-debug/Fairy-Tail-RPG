@@ -2,6 +2,7 @@ import { guildMarkTexture, MARK_SIZES } from './mark.js';
 import * as THREE from 'three';
 import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
 import { CREATURES, buildCreature, animateCreature, dressLizard, animateLizardExtra } from './creatures.js';
+import { C2, buildC2, animateC2, dressLullaby, animateLullabyExtra, dressMage, animateMageExtra, dressWizard, animateWizardExtra } from './creatures2.js';
 import { refineCharacter, animateDetail, refineMob, FRAMES, ACCESSORIES, EXTRA_OUTFITS } from './detail.js';
 export { FRAMES, ACCESSORIES };
 
@@ -263,6 +264,7 @@ export function animateCharacter(char, st) {
 // ------------------------------- Mobs -----------------------------------
 export function buildMob(model, opt = {}) {
   if (CREATURES.has(model)) { const c = buildCreature(model, opt); addOutlines(c.group); shadowAll(c.group, true, false); return c; }
+  if (C2.has(model)) { const c = buildC2(model, opt, buildCharacter); addOutlines(c.group); shadowAll(c.group, true, false); return c; }
   const g = new THREE.Group(); const parts = {};
   const eyes = (parent, y, z, sx = 0.1, r = 0.05) => {
     for (const s of [-1, 1]) {
@@ -506,6 +508,9 @@ export function buildMob(model, opt = {}) {
   }
   refineMob(model, g, parts);
   if (model === 'lizard') dressLizard(g, parts);
+  else if (model === 'lullaby') dressLullaby(g, parts);
+  else if (model === 'mage') dressMage(g, parts, opt.robe || '#2a2236');
+  else if (model === 'wizard') dressWizard(g, parts, opt);
   addOutlines(g); shadowAll(g, true, false);
   return { group: g, parts };
 }
@@ -513,6 +518,7 @@ export function buildMob(model, opt = {}) {
 export function animateMob(m, model, t, move, atk) {
   const p = m.parts;
   if (CREATURES.has(model)) { animateCreature(m, model, t, move, atk); return; }
+  if (C2.has(model)) { animateC2(m, model, t, move, atk, animateCharacter); return; }
   if (model === 'puffcap') { p.body.position.y = Math.abs(Math.sin(t * (move ? 10 : 3))) * (move ? 0.25 : 0.05); p.body.scale.y = 1 - Math.abs(Math.sin(t * 10)) * 0.08 * move; p.body.rotation.x = atk > 0 ? Math.sin(atk * Math.PI) * 0.6 : 0; }
   else if (model === 'boar') { p.legs.forEach((l, i) => { l.rotation.x = Math.sin(t * 14 + (i % 2 ? 0 : Math.PI) + (i > 1 ? Math.PI : 0)) * 0.6 * move; }); p.head.rotation.x = atk > 0 ? -Math.sin(atk * Math.PI) * 0.5 : Math.sin(t * 2) * 0.05; }
   else if (model === 'wisp') { p.body.position.y = Math.sin(t * 2.5) * 0.2; p.trail.forEach((s, i) => { s.position.x = Math.sin(t * 4 - i) * 0.12; }); p.body.scale.setScalar(1 + (atk > 0 ? Math.sin(atk * Math.PI) * 0.3 : 0)); }
@@ -521,11 +527,11 @@ export function animateMob(m, model, t, move, atk) {
     p.body.position.y = Math.abs(Math.sin(t * 3)) * 0.15 * move; p.jaw.position.y = -0.45 - Math.max(0, Math.sin(t * 1.3)) * 0.12;
   } else if (model === 'ram') { p.body.position.y = Math.abs(Math.sin(t * 8)) * 0.15 * move; p.body.rotation.x = atk > 0 ? Math.sin(atk * Math.PI) * 0.4 : 0; }
   else if (model === 'maiden') { animateCharacter(p.char, { t, move: 0, atk: -1, cast: atk > 0 ? 1 : 0.3 }); p.char.group.position.y = 0.3 + Math.sin(t * 2) * 0.1; p.ring.rotation.z = t; }
-  else if (model === 'lullaby') animateLullaby(p, t, move, atk);
+  else if (model === 'lullaby') { animateLullaby(p, t, move, atk); animateLullabyExtra(p, t); }
   else if (model === 'wizard') { const e = p.st || {}; const st = { phase: e.phase, trans: e.transition > 0, dashing: e.bossCharge && e.bossCharge.go }; animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: e.castLock > 0 || st.trans ? 1 : atk > 0 ? 0.8 : 0.15 });
     const ph = st.phase || 1; p.aura.material.opacity = (st.trans ? 0.45 : 0.08 + ph * 0.07) + Math.sin(t * 6) * 0.03; p.aura.scale.setScalar(1 + ph * 0.18 + (st.trans ? Math.sin(t * 20) * 0.1 : 0)); p.aura.scale.y *= 1.5; p.cape.rotation.x = 0.12 + move * 0.5 + Math.sin(t * 3) * 0.05;
-    if (st.dashing) p.char.group.rotation.x = 0.5; else p.char.group.rotation.x = 0; }
-  else if (model === 'mage') animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: atk > 0 ? 0.8 : 0 });
+    if (st.dashing) p.char.group.rotation.x = 0.5; else p.char.group.rotation.x = 0; animateWizardExtra(p, t); }
+  else if (model === 'mage') { animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: atk > 0 || m.wind > 0 ? 0.8 : 0 }); animateMageExtra(m, t, atk); }
   else if (model === 'vulcan') { p.legs.forEach((l, i) => { l.rotation.x = Math.sin(t * 8 + i * Math.PI) * 0.5 * move; }); p.arms.forEach((a, i) => { a.rotation.x = Math.sin(t * 8 + i * Math.PI + Math.PI) * 0.5 * move - (atk > 0 ? Math.sin(atk * Math.PI) * 2.2 : 0); }); p.body.position.y = Math.abs(Math.sin(t * 8)) * 0.08 * move; p.head.rotation.z = Math.sin(t * 1.5) * 0.08; }
   else if (model === 'lizard') { animateCharacter(p.char, { t, move, atk: atk > 0 ? atk : -1, kind: 'slash', cast: 0 }); p.tail.rotation.z = Math.sin(t * 3) * 0.3; animateLizardExtra(p, t, move, atk, m.wind); }
   else if (model === 'plue') { p.body.position.x = Math.sin(t * 40) * 0.012; p.body.position.y = Math.abs(Math.sin(t * 8)) * 0.05 * move; p.body.rotation.z = Math.sin(t * 33) * 0.04; p.tail.rotation.z = Math.sin(t * 20) * 0.3; }

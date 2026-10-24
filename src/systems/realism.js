@@ -27,8 +27,9 @@ export function setupRealism(renderer, scene, camera, world) {
   if (!off('a')) comp.addPass(ao);
   // guard: clamp HDR fireflies and drop NaN/Inf texels so bloom can never smear them across the frame
   comp.addPass(new ShaderPass({ uniforms: { tDiffuse: { value: null } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); if (any(isnan(c)) || any(isinf(c))) c = vec4(0.5, 0.6, 0.7, 1.0); gl_FragColor = clamp(c, vec4(0.0), vec4(3.0)); }' }));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.12, 0.35, 1.25); if (!off('b')) comp.addPass(bloom);
+    fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); if (any(isnan(c)) || any(isinf(c))) c = vec4(0.5, 0.6, 0.7, 1.0); gl_FragColor = clamp(c, vec4(0.0), vec4(1.8)); }' }));
+  // half-res bloom, high threshold + small radius: only true highlights (glows, sun glints) bloom; the sky and lit cloth no longer veil the frame (was washing out phone-size views)
+  const bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.07, 0.18, 1.45); if (!off('b')) comp.addPass(bloom);
   comp.addPass(new OutputPass());
   // filmic grade (display space): gentle S-curve, split toning (cool shadows / warm highlights), vibrance, vignette
   const grade = new ShaderPass({ uniforms: { tDiffuse: { value: null }, uAspect: { value: size.x / size.y } }, vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',

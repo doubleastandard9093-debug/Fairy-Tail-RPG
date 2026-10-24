@@ -295,7 +295,7 @@ export class Game {
     const tpl = ALLIES[allyId];
     const old = this.entities.find((e) => e.kind === 'ally' && e.id === allyId); if (old) this.removeEntity(old);
     let built;
-    if (tpl.model === 'npc') { const c = buildCharacter(tpl.look); built = { group: c.group, parts: {}, char: c }; if (tpl.weapon) equipVisual(c, tpl.weapon, 4); }
+    if (tpl.model === 'npc') { const c = buildCharacter(tpl.look); built = { group: c.group, parts: { fx: { kind: 'magic', color: tpl.look?.outfitColor || '#ffd080', spark: '#fff0b0' } }, char: c }; if (tpl.weapon) equipVisual(c, tpl.weapon, 4); }
     else built = buildMob(tpl.model);
     const side = this.rand() < 0.5 ? -1 : 1;
     const p = this.player.pos.clone().add(new THREE.Vector3(Math.cos(this.player.rot) * 2 * side, 0, -Math.sin(this.player.rot) * 2 * side));
@@ -743,7 +743,7 @@ export class Game {
     const rot = Math.atan2(victim.pos.x - m.pos.x, victim.pos.z - m.pos.z); m.rot += ang(rot - m.rot) * Math.min(1, dt * 8);
     if (vd > want) { const s = tpl.speed * (1 - m.slow) * dt; this.moveBy(m.pos, Math.sin(rot) * s, Math.cos(rot) * s, m.radius); m.moving = 1; }
     else if (tpl.ranged && vd < want * 0.5) { const s = tpl.speed * 0.6 * dt; this.moveBy(m.pos, -Math.sin(rot) * s, -Math.cos(rot) * s, m.radius); m.moving = 0.6; }
-    m.atkCd -= dt; m.model.wind = !tpl.ranged && vd <= tpl.range + 1.2 && m.atkCd < 0.45 ? Math.min(1, 1 - Math.max(0, m.atkCd) / 0.45) : 0;
+    m.atkCd -= dt; m.model.wind = vd <= tpl.range + (tpl.ranged ? 0.5 : 1.2) && m.atkCd < 0.45 ? Math.min(1, 1 - Math.max(0, m.atkCd) / 0.45) : 0;
     if (m.atkCd <= 0 && vd <= tpl.range + 0.5) { m.model.wind = 0;
       m.atkCd = tpl.atkCd * (1 + m.slow); m.atk = 0;
       if (tpl.ranged) this.fireProj(m.pos, victim.ref === 'player' ? { pos: pl.pos } : victim.ref, null, { speed: 16 }, tpl.dmg, 'mob', tpl.projColor || '#9a7aff', { y: tpl.float || 1, size: 0.3 });

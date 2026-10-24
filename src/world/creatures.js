@@ -32,7 +32,7 @@ const grp = (par, x = 0, y = 0, z = 0) => { const o = new THREE.Group(); o.posit
 const SURF = {
   // long strands combed along local +y with clumping, tip lightening and a soft fuzz sheen
   fur: `float cl = vnoise(cp * 5.0); float st = vnoise(vec3(cp.x * 46.0, cp.y * 7.0 + cl * 2.0, cp.z * 46.0)); float st2 = vnoise(vec3(cp.x * 90.0, cp.y * 14.0, cp.z * 90.0));
-    float fh = st * 0.65 + st2 * 0.35; cAlb = vec3(0.68 + 0.46 * fh) * mix(0.9, 1.08, cl); cH = fh; cRough = 0.95; cSheen = 0.32;`,
+    float aa = 1.0 - smoothstep(0.25, 0.9, length(fwidth(cp)) * 30.0); float fh = mix(0.5, st * 0.75 + st2 * 0.25, aa * 0.85 + 0.15); cAlb = vec3(0.8 + 0.28 * fh) * mix(0.92, 1.06, cl); cH = fh * (0.4 + 0.6 * aa); cRough = 0.95; cSheen = 0.32;`,
   // coarse bristle hide with darker mottled patches
   hide: `float sp = smoothstep(0.45, 0.75, fbm3(cp * 3.0)); float br = vnoise(vec3(cp.x * 60.0, cp.y * 12.0, cp.z * 60.0));
     cAlb = vec3(0.78 + 0.34 * br) * mix(1.0, 0.72, sp); cH = br * 0.7; cRough = 0.9; cSheen = 0.16;`,
@@ -50,6 +50,10 @@ const SURF = {
   // soft skin / leather with fine pores and mottling
   skin: `float mt = fbm3(cp * 6.0); float po = vnoise(cp * 70.0); cAlb = vec3(0.9 + 0.16 * mt - po * 0.06); cH = po * 0.3; cRough = 0.7; cSheen = 0.06;`,
   // spectral: drifting bands; emissive only (MeshBasic not used so we can light it)
+  bark: `float g = fbm3(cp * vec3(3.0, 0.6, 3.0)); float fur = smoothstep(0.35, 0.0, abs(fract(atan(cp.x, cp.z) * 2.6 + g * 1.4) - 0.5)); float kn = smoothstep(0.78, 0.9, vnoise(cp * 2.2));
+    cAlb = vec3(0.82 + 0.3 * g) * (1.0 - fur * 0.45) * (1.0 - kn * 0.3); cH = (1.0 - fur) * 0.7 + g * 0.3 - kn * 0.4; cRough = 0.9; cSheen = 0.03;`,
+  cloth: `float wv = sin(cp.x * 140.0) * sin(cp.y * 140.0) * 0.5 + 0.5; float aa = 1.0 - smoothstep(0.2, 0.8, length(fwidth(cp)) * 60.0); float fo = fbm3(cp * 2.5);
+    cAlb = vec3(0.9 + 0.12 * fo - wv * 0.06 * aa); cH = wv * 0.15 * aa + fo * 0.2; cRough = 0.85; cSheen = 0.22;`,
   bone: `float g = fbm3(cp * 5.0); float pit = smoothstep(0.7, 0.85, vnoise(cp * 22.0)); cAlb = vec3(0.92 + 0.12 * g) * (1.0 - pit * 0.35); cH = g * 0.5 - pit * 0.5; cRough = 0.6; cSheen = 0.05;`,
 };
 const MCACHE = new Map();
@@ -61,7 +65,7 @@ export function cmat(color, kind = 'fur', o = {}) {
   const k = kind === 'moss' ? 'stone' : kind; const sc = o.scale || (k === 'stone' ? 1.0 : 2.2);
   const m = GFX.real ? new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0, envMapIntensity: 0.9, emissive: o.emissive || '#000000' })
     : new THREE.MeshToonMaterial({ color, emissive: o.emissive || '#000000', gradientMap: toon('#ffffff').gradientMap });
-  const bump = (o.bump ?? (k === 'fur' ? 0.9 : k === 'scale' ? 1.3 : k === 'stone' ? 1.6 : 0.6)) * (GFX.real ? 1 : 0.6);
+  const bump = (o.bump ?? (k === 'fur' ? (GFX.real ? 0.45 : 0.8) : k === 'scale' ? 1.3 : k === 'stone' ? 1.6 : 0.6)) * (GFX.real ? 1 : 0.6);
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vCP;').replace('#include <begin_vertex>', `#include <begin_vertex>\nvCP = position;`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vCP;\n${NOISE_GLSL}\n#define MOSSK ${kind === 'moss' ? '1.0' : '0.0'}`)
@@ -218,7 +222,7 @@ function buildGolem(g, P, opt) {
   for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; const l = 0.5 + H(i) * 0.7; const v = add(tr, cyl(0.025, 0.012, l, 4), vine, Math.sin(a) * 1.45, 1.75 - l / 2, Math.cos(a) * 1.05 - 0.2); v.userData.noOutline = true; }
   for (let i = 0; i < 7; i++) { const a = i * 0.9; const f = add(tr, cone(0.12, 0.5, 4), mossM, Math.sin(a) * 0.9, 2.15, Math.cos(a) * 0.7 - 0.3); f.rotation.set(Math.cos(a) * 0.5, 0, -Math.sin(a) * 0.5); }
   P.crystals = [];
-  for (let i = 0; i < 6; i++) { const s = i % 2 ? 1 : -1; const c = add(tr, new THREE.OctahedronGeometry(0.22 + H(i) * 0.15, 0), crys, s * (0.5 + i * 0.18), 2.15 + H(i + 4) * 0.3, -0.75 - H(i + 2) * 0.3); c.scale.y = 2.4; c.rotation.set(-0.5, 0, -s * 0.5); P.crystals.push(c); }
+  for (let i = 0; i < 6; i++) { const s = i % 2 ? 1 : -1; const c = add(tr, new THREE.OctahedronGeometry(0.4 + H(i) * 0.22, 0), crys, s * (0.45 + i * 0.17), 2.3 + H(i + 4) * 0.35, -0.8 - H(i + 2) * 0.3); c.scale.y = 2.6; c.rotation.set(-0.5, 0, -s * 0.5); P.crystals.push(c); }
   const head = grp(tr, 0, 2.05, 0.95); P.head = head;
   add(head, rockGeo(0.62, 5, 1, 0.14), st2).scale.set(1.15, 0.9, 1);
   const brow = add(head, rockGeo(0.5, 6, 0, 0.1), st, 0, 0.32, 0.2); brow.scale.set(1.5, 0.45, 0.9);
@@ -341,25 +345,33 @@ export function animateLizardExtra(p, t, move, atk, wind) {
 }
 
 // ------------------------------------------------------------------ hit VFX + elites
-const FX_GEO = { chip: () => geo('fxchip', () => new THREE.TetrahedronGeometry(0.07, 0)), tuft: () => geo('fxtuft', () => new THREE.ConeGeometry(0.04, 0.14, 4)), spark: () => geo('fxspark', () => new THREE.OctahedronGeometry(0.05, 0)) };
-/** Burst of debris on hit: fur tufts, stone chips + rune sparks, scales, spirit motes. Pooled per mob. */
+const FX_GEO = { chip: () => geo('fxchip', () => new THREE.TetrahedronGeometry(0.08, 0)), tuft: () => geo('fxtuft', () => new THREE.ConeGeometry(0.04, 0.14, 4)), spark: () => geo('fxspark', () => new THREE.OctahedronGeometry(0.05, 0)),
+  splinter: () => geo('fxspl', () => new THREE.BoxGeometry(0.03, 0.2, 0.03)), drop: () => geo('fxdrop', () => new THREE.SphereGeometry(0.055, 6, 4)), flake: () => geo('fxflk', () => new THREE.CircleGeometry(0.07, 6)),
+  rune: () => geo('fxrune', () => new THREE.TorusGeometry(0.07, 0.015, 3, 6)), puff: () => geo('fxpuff', () => new THREE.IcosahedronGeometry(0.09, 0)) };
+// per creature: debris shape, how much glows, gravity, speed, ring style
+const FX_KIND = {
+  fur: { g: 'tuft', glow: 0, grav: 6, sp: 2.5 }, wool: { g: 'puff', glow: 0, grav: 2.5, sp: 2 }, stone: { g: 'chip', glow: 0.34, grav: 12, sp: 3.5 },
+  scale: { g: 'flake', glow: 0.2, grav: 9, sp: 3 }, spirit: { g: 'spark', glow: 1, grav: -1.5, sp: 2 }, bark: { g: 'splinter', glow: 0.25, grav: 11, sp: 3.5 },
+  magic: { g: 'rune', glow: 1, grav: 0, sp: 2.2 }, water: { g: 'drop', glow: 0.3, grav: 10, sp: 3 }, shadow: { g: 'puff', glow: 1, grav: -2, sp: 1.6 }, heaven: { g: 'spark', glow: 1, grav: -0.5, sp: 4 },
+};
+/** Burst of debris on hit, shaped per creature (fur tufts, stone chips + rune sparks, scale flakes, bark splinters, runes, droplets, shadow motes). Pooled per mob. */
 export function hitBurst(m) {
-  const o = m.obj; const par = o.parent; if (!par) return; const fx = (m.model.parts && m.model.parts.fx) || { kind: 'spark', color: '#ffffff' };
+  const o = m.obj; const par = o.parent; if (!par) return; const fx = (m.model.parts && m.model.parts.fx) || { kind: 'spark', color: '#ffffff' }; const K = FX_KIND[fx.kind] || FX_KIND.magic;
   let pool = m._fx; if (!pool) {
-    pool = m._fx = { g: new THREE.Group(), items: [], t: 9 }; pool.g.userData.dyn = true; const n = GFX.high || GFX.real ? 14 : 7;
-    for (let i = 0; i < n; i++) { const spark = i % 3 === 0; const gk = spark ? 'spark' : fx.kind === 'stone' ? 'chip' : fx.kind === 'spirit' ? 'spark' : 'tuft';
-      const col = spark ? (fx.spark || (fx.kind === 'spirit' ? fx.color : '#fff4c0')) : fx.color;
-      const mm = mesh(FX_GEO[gk](), spark || fx.kind === 'spirit' ? glow(col, 0.95) : toon(col)); mm.userData.v = new THREE.Vector3(); pool.g.add(mm); pool.items.push(mm); }
-    const ring = mesh(tor(0.5, 0.03, 4, 24, Math.PI * 2), glow(fx.spark || '#ffffff', 0.7)); ring.rotation.x = Math.PI / 2; pool.ring = ring; pool.g.add(ring);
+    pool = m._fx = { g: new THREE.Group(), items: [], t: 9, K }; pool.g.userData.dyn = true; const n = (GFX.high || GFX.real ? 14 : 7) + (m.tpl && m.tpl.boss ? 8 : 0);
+    for (let i = 0; i < n; i++) { const spark = K.glow >= 1 || (i / n) < K.glow; const gk = spark && K.glow < 1 ? 'spark' : K.g;
+      const col = spark ? (fx.spark || fx.color) : fx.color;
+      const mm = mesh(FX_GEO[gk](), spark ? glow(col, 0.95) : toon(col)); if (gk === 'flake') mm.material.side = THREE.DoubleSide; mm.userData.v = new THREE.Vector3(); mm.userData.noAO = true; pool.g.add(mm); pool.items.push(mm); }
+    const ring = mesh(tor(0.5, 0.03, 4, 24, Math.PI * 2), glow(fx.spark || fx.color || '#ffffff', 0.7)); ring.rotation.x = Math.PI / 2; pool.ring = ring; pool.g.add(ring);
   }
   if (pool.g.parent !== par) par.add(pool.g);
   const h = (m.radius || 0.7) * 1.4 * (o.scale.y || 1); pool.g.position.set(o.position.x, o.position.y + h, o.position.z); pool.g.visible = true; pool.t = 0;
-  pool.items.forEach((it, i) => { const a = Math.random() * Math.PI * 2, e = Math.random() * 0.9 + 0.2; it.position.set(0, 0, 0); it.userData.v.set(Math.cos(a) * Math.cos(e), Math.sin(e) + 0.3, Math.sin(a) * Math.cos(e)).multiplyScalar(2.5 + Math.random() * 3); it.rotation.set(a, e, 0); it.scale.setScalar(1); });
-  pool.ring.scale.setScalar(0.3);
+  pool.items.forEach((it) => { const a = Math.random() * Math.PI * 2, e = Math.random() * 0.9 + 0.2; it.position.set(0, 0, 0); it.userData.v.set(Math.cos(a) * Math.cos(e), Math.sin(e) + 0.3, Math.sin(a) * Math.cos(e)).multiplyScalar(K.sp * (0.8 + Math.random())); it.rotation.set(a, e, 0); it.scale.setScalar(1); });
+  pool.ring.scale.setScalar(0.3); pool.ring.rotation.z = Math.random() * 6;
 }
 export function stepBurst(m, dt) {
   const pool = m._fx; if (!pool || pool.t > 0.6) return; pool.t += dt; const k = pool.t / 0.6;
-  pool.items.forEach((it) => { it.userData.v.y -= 9.8 * dt; it.position.addScaledVector(it.userData.v, dt); it.rotation.x += dt * 9; it.scale.setScalar(Math.max(0.01, 1 - k)); });
+  const G = (pool.K || FX_KIND.magic).grav; pool.items.forEach((it) => { it.userData.v.y -= G * dt; it.userData.v.multiplyScalar(G <= 0 ? 0.96 : 1); it.position.addScaledVector(it.userData.v, dt); it.rotation.x += dt * 9; it.scale.setScalar(Math.max(0.01, 1 - k)); });
   pool.ring.scale.setScalar(0.3 + k * 2.2 * (m.radius || 0.7)); pool.ring.material.opacity = 0.7 * (1 - k);
   if (pool.t > 0.6) pool.g.visible = false;
 }
