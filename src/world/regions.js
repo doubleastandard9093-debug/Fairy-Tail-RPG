@@ -1,3 +1,4 @@
+import { buildFountain } from './water.js';
 // Round 3 world expansion: Era (Magic Council), Worth Woodsea, and enterable interiors / street props for
 // Hargeon, Clover and the Hakobe trail. Pure builders: world.js passes a context with its helpers.
 import * as THREE from 'three';
@@ -154,8 +155,7 @@ export function buildRegions(C) {
     const dome = mesh(new THREE.SphereGeometry(4.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), M.tileB, S.at[0], y + 9.2, S.at[1] - 3); up.add(dome); cyl(up, 4.3, 4.3, 1.6, M.marble, S.at[0], y + 8.6, S.at[1] - 3, 24);
     cyl(up, 0.7, 0.9, 3, M.marble, S.at[0], y + 14.6, S.at[1] - 3, 10); const orb = mesh(new THREE.SphereGeometry(0.5, 12, 8), glow('#bcd0ff'), S.at[0], y + 16.6, S.at[1] - 3); up.add(orb);
     // plaza: fountain with council statue, lamp posts, flowerbeds, town houses on the flanks
-    { const fx = E[0], fz = E[1] + 16; const fy = yAt(fx, fz); cyl(g, 3.2, 3.4, 0.8, M.marble, fx, fy + 0.4, fz, 24); const wt = cyl(g, 2.9, 2.9, 0.1, glow('#5a9ad0', 0.85), fx, fy + 0.75, fz, 24); void wt; cyl(g, 0.5, 0.7, 2.2, M.marble, fx, fy + 1.5, fz, 10);
-      const sp = mesh(new THREE.ConeGeometry(0.6, 1.6, 10, 1, true), glow('#cfe8ff', 0.5), fx, fy + 3.2, fz); sp.userData.dyn = true; g.add(sp); W.anim.push((t) => { sp.scale.y = 1 + Math.sin(t * 5) * 0.08; }); W.circles.push({ x: fx, z: fz, r: 3.5 }); }
+    { const fx = E[0], fz = E[1] + 16; const fy = yAt(fx, fz); buildFountain(g, { x: fx, y: fy, z: fz, scale: 0.85, W, stone: '#e4e0d8', trim: '#f2efe8', accent: '#9ab4e8' }); W.circles.push({ x: fx, z: fz, r: 3.5 }); }
     for (const s of [-1, 1]) { for (const dz of [4, 12, 20]) P.lamppost(g, E[0] + s * 9, E[1] + dz); P.flowers(g, E[0] + s * 5, E[1] + 22, 3); }
     for (const [dx, dz, door, rc] of [[-20, 8, '+x', C.roofB], [-20, 20, '+x', C.roofR], [20, 8, '-x', C.roofG], [20, 20, '-x', C.roofB], [-12, 30, '+z', C.roofP], [12, 30, '-z', C.roofR]]) building({ x: E[0] + dx, z: E[1] + dz, w: 7, d: 6, h: 4.2, roof: rc, door: door === '-z' ? '+z' : door, parent: g, y: yAt(E[0] + dx, E[1] + dz) });
     for (const s of [-1, 1]) { const b = mesh(new THREE.PlaneGeometry(1.2, 3.4), M.cloth('#2a3a8a'), S.at[0] + s * 4.2, y + 5.6, front + 3.75); up.add(b); }

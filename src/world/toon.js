@@ -149,7 +149,7 @@ export function addOutlines(obj, thick = 1) {
 }
 export function shadowAll(obj, cast = true, receive = false) {
   if (!GFX.shadows) return obj;
-  obj.traverse((o) => { if (o.isMesh && !o.userData.isOutline) { o.castShadow = cast; o.receiveShadow = receive; } });
+  obj.traverse((o) => { if (o.isMesh && !o.userData.isOutline && !(o.material && o.material.transparent && !o.material.depthWrite)) { o.castShadow = cast; o.receiveShadow = receive; } });
   return obj;
 }
 export function mesh(geo, mat, x = 0, y = 0, z = 0) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); return m; }

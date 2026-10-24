@@ -6,7 +6,7 @@ import { NPCS, POIS } from '../data/npcs.js';
 import { drawGuildMark } from './mark.js';
 import { BOSS_ARENA, BOSS_ARENAS } from '../data/mobs.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { Water } from 'three/examples/jsm/objects/Water.js';
+import { createSea, buildFountain } from './water.js';
 import { mapHeight, biomeAt, PLACES, PLACE, WORLD, WATER_Y, RAILS_W, ROADS_W, distToLines, toWorld } from './fiore.js';
 import { Terrain } from './terrain.js';
 import { buildRegions, SITE_FLATS, WOODSEA_CLEARING } from './regions.js';
@@ -216,20 +216,7 @@ export function buildWorld(scene) {
     },
   });
   {
-    const wg = new THREE.PlaneGeometry(1400, 1400, 1, 1); wg.rotateX(-Math.PI / 2);
-    let water;
-    if (GFX.real && !(new URLSearchParams(location.search).get('rx') || '').includes('w')) {
-      // planar-reflection water with a procedural ripple normal map, plus a shoreline foam layer from the heightmap
-      water = new Water(new THREE.PlaneGeometry(1400, 1400), { textureWidth: 512, textureHeight: 512, waterNormals: rippleNormals(), sunDirection: W.sunDir.clone(), sunColor: '#fff4e0', waterColor: '#0f4a6a', distortionScale: 2.2, fog: true, alpha: 1 });
-      water.material.uniforms.size.value = 2.6; water.rotation.x = -Math.PI / 2; water.userData.noOutline = true; scene.add(water); W.water = water;
-      W.anim.push((t) => { water.material.uniforms.time.value = t * 0.6; });
-      W.foam = shoreFoam(scene); W.anim.push((t) => { W.foam.material.uniforms.uT.value = t; });
-    } else {
-      water = new THREE.Mesh(wg, new THREE.MeshToonMaterial({ color: '#3a8fd0', emissive: '#0c3050', transparent: true, opacity: 0.82, gradientMap: toon('#fff').gradientMap }));
-      water.userData.noOutline = true; water.renderOrder = 1; scene.add(water); W.water = water;
-      W.anim.push((t) => { water.material.emissive.setHSL(0.57, 0.7, 0.1 + Math.sin(t * 0.8) * 0.015); });
-    }
-    water.position.y = WATER_Y;
+    const water = createSea({ scene, W, height, WORLD, WATER_Y }); W.water = water;
     W.anim.push((t) => { WIND.value = t; });
   }
   // ---------------- Town ----------------
@@ -391,18 +378,8 @@ export function buildWorld(scene) {
     addOutlines(b); shadowAll(b); solid(null, 15.4, 3.2, 0.6, 2.8, 'mboard');
     W.interactables.push({ kind: 'shop', name: 'Market Board', x: 14.6, z: 3.2, r: 3, obj: b });
   }
-  // Fountain
-  {
-    const g = new THREE.Group(); g.position.set(0, 0, 2); scene.add(g);
-    g.add(mesh(new THREE.CylinderGeometry(3.4, 3.6, 0.8, 20), stoneM, 0, 0.4, 0));
-    const water = mesh(new THREE.CylinderGeometry(3.0, 3.0, 0.1, 20), toon('#5ab8f0', { emissive: '#1a4a7a' }), 0, 0.75, 0); g.add(water);
-    g.add(mesh(new THREE.CylinderGeometry(0.4, 0.6, 2.2, 10), stoneM, 0, 1.6, 0));
-    const top = mesh(new THREE.SphereGeometry(0.5, 12, 8), toon('#e8c060'), 0, 2.9, 0); g.add(top);
-    const spray = mesh(new THREE.ConeGeometry(0.9, 1.4, 12, 1, true), glow('#bfe8ff', 0.45), 0, 2.4, 0); spray.rotation.x = Math.PI; g.add(spray);
-    spray.userData.dyn = true; top.userData.dyn = true; W.anim.push((t) => { spray.scale.set(1 + Math.sin(t * 6) * 0.05, 1 + Math.sin(t * 4) * 0.08, 1); top.rotation.y = t; });
-    addOutlines(g); shadowAll(g, true, true);
-    W.circles.push({ x: 0, z: 2, r: 3.6 });
-  }
+  // Fountain (tiered stone, animated water: see water.js)
+  buildFountain(scene, { x: 0, y: 0, z: 2, scale: 0.92, W }); W.circles.push({ x: 0, z: 2, r: 3.8 });
   // Fence + gate
   {
     const g = new THREE.Group(); scene.add(g); const T = TOWN;
@@ -805,45 +782,3 @@ export function buildWorld(scene) {
   return W;
 }
 
-/** Tileable ripple normal map for the Water shader, drawn from summed sine waves (no image assets). */
-function rippleNormals() {
-  const N = 256, cv = document.createElement('canvas'); cv.width = cv.height = N; const x = cv.getContext('2d'); const img = x.createImageData(N, N);
-  const waves = []; let sd = 7; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < 14; i++) waves.push([Math.round(1 + rnd() * 6) * (rnd() < 0.5 ? -1 : 1), Math.round(rnd() * 6) * (rnd() < 0.5 ? -1 : 1), rnd() * 6.28, 0.5 / (1 + i * 0.35)]);
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { let dx = 0, dz = 0; const u = i / N * 6.2832, v = j / N * 6.2832;
-    for (const [a, b, p, amp] of waves) { const c = Math.cos(a * u + b * v + p) * amp; dx += c * a; dz += c * b; }
-    const nx = -dx * 0.06, nz = -dz * 0.06, l = Math.hypot(nx, nz, 1); const k = (j * N + i) * 4;
-    img.data[k] = (nx / l * 0.5 + 0.5) * 255; img.data[k + 1] = (nz / l * 0.5 + 0.5) * 255; img.data[k + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[k + 3] = 255; }
-  x.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
-}
-/** Shore foam: a depth texture baked from the terrain height around the coasts, animated as breaking bands. */
-function shoreFoam(scene) {
-  const RES = 2.5; const w = Math.min(1024, Math.ceil((WORLD.maxX - WORLD.minX + 200) / RES)), h = Math.min(1024, Math.ceil((WORLD.maxZ - WORLD.minZ + 200) / RES));
-  const ox = WORLD.minX - 100, oz = WORLD.minZ - 100, sx = (WORLD.maxX - WORLD.minX + 200) / w, sz = (WORLD.maxZ - WORLD.minZ + 200) / h;
-  const data = new Uint8Array(w * h);
-  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) { const d = WATER_Y - height(ox + i * sx, oz + j * sz); data[j * w + i] = Math.max(0, Math.min(255, (d + 1) * 64)); }
-  const tex = new THREE.DataTexture(data, w, h, THREE.RedFormat); tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
-  const g = new THREE.PlaneGeometry(1400, 1400, 1, 1); g.rotateX(-Math.PI / 2);
-  const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, fog: true,
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uDepth: { value: null }, uO: { value: new THREE.Vector4(ox, oz, w * sx, h * sz) }, uT: { value: 0 } }]),
-    vertexShader: `varying vec3 vW;
-      #include <fog_pars_vertex>
-      void main(){ vec4 wp = modelMatrix * vec4(position,1.0); vW = wp.xyz; vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
-      #include <fog_vertex>
-      }`,
-    fragmentShader: `uniform sampler2D uDepth; uniform vec4 uO; uniform float uT; varying vec3 vW;
-      #include <fog_pars_fragment>
-      float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h2(i), h2(i+vec2(1,0)), f.x), mix(h2(i+vec2(0,1)), h2(i+vec2(1,1)), f.x), f.y); }
-      void main(){ vec2 uv = (vW.xz - uO.xy) / uO.zw; float d = texture2D(uDepth, uv).r * 255.0 / 64.0 - 1.0; // metres below the surface
-        if (d < 0.0 || d > 2.2) discard;
-        float n = n2(vW.xz * 0.9 + uT * 0.3) * 0.6 + n2(vW.xz * 3.1 - uT * 0.5) * 0.4;
-        float edge = smoothstep(0.55, 0.0, d);
-        float bands = smoothstep(0.55, 0.95, sin(d * 9.0 - uT * 1.6 + n * 3.0) * 0.5 + 0.5) * smoothstep(2.2, 0.4, d);
-        float a = clamp(edge * (0.55 + n * 0.5) + bands * 0.45 * n, 0.0, 0.9);
-        gl_FragColor = vec4(vec3(0.95, 0.98, 1.0), a);
-        #include <fog_fragment>
-      }` });
-  mat.uniforms.uDepth.value = tex;
-  const m = new THREE.Mesh(g, mat); m.renderOrder = 2; m.userData.noOutline = true; m.position.y = WATER_Y + 0.03; scene.add(m); return m;
-}
