@@ -84,11 +84,12 @@ export function buildC2(model, opt, buildCharacter) {
     P.fx = { kind: 'wool', color: '#f4eee2', spark: '#ffd860' };
   } else {
     // Aquarius: mermaid spirit with scaled tail + fins, shell top, water urn and swirling water ribbons
-    const c = buildCharacter({ hair: 'long', hairColor: '#3ab8f0', outfit: 'mage', outfitColor: '#2a8ac0', skin: '#e0f0ff', eyeColor: '#2a6ad0' }); g.add(c.group); P.char = c;
+    const c = buildCharacter({ hair: 'long', hairColor: '#3ab8f0', outfit: 'adventurer', outfitColor: '#2a8ac0', skin: '#e0f0ff', eyeColor: '#2a6ad0' }); g.add(c.group); P.char = c;
     c.parts.legs?.forEach?.((l) => { l.visible = false; }); if (c.parts.legL) c.parts.legL.visible = false; if (c.parts.legR) c.parts.legR.visible = false;
     const sc = cmat('#2ac0b0', 'scale', { scale: 2.6 }), fin = cmat('#7ae0f0', 'skin'), shell = cmat('#f0c0d0', 'bone'), gold = cmat('#e0b040', 'stone', { bump: 0.3 });
-    const tail = grp(c.group, 0, 0.62, 0); P.tail = []; let par = tail;
-    for (let i = 0; i < 6; i++) { const r = 0.17 - i * 0.022; add(par, new THREE.CapsuleGeometry(r, 0.12, 4, 10), sc, 0, -0.1, 0); const n = grp(par, 0, -0.17, 0); P.tail.push(par); par = n; }
+    const tail = grp(c.group, 0, 0.74, 0); P.tail = []; let par = tail;
+    add(tail, new THREE.SphereGeometry(0.27, 14, 10), sc, 0, 0.02, 0).scale.set(1, 0.8, 0.85); // hips blend into the tail
+    for (let i = 0; i < 7; i++) { const r = 0.22 - i * 0.024; add(par, new THREE.CapsuleGeometry(r, 0.12, 4, 10), sc, 0, -0.1, 0); const n = grp(par, 0, -0.17, 0); P.tail.push(par); par = n; }
     for (const s of [-1, 1]) { const f = add(par, new THREE.ConeGeometry(0.16, 0.42, 4), fin, s * 0.16, -0.1, 0); f.rotation.z = s * 2.3; f.scale.z = 0.2; }
     for (const s of [-1, 1]) { const sh = add(c.parts.body || c.group, new THREE.SphereGeometry(0.075, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), shell, s * 0.08, 1.12, 0.14); sh.rotation.x = Math.PI / 2; }
     const urn = grp(c.group, 0.42, 0.9, 0.15); P.urn = urn; add(urn, new THREE.SphereGeometry(0.16, 12, 10), gold).scale.y = 1.2; add(urn, new THREE.CylinderGeometry(0.07, 0.1, 0.12, 10), gold, 0, 0.2, 0);
@@ -109,7 +110,7 @@ export function animateC2(m, model, t, move, atk, animateCharacter) {
     p.head.rotation.x = Math.sin(t * 1.1) * 0.06 + a * 0.3; p.head.rotation.y = Math.sin(t * 0.43) * 0.3 * (1 - move);
   } else {
     animateCharacter(p.char, { t, move: 0, atk: -1, cast: atk > 0 ? 1 : 0.3 }); p.char.group.position.y = 0.35 + Math.sin(t * 2) * 0.1;
-    p.tail.forEach((s, i) => { s.rotation.x = Math.sin(t * 3 - i * 0.7) * 0.18 + 0.05; s.rotation.z = Math.sin(t * 1.7 - i * 0.5) * 0.08; });
+    p.tail.forEach((s, i) => { s.rotation.x = Math.sin(t * 3 - i * 0.7) * 0.14 + (i < 2 ? 0.08 : 0.34); s.rotation.z = Math.sin(t * 1.7 - i * 0.5) * 0.08; });
     p.ribbons.forEach((r, i) => { r.rotation.z = t * (0.8 + i * 0.35) * (i % 2 ? -1 : 1); r.scale.setScalar(1 + a * 0.6); }); p.ring.rotation.z = t * 0.5; p.urn.rotation.z = -a * 1.2;
     p.drops.forEach((d, i) => { const k = (d.userData.k + t * 0.4) % 1; const an = i * 0.63 + t; d.position.set(Math.sin(an) * (0.9 + a), 0.2 + k * 1.8, Math.cos(an) * (0.9 + a)); d.scale.setScalar(Math.sin(k * Math.PI)); });
   }

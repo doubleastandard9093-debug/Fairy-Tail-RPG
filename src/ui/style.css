@@ -360,3 +360,4 @@ body.cine #dialog { z-index: 41; }
 .row.arc .ic { font: 700 18px var(--serif); color: var(--gold); }
 .row.arc.locked, .row.arc.planned { opacity: .55; }
 .row.arc .jq { margin-top: 6px; font-size: 13px; } .row.arc .jr { font-size: 12px; opacity: .8; margin-left: 14px; } .row.arc .jr.now { color: #ffd98a; opacity: 1; }
+@media (max-height: 520px) { body.cine::before { height: 0; } body.cine::after { height: 0; } body.cine #dialog { box-shadow: 0 0 0 100vmax rgba(0,0,0,.28); } }

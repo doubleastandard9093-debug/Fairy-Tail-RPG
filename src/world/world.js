@@ -35,8 +35,8 @@ function initFlat() {
   FLAT.push({ rect: TOWN, r: 0, blend: 30, h: 0 });
   FLAT.push({ x: CATHEDRAL.x, z: CATHEDRAL.z, r: 17, blend: 16, h: 0.3 });
   for (const A of Object.values(BOSS_ARENAS)) {
-    if (A.h == null) A.h = Math.max(WATER_Y + 1.2, mapHeight(A.x, A.z));
-    FLAT.push({ x: A.x, z: A.z, r: A.r + 1, blend: 5, h: A.h });
+    if (A.h == null) { let sum = mapHeight(A.x, A.z), n = 1; for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; sum += mapHeight(A.x + Math.cos(a) * A.r, A.z + Math.sin(a) * A.r); n++; } A.h = Math.max(WATER_Y + 1.2, sum / n); }
+    FLAT.push({ x: A.x, z: A.z, r: A.r + 1, blend: A.set ? 16 : 5, h: A.h });
     if (A.causeway) { const [gx, gz] = A.gate; for (let k = 0; k <= 8; k++) { const t = k / 8; FLAT.push({ x: gx + (A.x - gx) * t, z: gz + (A.z - gz) * t, r: 4, blend: 3, h: A.h }); } }
   }
   for (const p of PLACES) {
@@ -741,7 +741,7 @@ export function buildWorld(scene) {
     W.grass = new Grass(scene, { height: groundAt, count: GFX.real ? 22000 : 9000, radius: GFX.real ? 46 : 34,
       prepare: (cx, cz, r) => { const pad = 1.2; near = [...W.boxes, ...(W.noGrass || []), ...DECKS.filter((d) => !d.dir)].filter((b) => b.maxX > cx - r - pad && b.minX < cx + r + pad && b.maxZ > cz - r - pad && b.minZ < cz + r + pad)
         .concat(W.circles.filter((c) => c.r > 0.9 && Math.abs(c.x - cx) < r + c.r && Math.abs(c.z - cz) < r + c.r).map((c) => ({ minX: c.x - c.r * 0.8, maxX: c.x + c.r * 0.8, minZ: c.z - c.r * 0.8, maxZ: c.z + c.r * 0.8 }))); },
-      accept: (x, z) => { const b = biomeAt(x, z); if (b !== 1 && b !== 2) return 0; { const rn = riverNear(x, z); if (rn && rn[0] < rn[1] + 0.8) return 0; } const h = height(x, z); if (h < WATER_Y + 0.5 || h > 16) return 0; if (inTownPad(x, z, -2)) return 0; { const rn = riverNear(x, z); if (rn && rn[0] < rn[1] + 0.8) return 0; } for (const f of TOWNFLAT) if (Math.hypot(x - f.x, z - f.z) < f.r) return 0; if (distToLines(ROADS_W, x, z) < 2.2 || distToLines(RAILS_W, x, z) < 2) return 0;
+      accept: (x, z) => { const b = biomeAt(x, z); if (b !== 1 && b !== 2) return 0; { const rn = riverNear(x, z); if (rn && rn[0] < rn[1] + 0.8) return 0; } const h = height(x, z); if (h < WATER_Y + 0.5 || h > 16) return 0; if (inTownPad(x, z, -2)) return 0; for (const A of ARENA_LIST) if (Math.abs(x - A.x) < A.r + 1 && Math.abs(z - A.z) < A.r + 1 && Math.hypot(x - A.x, z - A.z) < A.r - 0.5) return 0; { const rn = riverNear(x, z); if (rn && rn[0] < rn[1] + 0.8) return 0; } for (const f of TOWNFLAT) if (Math.hypot(x - f.x, z - f.z) < f.r) return 0; if (distToLines(ROADS_W, x, z) < 2.2 || distToLines(RAILS_W, x, z) < 2) return 0;
         for (const b2 of near) if (x > b2.minX - 0.6 && x < b2.maxX + 0.6 && z > b2.minZ - 0.6 && z < b2.maxZ + 0.6) return 0; return b === 2 ? 0.7 : 1; } }); }
 
   // ---------------- Bake static geometry ----------------

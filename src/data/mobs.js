@@ -131,7 +131,7 @@ export const MOBS = {
   },
   // ---------------- Story arcs (data/story.js) ----------------
   macao_vulcan: {
-    name: 'Possessed Vulcan (Macao)', short: 'Possessed Vulcan', level: 9, hp: 3600, dmg: 14, speed: 3.4, aggro: 18, range: 2.6, atkCd: 1.8, xp: 900, model: 'vulcan', boss: true, leash: 24, radius: 1.6, scale: 2.3,
+    name: 'Possessed Vulcan (Macao)', short: 'Possessed Vulcan', level: 9, hp: 3600, dmg: 14, speed: 3.4, aggro: 18, range: 2.6, atkCd: 1.8, xp: 900, model: 'vulcan', boss: true, leash: 24, radius: 1.6, scale: 1.55,
     opt: { fur: '#f6f6fa', face: '#e8b0b0', bossAura: ['#9adcff', '#c8a0ff', '#ff8a6a'] }, arena: 'hakobe', defeat: '🏆 The Vulcan collapses, and Macao tumbles out of the light!', projColor: '#bfe8ff',
     // Phase 2 (60%): calls the pack. Phase 3 (30%): the stolen Purple Flare magic bleeds through.
     telegraphs: [
@@ -286,7 +286,7 @@ export const SPAWNS = [
   { mob: 'jose', count: 1, at: [-128, -272] },                   // Phantom Lord HQ, Oak Town (map 617,250)
   { mob: 'jellal', count: 1, at: [424, -150.4] },                // Tower of Heaven, off Akane Beach (map 962,326)
   // story arcs (data/story.js); arc-locked bosses stay hidden until their chapter opens
-  { mob: 'macao_vulcan', count: 1, at: [-240, -556] },           // Mt. Hakobe ice cave
+  { mob: 'macao_vulcan', count: 1, at: [-160, -518] },           // Mt. Hakobe ice cave
   { mob: 'everlue_guard', count: 5, c: [-440, -395], r: 16 },    // Everlue mansion, Shirotsume
   { mob: 'everlue', count: 1, at: [-440, -430] },
   { mob: 'lyon', count: 1, at: [-690, 92] },                     // Galuna western ruins
@@ -303,7 +303,7 @@ export const BOSS_ARENAS = {
   phantom: { x: -128, z: -272, r: 22, name: 'Phantom Lord Guild, Oak Town', pillar: '#3a3448', gem: '#9a5aff', floor: '#5a5068', h: 3, gate: [-128, -230] },
   heaven: { x: 424, z: -150.4, r: 22, name: 'Tower of Heaven', pillar: '#4a4a58', gem: '#ffe08a', floor: '#6a6a78', h: 2.5, gate: [380, -168], causeway: true },
   // story arcs: h omitted = sits on the terrain (computed at build). set = set-piece builder in world/arcsets.js
-  hakobe: { x: -240, z: -556, r: 18, name: 'Ice Cave, Mt. Hakobe', pillar: '#cfe0ee', gem: '#9adcff', floor: '#e8eef4', gate: [-206, -515], set: 'icecave' },
+  hakobe: { x: -160, z: -518, r: 18, name: 'Ice Cave, Mt. Hakobe', pillar: '#cfe0ee', gem: '#9adcff', floor: '#e8eef4', gate: [-196, -516], set: 'icecave' },
   everlue: { x: -440, z: -430, r: 17, name: 'Everlue Mansion Courtyard', pillar: '#c8b080', gem: '#e0b040', floor: '#a89070', gate: [-440, -395], set: 'mansion' },
   moon: { x: -690, z: 92, r: 18, name: 'Galuna Western Ruins', pillar: '#a8a090', gem: '#b8a0ff', floor: '#8a8478', gate: [-651, 96], set: 'ruins' },
   kardia: { x: 78, z: -54, r: 18, name: 'Kardia Cathedral Grounds', pillar: '#d8d0c0', gem: '#ffe24a', floor: '#b8b0a0', gate: [74, -24], set: 'storm' },
