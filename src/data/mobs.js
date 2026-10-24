@@ -22,6 +22,16 @@ export const MOBS = {
     drops: [{ id: 'spore', chance: 0.9, min: 2, max: 3 }, { id: 'hide_t2', chance: 0.4 }], jewels: [10, 20],
     bark: ['WOMAN! ...Oh. Wizard. FIGHT!', '*Mt. Hakobe howling*'],
   },
+  woodsea_ape: {
+    name: 'Woodsea Forest Vulcan', level: 13, hp: 260, dmg: 17, speed: 3.4, aggro: 11, range: 2.2, atkCd: 1.7, xp: 170, model: 'vulcan', opt: { fur: '#4a6a3a', face: '#b89070' }, scale: 1.1,
+    drops: [{ id: 'spore', chance: 0.8, min: 1, max: 3 }, { id: 'ancient_bark', chance: 0.25 }, { id: 'tonic_hp', chance: 0.15 }], jewels: [14, 28],
+    bark: ['*hoots from the canopy*', 'This forest is OURS, tiny wizard!'],
+  },
+  woodsea_golem: {
+    name: 'Mossback Guardian', level: 15, hp: 520, dmg: 22, speed: 1.9, aggro: 9, range: 2.8, atkCd: 2.4, xp: 260, model: 'golem', scale: 0.75,
+    drops: [{ id: 'ancient_bark', chance: 0.7, min: 1, max: 2 }, { id: 'hide_t3', chance: 0.3 }], jewels: [20, 40],
+    bark: ['*the ground rumbles*', '...WHO... WAKES... THE WOODSEA...'],
+  },
   lizardman: {
     name: 'Lizardman', level: 12, hp: 220, dmg: 16, speed: 3.4, aggro: 11, range: 2.6, atkCd: 1.7, xp: 150, model: 'lizard', scale: 1,
     drops: [{ id: 'hide_t3', chance: 0.5 }, { id: 'tonic_hp', chance: 0.2 }], jewels: [14, 26],
@@ -146,6 +156,8 @@ export const SPAWNS = [
   { mob: 'boar', count: 3, c: [-330, -60], r: 20 },             // Clover outskirts
   { mob: 'galuna_cultist', count: 6, c: [-640, 90], r: 50 },    // Galuna Island
   { mob: 'tenrou_boar', count: 5, c: [-360, 225], r: 50 },      // Tenrou Island
+  { mob: 'woodsea_ape', count: 7, c: [76.8, -330], r: 60 },        // Worth Woodsea
+  { mob: 'woodsea_golem', count: 4, c: [90, -360], r: 45 },       // Worth Woodsea, deep
   { mob: 'grumblejaw', count: 1, at: [-363.2, -60.8] },          // Clover Canyon
   { mob: 'phantom_mage', count: 6, c: [-118, -236], r: 26 },     // Oak Town streets
   { mob: 'tower_guard', count: 5, c: [372, -184], r: 22 },       // Akane Beach / causeway

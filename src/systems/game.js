@@ -427,9 +427,9 @@ export class Game {
       G.adr = Math.min(100, G.adr + 2);
       if (G.hp <= 0) this.playerDie(srcName);
     } else {
-      target.hp -= amt; this.ui.floatText(target.pos, 2, '-' + Math.round(amt), 'hurtAlly');
+      target.hp -= amt; target.hitT = this.t; this.ui.floatText(target.pos, 2, '-' + Math.round(amt), 'hurtAlly');
       if (target.hp <= 0) {
-        if ((target.party || target.guildmate) && !target.downed) { target.hp = 0; target.downed = true; target.downT = 30; target.atk = -1; target.moving = 0;
+        if ((target.party || target.guildmate) && !target.downed) { target.hp = 0; target.downed = true; target.downAt = this.t; target.downT = 30; target.atk = -1; target.moving = 0;
           this.ui.log(`${target.tpl.name.replace(' (party)', '')} is down! Stand next to them and press E (or tap Revive) to help them up.`, 'warn'); this.ui.toast(`💫 ${target.tpl.name.replace(' (party)', '')} is down — revive them!`);
           target.reviveIt = { kind: 'revive', ally: target, name: target.tpl.name.replace(' (party)', ''), x: target.pos.x, z: target.pos.z, r: 2.6 }; this.world.interactables.push(target.reviveIt); }
         else if (!target.downed) { this.ui.log(`${target.tpl.name} retreats, exhausted.`, 'npc'); this.fxBurst(target.pos, '#ffe0a0', 14); this.removeEntity(target); }
@@ -674,7 +674,7 @@ export class Game {
       if (!e.dead) {
         e.obj.position.set(e.pos.x, e.pos.y + (e.tpl && e.tpl.float ? e.tpl.float : 0), e.pos.z); e.obj.rotation.y = e.rot;
         if (e.atk >= 0) { e.atk += dt * 2.5; if (e.atk >= 1) e.atk = -1; }
-        if (e.model.char) animateCharacter(e.model.char, { dead: !!e.downed, t: this.t + e.pos.x, move: e.moving || 0, atk: e.atk, kind: e.tpl.role === 'healer' ? 'slash' : 'punch', cast: e.tpl.role === 'healer' && e.atk >= 0 ? 1 : 0 });
+        if (e.model.char) animateCharacter(e.model.char, { dead: !!e.downed, deadT: e.downed ? this.t - (e.downAt || 0) : 0, hit: e.hitT != null && this.t - e.hitT < 0.3 ? (this.t - e.hitT) / 0.3 : 0, t: this.t + e.pos.x, move: e.moving || 0, atk: e.atk, kind: e.tpl.role === 'healer' ? 'slash' : 'punch', cast: e.tpl.role === 'healer' && e.atk >= 0 ? 1 : 0 });
         else animateMob(e.model, e.tpl ? e.tpl.model : (e.modelName || 'cat'), this.t + e.pos.x, e.moving || 0, e.atk);
         if (e.kind === 'mob') animateMobState(e, this.t, dt);
       }

@@ -130,4 +130,38 @@ export const QUESTS = [
     ],
     reward: { jewels: 1500, xp: 2500, skillXp: { requip: 1500, enchanting: 800 }, items: { lacrima_shard: 1 } },
   },
+  {
+    id: 'q_elfman', name: 'A Real Man\'s Training', qp: 2, start: 'elfman',
+    intro: [['elfman', 'You want to get stronger? Then train like a MAN!'], ['elfman', 'Wrestle the Wild Boars on the Kardia road. Then climb Mt. Hakobe and beat the Vulcans in the snow. No coats! ...Okay, coats.']],
+    stages: [
+      { desc: 'Defeat 5 Wild Boars (Kardia road or below Lake Scilliora).', obj: { type: 'kill', mob: 'boar', n: 5 } },
+      { desc: 'Defeat 3 Vulcans on Mt. Hakobe (carriage from the Hakobe Trailhead), then report to Elfman.', obj: { type: 'kill', mob: 'hakobe_vulcan', n: 3 }, turnIn: 'elfman',
+        done: [['elfman', 'You came back with snow in your hair and fire in your eyes. That is MAN!'], ['mirajane', 'Elfman, they are soaking wet. Get them a towel. ♪']] },
+    ],
+    reward: { jewels: 400, xp: 1200, items: { tonic_hp: 4 } },
+  },
+  {
+    id: 'q_cana', name: 'The Card in the Woodsea', qp: 2, start: 'cana',
+    intro: [['cana', 'So, funny story. I was doing a reading on the road to Worth Woodsea, and the wind took my best card.'], ['cana', 'The Tower card. Some forest Vulcan grabbed it. Bring it back and some Heartbark too: it makes the best card stock.']],
+    stages: [
+      { desc: 'Defeat Woodsea Forest Vulcans in Worth Woodsea (north of Magnolia) until one drops Cana\'s Lost Card.', obj: { type: 'item', id: 'fortune_card', n: 1, take: true } },
+      { desc: 'Bring 2 Woodsea Heartbark (Mossback Guardians) to Cana.', obj: { type: 'item', id: 'ancient_bark', n: 2, take: true }, turnIn: 'cana',
+        done: [['cana', 'My card! And Heartbark! Okay, free reading: you are going to be VERY famous. Or very broke. The card has a bite mark on it.']] },
+    ],
+    questDrops: { woodsea_ape: { stage: 0, item: 'fortune_card', chance: 0.6 } },
+    reward: { jewels: 600, xp: 1800, items: { tea_mp: 3 } },
+  },
+  {
+    id: 'q_juvia', name: 'Rain Over Era', qp: 2, start: 'juvia',
+    intro: [['juvia', 'Juvia has written a letter for Gray-sama, but Juvia cannot hand it to him herself. Juvia will melt.'], ['juvia', 'Please ask Gray-sama if he... no. Please ask Gray-sama what he thinks of the rain. And then, Juvia heard the Council wants a report on her old guild, Phantom Lord.']],
+    stages: [
+      { desc: 'Ask Gray what he thinks about the rain.', obj: { type: 'talk', npc: 'gray' },
+        done: [['gray', 'The rain? It\'s fine. Juvia\'s rain was cold, but... it stopped. That\'s what counts. Why are you asking?']] },
+      { desc: 'Take Juvia\'s report on Phantom Lord to Captain Lahar at the Magic Council in Era (train to Era Station).', obj: { type: 'talk', npc: 'lahar' },
+        done: [['lahar', 'A statement from Juvia Lockser, formerly of Phantom Lord. The Council will note her cooperation.'], ['lahar', 'Tell her the sky over Era has been clear all week.']] },
+      { desc: 'Return to Juvia with the news.', obj: { type: 'talk', npc: 'juvia' },
+        done: [['juvia', 'Gray-sama said it STOPPED? And the Council was kind? ...Juvia\'s sky is clear. Thank you, friend!']] },
+    ],
+    reward: { jewels: 700, xp: 2000, items: { stew: 3 } },
+  },
 ];

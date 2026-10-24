@@ -9,6 +9,8 @@ import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import { mapHeight, biomeAt, PLACES, PLACE, WORLD, WATER_Y, RAILS_W, ROADS_W, distToLines, toWorld } from './fiore.js';
 import { Terrain } from './terrain.js';
+import { buildRegions, SITE_FLATS, WOODSEA_CLEARING } from './regions.js';
+import { Grass } from './foliage.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -41,9 +43,12 @@ function initFlat() {
     else if (p.id === 'hakobe') FLAT.push({ x: p.pos[0], z: p.pos[1], r: 34, blend: 26, h: base });
     if (p.station && p.id !== 'magnolia' && p.id !== 'oshibana') { const [sx, sz] = p.station.pos; FLAT.push({ x: sx, z: sz, r: 12, blend: 10, h: mapHeight(sx, sz) }); }
   }
+  for (const p of PLACES) if (p.flat) FLAT.push({ x: p.pos[0], z: p.pos[1], r: p.flat, blend: 18, h: Math.max(WATER_Y + 1.6, mapHeight(p.pos[0], p.pos[1])) });
   const [sx, sz] = PLACE.magnolia.station.pos; FLAT.push({ x: sx, z: sz, r: 12, blend: 10, h: 0 });
   { const Cc = toWorld(516, 337); FLAT.push({ x: Cc[0], z: Cc[1], r: 50, blend: 18, h: mapHeight(...Cc) }); } // Crocus city plaza + Domus Flau
   // Clover Canyon: a ravine cut through the ridge from Clover Town to the arena
+  FLAT.push({ ...WOODSEA_CLEARING, h: Math.max(WATER_Y + 1.6, height(WOODSEA_CLEARING.x, WOODSEA_CLEARING.z)) });
+  for (const f of SITE_FLATS) FLAT.push({ ...f, h: Math.max(WATER_Y + 1.6, height(f.x, f.z)) });
   CARVE.push({ a: PLACE.clover.pos, b: [BOSS_ARENA.x, BOSS_ARENA.z], w: 5, blend: 9, h: 3 });
 }
 function rawHeight(x, z) {
@@ -739,6 +744,16 @@ export function buildWorld(scene) {
     }
   }
 
+  // ---------------- Round 3 regions: Era, Worth Woodsea, interiors + props ----------------
+  buildRegions({ W, scene, zoneGroup, station, sign, yAt, R, addBox, building, decks: DECKS, textTexture, roofR, roofB, roofG, roofP });
+  const TOWNFLAT = FLAT.filter((f) => !f.rect && f.r >= 26 && f.r <= 45).map((f) => ({ x: f.x, z: f.z, r: f.r * 0.95 }));
+  if (GFX.high) { let near = [];
+    W.grass = new Grass(scene, { height: groundAt, count: GFX.real ? 22000 : 9000, radius: GFX.real ? 46 : 34,
+      prepare: (cx, cz, r) => { const pad = 1.2; near = [...W.boxes, ...(W.noGrass || []), ...DECKS.filter((d) => !d.dir)].filter((b) => b.maxX > cx - r - pad && b.minX < cx + r + pad && b.maxZ > cz - r - pad && b.minZ < cz + r + pad)
+        .concat(W.circles.filter((c) => c.r > 0.9 && Math.abs(c.x - cx) < r + c.r && Math.abs(c.z - cz) < r + c.r).map((c) => ({ minX: c.x - c.r * 0.8, maxX: c.x + c.r * 0.8, minZ: c.z - c.r * 0.8, maxZ: c.z + c.r * 0.8 }))); },
+      accept: (x, z) => { const b = biomeAt(x, z); if (b !== 1 && b !== 2) return 0; const h = height(x, z); if (h < WATER_Y + 0.5 || h > 16) return 0; if (inTownPad(x, z, -2)) return 0; for (const f of TOWNFLAT) if (Math.hypot(x - f.x, z - f.z) < f.r) return 0; if (distToLines(ROADS_W, x, z) < 2.2 || distToLines(RAILS_W, x, z) < 2) return 0;
+        for (const b2 of near) if (x > b2.minX - 0.6 && x < b2.maxX + 0.6 && z > b2.minZ - 0.6 && z < b2.maxZ + 0.6) return 0; return b === 2 ? 0.7 : 1; } }); }
+
   // ---------------- Bake static geometry ----------------
   for (const it of W.interactables) if (it.obj) it.obj.userData.dyn = true;
   for (const z of W.groups) bakeStatic(z.g);
@@ -772,6 +787,9 @@ export function buildWorld(scene) {
   W.update = (t, playerPos) => {
     if (W.anim.length) W.anim = W.anim.filter((f) => f(t) !== false);
     W.terrain.update(playerPos.x, playerPos.z, 2);
+    if (W.grass) W.grass.update(playerPos.x, playerPos.z);
+    for (const c of W.cutaways || []) c.g.visible = !(playerPos.x > c.minX && playerPos.x < c.maxX && playerPos.z > c.minZ && playerPos.z < c.maxZ);
+    for (const l of W.interiorLights || []) { const d = Math.hypot(playerPos.x - l.position.x, playerPos.z - l.position.z); l.userData.base ??= l.intensity; l.intensity = d < 70 ? l.userData.base * Math.min(1, (70 - d) / 20) : 0; }
     const vis = scene.fog.far + 30; for (const z of W.groups) z.g.visible = Math.hypot(playerPos.x - z.x, playerPos.z - z.z) < z.r + vis;
     W.water.position.set(Math.round(playerPos.x / 50) * 50, WATER_Y, Math.round(playerPos.z / 50) * 50);
     for (const id in W.npcs) { const it = W.npcs[id]; const d = Math.hypot(playerPos.x - it.x, playerPos.z - it.z); if (d > 120) continue; if (it.char.parts.wing1) { const b = it.char.parts.body; b.position.y = Math.sin(t * 3) * 0.12; it.char.parts.wing1.rotation.z = 0.5 + Math.sin(t * 18) * 0.5; it.char.parts['wing-1'].rotation.z = -0.5 - Math.sin(t * 18) * 0.5; } else if (it.npc === 'plue') { const b = it.char.parts.body; b.position.x = Math.sin(t * 40) * 0.012; b.rotation.z = Math.sin(t * 33) * 0.04; } else if (it.char.parts.armL && d < 60) animateCharacter(it.char, { t: t + it.x, move: 0, atk: -1, cast: 0, look: d < 6 ? Math.max(-0.6, Math.min(0.6, Math.sin(t * 0.7 + it.x) * 0.3)) : 0 }); else it.char.parts.head.rotation.y = 0; }

@@ -65,6 +65,8 @@ export const PLACES = [
   P('bluepegasus', 'Blue Pegasus (Guild)', [364, 204], 26, { minor: true }),
   P('lamiascale', 'Lamia Scale (Guild)', [322, 300], 26, { minor: true }),
   { ...P('oak', 'Oak Town (Phantom Lord)', [612, 262], 34), station: { off: [16, 20], label: 'Oak Town Carriage Stop' }, minor: true, banner: 'Phantom Lord\'s fortress guild. Not friendly.' },
+  { ...P('era', 'Era', [468, 244], 42), station: { at: toWorld(462, 263), label: 'Era Station' }, flat: 30, banner: 'Seat of the Magic Council' },
+  { ...P('woodsea', 'Worth Woodsea', [745, 215], 75), station: { at: toWorld(745, 252), label: 'Woodsea Carriage Stop' }, banner: 'An ancient forest older than the kingdom' },
   { ...P('akane', 'Akane Beach', [936, 312], 30), station: { off: [-16, -4], label: 'Akane Resort Station' }, minor: true, banner: 'Resort beach. The Tower of Heaven looms offshore.' },
 ];
 export const PLACE = Object.fromEntries(PLACES.map((p) => [p.id, p]));
@@ -83,12 +85,15 @@ export const ROADS = [
   [[538, 340], [480, 300], [430, 270], [395, 252]], // Crocus - Oshibana
   [[395, 252], [442, 215], [422, 168]], // Oshibana - Onibus - Shirotsume
   [[395, 252], [364, 204]], [[395, 252], [345, 285], [322, 300]],
+  [[450, 280], [462, 263], [468, 244]], // Oshibana line - Era
+  [[690, 380], [712, 330], [735, 285], [745, 252], [745, 215]], // Magnolia - Worth Woodsea
 ];
 export const RAILS = [
   [[662, 414], [630, 396], [590, 372], [552, 356]], // Magnolia - Crocus East
   [[552, 356], [500, 312], [450, 280], [395, 252]], // Crocus - Oshibana (the Oshibana Line)
   [[552, 356], [500, 366], [431, 352]], // Crocus - Clover
   [[662, 414], [645, 450], [617, 488]], // Magnolia - Hargeon
+  [[450, 280], [457, 272], [462, 263]], // Era branch
 ];
 // Railway in world units
 export const RAILS_W = RAILS.map((l) => l.map(([a, b]) => toWorld(a, b)));

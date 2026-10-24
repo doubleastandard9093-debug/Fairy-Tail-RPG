@@ -13,7 +13,22 @@ float vnoise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * 
              mix(mix(rh(i + vec3(0,0,1)), rh(i + vec3(1,0,1)), f.x), mix(rh(i + vec3(0,1,1)), rh(i + vec3(1,1,1)), f.x), f.y), f.z); }
 float fbm3(vec3 p){ return vnoise(p) * 0.5 + vnoise(p * 2.03) * 0.3 + vnoise(p * 4.11) * 0.2; }`;
 /** Adds world-space fbm detail to albedo + roughness, a soft sky rim, and optional wind sway. */
-export function addDetail(mat, { scale = 1.6, amt = 0.22, rim = 0.18, wind = 0 } = {}) {
+// Procedural surface patterns (Realistic tier): world-space masonry, planks, roof shingles and cobbles.
+const PAT = {
+  brick: `{ vec2 b = vec2((vWP.x + vWP.z) * 1.7, vWP.y * 3.4); b.x += step(1.0, mod(b.y, 2.0)) * 0.5; vec2 f = fract(b);
+    float m = smoothstep(0.02, 0.07, f.x) * smoothstep(0.03, 0.1, f.y) * smoothstep(0.0, 0.05, 1.0 - f.x);
+    float tone = 0.86 + 0.24 * rh(vec3(floor(b), 3.0)); diffuseColor.rgb *= mix(0.58, tone, m); patR = (1.0 - m) * 0.2; }`,
+  plank: `{ vec3 an = abs(nW); vec2 b = an.y > 0.6 ? vec2(vWP.x * 0.45, vWP.z * 3.2) : vec2((vWP.x + vWP.z) * 3.2, vWP.y * 0.45).yx; b.x += rh(vec3(floor(b.y), 1.0, 2.0)) * 3.0; vec2 f = fract(b);
+    float seam = smoothstep(0.0, 0.06, f.y) * smoothstep(0.0, 0.06, 1.0 - f.y) * smoothstep(0.0, 0.012, f.x) * smoothstep(0.0, 0.012, 1.0 - f.x);
+    float grain = vnoise(vec3(b.x * 9.0, b.y * 1.5, 0.0)) * 0.5 + vnoise(vec3(b.x * 30.0, b.y * 4.0, 1.0)) * 0.5;
+    diffuseColor.rgb *= mix(0.55, 0.82 + 0.3 * grain, seam) * (0.88 + 0.22 * rh(vec3(floor(b), 5.0))); patR = (1.0 - seam) * 0.15; }`,
+  tile: `{ vec2 b = vec2((vWP.x + vWP.z) * 2.6, vWP.y * 5.0); b.x += step(1.0, mod(b.y, 2.0)) * 0.5; vec2 f = fract(b);
+    float edge = smoothstep(0.0, 0.08, f.x) * smoothstep(0.0, 0.08, 1.0 - f.x);
+    diffuseColor.rgb *= (0.62 + 0.42 * f.y) * mix(0.7, 1.0, edge) * (0.85 + 0.3 * rh(vec3(floor(b), 7.0))); patR = -0.1; }`,
+  cobble: `{ vec2 b = vWP.xz * 1.4; b.x += step(1.0, mod(b.y, 2.0)) * 0.5; vec2 f = fract(b) - 0.5; float r = max(abs(f.x), abs(f.y));
+    float m = 1.0 - smoothstep(0.36, 0.48, r); diffuseColor.rgb *= mix(0.5, 0.8 + 0.35 * rh(vec3(floor(b), 9.0)), m); patR = (1.0 - m) * 0.25; }`,
+};
+export function addDetail(mat, { scale = 1.6, amt = 0.22, rim = 0.18, wind = 0, pat = null } = {}) {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uWind = WIND;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP; uniform float uWind;`)
@@ -34,14 +49,19 @@ export function addDetail(mat, { scale = 1.6, amt = 0.22, rim = 0.18, wind = 0 }
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vWP;${NOISE_GLSL}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         float dn = fbm3(vWP * ${scale.toFixed(3)}); float dn2 = vnoise(vWP * ${(scale * 7.0).toFixed(3)});
-        diffuseColor.rgb *= 1.0 - ${amt.toFixed(3)} * 0.5 + ${amt.toFixed(3)} * (dn * 0.75 + dn2 * 0.25);`)
+        diffuseColor.rgb *= 1.0 - ${amt.toFixed(3)} * 0.5 + ${amt.toFixed(3)} * (dn * 0.75 + dn2 * 0.25);
+        float patR = 0.0; vec3 nW = vec3(0.0, 1.0, 0.0);
+        #ifndef FLAT_SHADED
+        nW = normalize(inverseTransformDirection(normalize(vNormal), viewMatrix));
+        #endif
+        ${pat && PAT[pat] ? PAT[pat] : ''}`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = clamp(roughnessFactor + (dn - 0.5) * 0.25, 0.04, 1.0);`)
+        roughnessFactor = clamp(roughnessFactor + (dn - 0.5) * 0.25 + patR, 0.04, 1.0);`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         { vec3 vd = normalize(cameraPosition - vWP); vec3 nw = normalize(inverseTransformDirection(normal, viewMatrix));
           float fr = pow(1.0 - clamp(dot(nw, vd), 0.0, 1.0), 3.0); totalEmissiveRadiance += vec3(0.75, 0.85, 1.0) * fr * ${rim.toFixed(3)} * diffuseColor.rgb; }`);
   };
-  mat.customProgramCacheKey = () => `det${scale}|${amt}|${rim}|${wind}`;
+  mat.customProgramCacheKey = () => `det${scale}|${amt}|${rim}|${wind}|${pat}`;
   return mat;
 }
 
@@ -66,13 +86,13 @@ export function toon(color, opts = {}) {
   cache.set(key, m);
   return m;
 }
-function stripOpts(o) { const r = { ...o }; delete r.soft; delete r.rough; delete r.metal; return r; }
+function stripOpts(o) { const r = { ...o }; delete r.soft; delete r.pat; delete r.rough; delete r.metal; return r; }
 /** PBR stand-in for toon(): roughness guessed from colour (dark metals/stone glossier), detail noise on top. */
 function realMat(color, opts) {
   const c = new THREE.Color(color); const hsl = {}; c.getHSL(hsl);
   const metal = opts.metal ?? (hsl.s < 0.12 && hsl.l > 0.45 && hsl.l < 0.75 ? 0.35 : 0);
   const m = new THREE.MeshStandardMaterial({ color, roughness: opts.rough ?? (metal ? 0.45 : 0.78), metalness: metal, envMapIntensity: 0.9, ...stripOpts(opts) });
-  return addDetail(m, { scale: 2.2, amt: 0.16, rim: 0.22 });
+  return addDetail(m, { scale: 2.2, amt: 0.16, rim: 0.22, pat: opts.pat || null });
 }
 export function glow(color, opacity = 1) {
   const key = 'glow' + color + opacity;

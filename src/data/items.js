@@ -65,6 +65,8 @@ add({ id: 'stew', name: "Mira's Special Stew", icon: '🍲', kind: 'consumable',
 
 // ---- Drops / quest items ----
 add({ id: 'spore', name: 'Vulcan Fur Tuft', icon: '🦍', kind: 'resource', value: 3 });
+add({ id: 'ancient_bark', name: 'Woodsea Heartbark', icon: '🪵', kind: 'resource', value: 22 });
+add({ id: 'fortune_card', name: "Cana's Lost Card", icon: '🃏', kind: 'resource', value: 1 });
 add({ id: 'wisp_ember', name: 'Eisenwald Emblem', icon: '💀', kind: 'resource', value: 18 });
 add({ id: 'pudding', name: "Erza's Strawberry Cake", icon: '🍮', kind: 'quest', value: 0 });
 add({ id: 'tyrant_core', name: 'Broken Lullaby Flute', icon: '💎', kind: 'quest', value: 500 });
