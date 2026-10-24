@@ -260,7 +260,7 @@ export const MOBS = {
   royal_soldier_s: { name: 'Royal Army Lancer (summoned)', level: 42, hp: 900, dmg: 26, speed: 3.6, aggro: 40, range: 2.4, atkCd: 1.6, xp: 90, model: 'mage', opt: { robe: '#a8802a' }, temp: true, drops: [], jewels: [6, 10], bark: ['For King Faust!'] },
   faust: {
     name: 'Dorma Anim (King Faust)', short: 'Dorma Anim', level: 47, hp: 52000, dmg: 66, speed: 2.8, aggro: 20, range: 12, atkCd: 2.2, xp: 9000, model: 'golem', ranged: true, boss: true, leash: 26, radius: 2.2, scale: 1.5,
-    opt: { stone: '#3a3a4a', rune: '#ff5a3a', bossAura: ['#ff7a3a', '#ff3a3a', '#ffd06a'] }, arena: 'edolas', projColor: '#ff8a4a',
+    opt: { stone: '#3a3a4a', rune: '#ff5a3a', moss: false, bossAura: ['#ff7a3a', '#ff3a3a', '#ffd06a'] }, arena: 'edolas', projColor: '#ff8a4a',
     defeat: '🏆 Dorma Anim\'s armour splits open and King Faust tumbles out. Edolas\'s skies stop falling.',
     // Phase 1: missile barrage and cannon. Phase 2 (60%): calls the Royal Army. Phase 3 (25%): Dragon Chaser.
     telegraphs: [
@@ -374,6 +374,177 @@ export const MOBS = {
     bark: ['I wanted to fight Natsu. You will do.', 'Sabertooth does not lose.', 'The crowd came for a show!'],
   },
 
+  // ---- Batch 3: Eclipse, Sun Village, Tartaros, Avatar, Alvarez, 100 Years Quest ----
+  eclipse_dragonkin: { name: 'Eclipse Dragon Whelp', level: 65, hp: 3200, dmg: 48, speed: 3.6, aggro: 13, range: 3, atkCd: 1.8, xp: 1300, model: 'dragon', opt: { scale: '#5a8a4a', belly: '#c8d08a', horn: '#e8e0c0', eye: '#ffd03a' }, scale: 0.55,
+    drops: [{ id: 'hide_t5', chance: 0.45 }, { id: 'ore_t6', chance: 0.25 }], jewels: [120, 160], bark: ['*roar*', '*hiss*'] },
+  eclipse_dragonkin_s: { name: 'Dragon Hatchling (summoned)', level: 65, hp: 1500, dmg: 34, speed: 4, aggro: 40, range: 2.8, atkCd: 1.8, xp: 100, model: 'dragon', opt: { scale: '#3a3a4a', belly: '#8a8a9a', horn: '#d0d0d0', eye: '#ff5a3a' }, scale: 0.4, temp: true, drops: [], jewels: [8, 12], bark: ['*screech*'] },
+  future_rogue: {
+    name: 'Future Rogue, Shadow of Eclipse', short: 'Future Rogue', level: 68, hp: 76000, dmg: 82, speed: 3.8, aggro: 20, range: 10, atkCd: 1.9, xp: 14000, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.4, scale: 1.6,
+    opt: { look: { hair: 'long', hairColor: '#1a1a22', outfit: 'mage', outfitColor: '#1e1e28', skin: '#e8d0c0', eyeColor: '#c01a2a' }, body: 'rogue' }, arena: 'eclipse', projColor: '#6a3a8a',
+    defeat: '🏆 Future Rogue fades into the shadow he came from. The Eclipse Gate shudders shut, and the dragons go with it.',
+    telegraphs: [
+      { id: 'shadow', name: 'Shadow Dragon\'s Roar', shape: 'rect', length: 22, width: 4, windup: 1.3, dmg: 95, cd: 8, at: 'self', phase: 1 },
+      { id: 'drift', name: 'Shadow Drift', shape: 'circle', radius: 3, windup: 1.1, dmg: 80, cd: 7, at: 'targets', count: 3, phase: 1 },
+      { id: 'gate', name: 'Dragon Command', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 2, mob: 'eclipse_dragonkin_s', phase: 2 },
+      { id: 'fang', name: 'Shadow Fang', shape: 'circle', radius: 2.8, windup: 0.9, dmg: 75, cd: 6, at: 'victim', count: 3, phase: 2 },
+      { id: 'eclipse', name: 'Eclipse Ring', shape: 'ring', inner: 5, radius: 21, windup: 3.2, dmg: 170, cd: 16, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, shield: 0.1, line: 'Future Rogue: "I have seen this ending already. The dragons win." (phase 2)' },
+      { at: 0.25, n: 3, cdMul: 0.55, trans: 3, line: 'The Eclipse Gate behind him blazes white: the seven dragons answer (final phase)!' },
+    ],
+    drops: [{ id: 'ore_t6', chance: 1, min: 4, max: 6 }, { id: 'hide_t5', chance: 1, min: 4, max: 6 }], jewels: [3200, 4200],
+    party: { jobs: [], quest: ['q_eclipse', 2], ids: ['gm_natsu', 'gm_wendy'], line: '⚔️ Natsu and Wendy land beside you, dragon slayers both.' },
+    bark: ['I came back to fix my mistake. You are the mistake.', 'Shadows remember everything.', 'The gate is already open.'],
+  },
+  frost_bandit: { name: 'Ice-Bound Treasure Hunter', level: 67, hp: 3400, dmg: 46, speed: 3.6, aggro: 12, range: 2.6, atkCd: 1.7, xp: 1350, model: 'mage', opt: { robe: '#5a7a9a' },
+    drops: [{ id: 'ore_t6', chance: 0.3 }, { id: 'tonic_hp', chance: 0.2 }], jewels: [120, 170], bark: ['The ice is worth a fortune!', 'Nobody thaws these giants!'] },
+  frost_bandit_s: { name: 'Frost Shard (summoned)', level: 67, hp: 1400, dmg: 32, speed: 0.6, aggro: 40, range: 10, atkCd: 2.4, xp: 90, model: 'wisp', opt: { color: '#bfe8ff' }, ranged: true, temp: true, projColor: '#e0f4ff', drops: [], jewels: [8, 12], bark: ['*crack*'] },
+  frost_colossus: {
+    name: 'Eternal Ice Colossus', short: 'Ice Colossus', level: 70, hp: 82000, dmg: 86, speed: 2.6, aggro: 20, range: 12, atkCd: 2.3, xp: 15000, model: 'golem', ranged: true, boss: true, leash: 26, radius: 2.2, scale: 1.6,
+    opt: { stone: '#9ab8d0', rune: '#e0f8ff', moss: false, bossAura: ['#bfe8ff', '#7ac0ff', '#ffffff'] }, arena: 'sun', projColor: '#e0f4ff',
+    defeat: '🏆 The colossus cracks apart. Under the melting ice, the giants of Sun Village begin to breathe again.',
+    telegraphs: [
+      { id: 'slam', name: 'Glacier Slam', shape: 'circle', radius: 5, windup: 1.5, dmg: 110, cd: 8, at: 'self', phase: 1 },
+      { id: 'hail', name: 'Hailfall', shape: 'circle', radius: 3, windup: 1.2, dmg: 80, cd: 7, at: 'targets', count: 4, phase: 1 },
+      { id: 'shards', name: 'Shard Spawn', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 3, mob: 'frost_bandit_s', phase: 2 },
+      { id: 'lance', name: 'Ice Lance', shape: 'rect', length: 24, width: 4, windup: 1.3, dmg: 100, cd: 9, at: 'self', phase: 2 },
+      { id: 'freeze', name: 'Eternal Freeze', shape: 'ring', inner: 6, radius: 21, windup: 3.4, dmg: 175, cd: 16, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, shield: 0.12, line: 'Frost shards tear free of the colossus and take flight (phase 2)!' },
+      { at: 0.25, n: 3, cdMul: 0.55, trans: 3, line: 'The air itself starts to freeze: Eternal Freeze (final phase)!' },
+    ],
+    drops: [{ id: 'ore_t6', chance: 1, min: 5, max: 7 }, { id: 'lacrima_shard', chance: 1, min: 4, max: 6 }], jewels: [3400, 4400],
+    party: { jobs: [], quest: ['q_sun', 2], ids: ['gm_natsu', 'gm_erza'], line: '⚔️ Natsu lights up the cold: "Ice? Leave it to me!" Erza follows him in.' },
+    bark: ['*the ice groans*', '*a deep, freezing roar*'],
+  },
+  tartaros_demon: { name: 'Tartaros Etherious', level: 72, hp: 3800, dmg: 52, speed: 3.8, aggro: 13, range: 2.6, atkCd: 1.6, xp: 1500, model: 'mage', opt: { robe: '#4a1a2a' },
+    drops: [{ id: 'ore_t6', chance: 0.3 }, { id: 'lacrima_shard', chance: 0.3 }], jewels: [140, 190], bark: ['For Lord E.N.D.!', 'Curses are older than magic.'] },
+  tartaros_demon_s: { name: 'Thorn Curse (summoned)', level: 72, hp: 1600, dmg: 36, speed: 0.6, aggro: 40, range: 10, atkCd: 2.3, xp: 100, model: 'wisp', opt: { color: '#ff5a8a' }, ranged: true, temp: true, projColor: '#ff3a6a', drops: [], jewels: [10, 14], bark: ['*thorns*'] },
+  mard_geer: {
+    name: 'Mard Geer Tartaros, Underworld King', short: 'Mard Geer', level: 78, hp: 98000, dmg: 92, speed: 3.6, aggro: 20, range: 11, atkCd: 1.9, xp: 18000, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.4, scale: 1.65,
+    opt: { look: { hair: 'long', hairColor: '#1a1a2a', outfit: 'mage', outfitColor: '#2a1a2a', skin: '#f0e0d8', eyeColor: '#c03a5a' }, body: 'mard' }, arena: 'tartaros', projColor: '#ff3a6a',
+    defeat: '🏆 Mard Geer\'s thorns wither. The Cube drops out of the sky, and Face never goes off.',
+    telegraphs: [
+      { id: 'thorn', name: 'Thorn Prison', shape: 'circle', radius: 3, windup: 1.2, dmg: 90, cd: 7, at: 'targets', count: 4, phase: 1 },
+      { id: 'briar', name: 'Briar Lash', shape: 'rect', length: 22, width: 4, windup: 1.3, dmg: 105, cd: 9, at: 'self', phase: 1 },
+      { id: 'curse', name: 'Curse Seed', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 3, mob: 'tartaros_demon_s', phase: 2 },
+      { id: 'rose', name: 'Rose Bloom', shape: 'circle', radius: 2.8, windup: 0.9, dmg: 85, cd: 6, at: 'victim', count: 3, phase: 2 },
+      { id: 'memento', name: 'Memento Mori', shape: 'ring', inner: 5, radius: 21, windup: 3.4, dmg: 190, cd: 16, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, shield: 0.12, line: 'Mard Geer: "Humans make such pleasant soil." (phase 2)' },
+      { at: 0.25, n: 3, cdMul: 0.55, trans: 3, line: 'Thorns erupt from every wall of the Cube: Memento Mori (final phase)!' },
+    ],
+    drops: [{ id: 'ore_t6', chance: 1, min: 6, max: 8 }, { id: 'hide_t5', chance: 1, min: 4, max: 6 }], jewels: [4000, 5200],
+    party: { jobs: [], quest: ['q_tartaros', 2], ids: ['gm_natsu', 'gm_erza', 'gm_wendy'], line: '⚔️ The whole team bursts into the Cube behind you!' },
+    bark: ['Kneel before the underworld.', 'Your magic is a borrowed thing.', 'I will make a garden of your guild.'],
+  },
+  avatar_cultist: { name: 'Avatar Cultist', level: 76, hp: 4000, dmg: 54, speed: 3.6, aggro: 12, range: 9, atkCd: 2, xp: 1600, model: 'mage', opt: { robe: '#3a2a1a' }, ranged: true, projColor: '#ff8a3a',
+    drops: [{ id: 'ore_t6', chance: 0.3 }, { id: 'tea_mp', chance: 0.3 }], jewels: [150, 200], bark: ['Purify the world!', 'Zeref\'s will be done.'] },
+  avatar_cultist_s: { name: 'Purge Flame (summoned)', level: 76, hp: 1700, dmg: 38, speed: 0.6, aggro: 40, range: 10, atkCd: 2.3, xp: 100, model: 'wisp', opt: { color: '#ff8a3a' }, ranged: true, temp: true, projColor: '#ffb05a', drops: [], jewels: [10, 14], bark: ['*crackle*'] },
+  arlock: {
+    name: 'Arlock, High Priest of Avatar', short: 'Arlock', level: 80, hp: 104000, dmg: 96, speed: 3.4, aggro: 20, range: 11, atkCd: 2, xp: 19000, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.4, scale: 1.65,
+    opt: { look: { hair: 'short', hairColor: '#3a2a1a', outfit: 'mage', outfitColor: '#3a2a1a', skin: '#d8b890', eyeColor: '#ff8a3a' }, body: 'arlock' }, arena: 'avatar', projColor: '#ff8a3a',
+    defeat: '🏆 Arlock\'s purge spell collapses. Gray drops his cover, and the cult\'s ritual fire goes out for good.',
+    telegraphs: [
+      { id: 'purge', name: 'Purge Pillar', shape: 'circle', radius: 3, windup: 1.2, dmg: 92, cd: 7, at: 'targets', count: 4, phase: 1 },
+      { id: 'sermon', name: 'Burning Sermon', shape: 'rect', length: 22, width: 4.5, windup: 1.3, dmg: 105, cd: 9, at: 'self', phase: 1 },
+      { id: 'flock', name: 'Call the Faithful', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 3, mob: 'avatar_cultist_s', phase: 2 },
+      { id: 'brand', name: 'Heretic\'s Brand', shape: 'circle', radius: 2.8, windup: 0.9, dmg: 88, cd: 6, at: 'victim', count: 3, phase: 2 },
+      { id: 'pyre', name: 'Great Pyre', shape: 'ring', inner: 5, radius: 21, windup: 3.4, dmg: 195, cd: 16, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, shield: 0.12, line: 'Arlock: "The faithful do not feel pain. Rise!" (phase 2)' },
+      { at: 0.25, n: 3, cdMul: 0.55, trans: 3, line: 'The altar fire climbs into the sky: the Great Pyre (final phase)!' },
+    ],
+    drops: [{ id: 'ore_t6', chance: 1, min: 6, max: 8 }, { id: 'lacrima_shard', chance: 1, min: 5, max: 7 }], jewels: [4200, 5400],
+    party: { jobs: [], quest: ['q_avatar', 2], ids: ['gm_natsu', 'gm_erza'], line: '⚔️ Natsu and Erza crash the ritual. The guild is back together!' },
+    bark: ['Sin must be burned out of the world.', 'Your guild is gone. Kneel.', 'Even ice melts on the pyre.'],
+  },
+  alvarez_soldier: { name: 'Alvarez Imperial Soldier', level: 82, hp: 4400, dmg: 58, speed: 3.8, aggro: 13, range: 2.6, atkCd: 1.6, xp: 1800, model: 'mage', opt: { robe: '#2a3a6a' },
+    drops: [{ id: 'ore_t6', chance: 0.35 }, { id: 'tonic_hp', chance: 0.25 }], jewels: [170, 230], bark: ['For the Emperor!', 'Ishgar falls today.'] },
+  alvarez_soldier_s: { name: 'Sand Wraith (summoned)', level: 82, hp: 1900, dmg: 40, speed: 0.7, aggro: 40, range: 10, atkCd: 2.3, xp: 110, model: 'wisp', opt: { color: '#e0c080' }, ranged: true, temp: true, projColor: '#f0d090', drops: [], jewels: [10, 16], bark: ['*hiss of sand*'] },
+  ajeel: {
+    name: 'Ajeel Ramal, Spriggan Twelve', short: 'Ajeel', level: 85, hp: 115000, dmg: 100, speed: 3.8, aggro: 20, range: 11, atkCd: 1.9, xp: 21000, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.4, scale: 1.6,
+    opt: { look: { hair: 'short', hairColor: '#e8e0c8', outfit: 'mage', outfitColor: '#e8d8a8', skin: '#a8784a', eyeColor: '#3a2a1a' }, body: 'ajeel' }, arena: 'sands', projColor: '#f0d090',
+    defeat: '🏆 Ajeel\'s sandstorm falls flat. The Alvarez fleet off Hargeon loses its spearhead.',
+    telegraphs: [
+      { id: 'dune', name: 'Sand Rebellion', shape: 'circle', radius: 3.2, windup: 1.2, dmg: 95, cd: 7, at: 'targets', count: 4, phase: 1 },
+      { id: 'blade', name: 'Sand Blade', shape: 'rect', length: 24, width: 4, windup: 1.3, dmg: 110, cd: 9, at: 'self', phase: 1 },
+      { id: 'wraith', name: 'Sand Soldiers', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 3, mob: 'alvarez_soldier_s', phase: 2 },
+      { id: 'quick', name: 'Quicksand', shape: 'circle', radius: 3, windup: 0.9, dmg: 90, cd: 6, at: 'victim', count: 3, phase: 2 },
+      { id: 'desert', name: 'Desert Kingdom', shape: 'ring', inner: 5, radius: 21, windup: 3.4, dmg: 200, cd: 16, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, shield: 0.12, line: 'Ajeel: "This whole coast is my sandbox now!" (phase 2)' },
+      { at: 0.25, n: 3, cdMul: 0.55, trans: 3, line: 'The beach turns into a desert under your feet: Desert Kingdom (final phase)!' },
+    ],
+    drops: [{ id: 'ore_t6', chance: 1, min: 6, max: 9 }, { id: 'hide_t5', chance: 1, min: 5, max: 7 }], jewels: [4600, 5800],
+    party: { jobs: [], quest: ['q_alvarez1', 2], ids: ['gm_natsu', 'gm_wendy'], line: '⚔️ Natsu and Wendy charge across the sand with you!' },
+    bark: ['Ishgar is a sandcastle!', 'I am a king among the Twelve!', 'Drown in my desert!'],
+  },
+  irene: {
+    name: 'Irene Belserion, Scarlet Despair', short: 'Irene', level: 92, hp: 135000, dmg: 108, speed: 3.6, aggro: 20, range: 12, atkCd: 1.9, xp: 25000, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.4, scale: 1.7,
+    opt: { look: { hair: 'long', hairColor: '#b01a2a', outfit: 'mage', outfitColor: '#3a2a3a', skin: '#f6dcc8', eyeColor: '#8a1a2a' }, body: 'irene' }, arena: 'irene', projColor: '#ff5a5a',
+    defeat: '🏆 Irene lowers her staff at last. "You have her eyes," she says, and the enchantment over the field lifts.',
+    telegraphs: [
+      { id: 'enchant', name: 'Universe One', shape: 'circle', radius: 3.4, windup: 1.2, dmg: 100, cd: 7, at: 'targets', count: 4, phase: 1 },
+      { id: 'scarlet', name: 'Scarlet Lance', shape: 'rect', length: 26, width: 4, windup: 1.3, dmg: 115, cd: 9, at: 'self', phase: 1 },
+      { id: 'knights', name: 'Enchanted Knights', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 3, mob: 'alvarez_soldier_s', phase: 2 },
+      { id: 'meteor', name: 'Enchanted Meteor', shape: 'circle', radius: 3, windup: 0.9, dmg: 95, cd: 6, at: 'victim', count: 3, phase: 2 },
+      { id: 'despair', name: 'Belserion\'s Despair', shape: 'ring', inner: 5, radius: 22, windup: 3.4, dmg: 210, cd: 16, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, shield: 0.14, line: 'Irene: "I enchanted the very ground you stand on, child." (phase 2)' },
+      { at: 0.25, n: 3, cdMul: 0.55, trans: 3, line: 'Scarlet scales ripple over Irene\'s arms: the Dragon Queen wakes (final phase)!' },
+    ],
+    drops: [{ id: 'ore_t6', chance: 1, min: 7, max: 9 }, { id: 'lacrima_shard', chance: 1, min: 6, max: 8 }], jewels: [5200, 6400],
+    party: { jobs: [], quest: ['q_alvarez2', 2], ids: ['gm_erza', 'gm_wendy'], line: '⚔️ Erza requips her Heart Kreuz armour and steps up beside you.' },
+    bark: ['I was the first dragon slayer.', 'Everything is mine to rewrite.', 'Such a lovely face. Shall I change it?'],
+  },
+  zeref: {
+    name: 'Zeref Dragneel, the Black Wizard', short: 'Zeref', level: 99, hp: 165000, dmg: 118, speed: 3.6, aggro: 22, range: 12, atkCd: 1.8, xp: 32000, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.4, scale: 1.65,
+    opt: { look: { hair: 'short', hairColor: '#111118', outfit: 'mage', outfitColor: '#1a1a1a', skin: '#f4e4d4', eyeColor: '#c01a1a' }, body: 'zeref' }, arena: 'zeref', projColor: '#3a1a3a',
+    defeat: '🏆 Zeref\'s black magic gutters out. "So this is what it feels like," he says. The war for Ishgar is over.',
+    telegraphs: [
+      { id: 'death', name: 'Death Pulse', shape: 'circle', radius: 3.4, windup: 1.2, dmg: 110, cd: 7, at: 'targets', count: 5, phase: 1 },
+      { id: 'black', name: 'Black Arts Beam', shape: 'rect', length: 26, width: 4.5, windup: 1.3, dmg: 125, cd: 9, at: 'self', phase: 1 },
+      { id: 'demons', name: 'Book of Zeref', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 3, mob: 'tartaros_demon_s', phase: 2 },
+      { id: 'void', name: 'Life and Death', shape: 'circle', radius: 3, windup: 0.9, dmg: 105, cd: 6, at: 'victim', count: 4, phase: 2 },
+      { id: 'ankh', name: 'Ankhseram\'s Curse', shape: 'ring', inner: 5, radius: 22, windup: 3.4, dmg: 230, cd: 15, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.78, trans: 2.4, shield: 0.15, line: 'Zeref: "Every life I touch ends. Yours will too." (phase 2)' },
+      { at: 0.25, n: 3, cdMul: 0.5, trans: 3.2, line: 'A black halo opens over Zeref: Ankhseram\'s curse (final phase)!' },
+    ],
+    drops: [{ id: 'ore_t6', chance: 1, min: 8, max: 10 }, { id: 'lacrima_shard', chance: 1, min: 8, max: 10 }], jewels: [7000, 9000],
+    party: { jobs: [], quest: ['q_alvarez3', 2], ids: ['gm_natsu', 'gm_erza', 'gm_wendy'], line: '⚔️ All of Fairy Tail is behind you. Natsu: "This ends here, brother."' },
+    bark: ['I wanted to die. I still do.', 'Natsu... you were my last hope.', 'The world rejects me. I reject it back.'],
+  },
+  elentir_drake: { name: 'Guiltina Sea Drake', level: 100, hp: 5200, dmg: 66, speed: 3.8, aggro: 13, range: 3, atkCd: 1.7, xp: 2400, model: 'dragon', opt: { scale: '#2a6a9a', belly: '#9ad0e0', horn: '#e0f0ff', eye: '#7affff' }, scale: 0.6,
+    drops: [{ id: 'hide_t5', chance: 0.5 }, { id: 'ore_t6', chance: 0.35 }], jewels: [220, 300], bark: ['*a salt-sea roar*'] },
+  elentir_drake_s: { name: 'Water Serpent (summoned)', level: 100, hp: 2200, dmg: 44, speed: 0.7, aggro: 40, range: 10, atkCd: 2.2, xp: 120, model: 'wisp', opt: { color: '#5ad0ff' }, ranged: true, temp: true, projColor: '#9ae8ff', drops: [], jewels: [12, 18], bark: ['*splash*'] },
+  mercphobia: {
+    name: 'Mercphobia, Water Dragon God', short: 'Mercphobia', level: 110, hp: 200000, dmg: 128, speed: 3, aggro: 24, range: 14, atkCd: 2.1, xp: 40000, model: 'dragon', ranged: true, boss: true, leash: 28, radius: 3.2, scale: 2.4,
+    opt: { scale: '#1a5a8a', belly: '#7ac0e0', horn: '#e8f8ff', eye: '#aaffff', bossAura: ['#5ad0ff', '#2a8aff', '#e0ffff'] }, arena: 'hundred', projColor: '#7ae0ff',
+    defeat: '🏆 The Water Dragon God sinks beneath the waves. The first of the Five Dragon Gods is sealed. Four remain.',
+    telegraphs: [
+      { id: 'tide', name: 'Tidal Crush', shape: 'circle', radius: 5, windup: 1.4, dmg: 120, cd: 8, at: 'self', phase: 1 },
+      { id: 'geyser', name: 'Geyser Field', shape: 'circle', radius: 3.4, windup: 1.2, dmg: 105, cd: 7, at: 'targets', count: 5, phase: 1 },
+      { id: 'breath', name: 'Abyssal Breath', shape: 'rect', length: 28, width: 5, windup: 1.5, dmg: 140, cd: 9, at: 'self', phase: 2 },
+      { id: 'serpents', name: 'Serpent Brood', shape: 'circle', radius: 2.4, windup: 1.6, dmg: 0, cd: 20, at: 'summon', count: 3, mob: 'elentir_drake_s', phase: 2 },
+      { id: 'flood', name: 'World Flood', shape: 'ring', inner: 6, radius: 23, windup: 3.6, dmg: 250, cd: 15, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.78, trans: 2.6, shield: 0.15, line: 'Mercphobia: "Little humans. I swallowed a city once. It did not notice." (phase 2)' },
+      { at: 0.25, n: 3, cdMul: 0.5, trans: 3.2, line: 'The sea rises like a wall: World Flood (final phase)!' },
+    ],
+    drops: [{ id: 'ore_t6', chance: 1, min: 10, max: 12 }, { id: 'hide_t5', chance: 1, min: 8, max: 10 }, { id: 'lacrima_shard', chance: 1, min: 8, max: 10 }], jewels: [9000, 12000],
+    party: { jobs: [], quest: ['q_hundred', 2], ids: ['gm_natsu', 'gm_erza', 'gm_wendy'], line: '⚔️ Team Natsu dives in after you. One hundred years, one quest!' },
+    bark: ['*the sea itself roars*', 'You are a ripple. I am the ocean.', 'Elefseria\'s pets come at last.'],
+  },
 };
 // Ally templates (celestial spirits and boss-party guildmates)
 export const ALLIES = {
@@ -429,6 +600,22 @@ export const SPAWNS = [
   { mob: 'byro', count: 1, at: [-137, -27] },
   { mob: 'sabertooth_mage', count: 5, c: [-300, -132], r: 14, arc: 'a_gmg' },     // Crocus, outside Domus Flau
   { mob: 'sting', count: 1, at: [-313.6, -116.8] },
+  { mob: 'eclipse_dragonkin', count: 5, c: [-284, -188], r: 10, arc: 'a_eclipse' },  // dragons through the Eclipse Gate, south of Crocus
+  { mob: 'future_rogue', count: 1, at: [-306, -206] },
+  { mob: 'frost_bandit', count: 5, c: [-216, -490], r: 12, arc: 'a_sun' },          // Sun Village, frozen under Mt. Hakobe
+  { mob: 'frost_colossus', count: 1, at: [-236, -512] },
+  { mob: 'tartaros_demon', count: 6, c: [-372, -258], r: 12, arc: 'a_tartaros' },   // the Cube over Era
+  { mob: 'mard_geer', count: 1, at: [-392, -282] },
+  { mob: 'avatar_cultist', count: 5, c: [52, -280], r: 12, arc: 'a_avatar' },       // Avatar's hideout, Worth Woodsea
+  { mob: 'arlock', count: 1, at: [69, -300] },
+  { mob: 'alvarez_soldier', count: 5, c: [-112, 148], r: 12, arc: 'a_alvarez1' },   // Alvarez beachhead at Hargeon
+  { mob: 'ajeel', count: 1, at: [-133, 162] },
+  { mob: 'alvarez_soldier', count: 5, c: [96, -96], r: 10, arc: 'a_alvarez2' },     // the field east of Magnolia
+  { mob: 'irene', count: 1, at: [112, -112] },
+  { mob: 'alvarez_soldier', count: 4, c: [-50, -52], r: 8, arc: 'a_alvarez3' },     // Magnolia, the last stand
+  { mob: 'zeref', count: 1, at: [-58, -78] },
+  { mob: 'elentir_drake', count: 5, c: [420, -190], r: 12, arc: 'p_hundred' },      // the Guiltina landing, east coast past Akane
+  { mob: 'mercphobia', count: 1, at: [440, -212] },
 ];
 export const BOSS_ARENA = { x: -363.2, z: -60.8, r: 22 }; // Clover Canyon (map px 470,382)
 // Every story boss fights inside its own arena. gate = the side the entrance faces (world x,z of the approach).
@@ -447,5 +634,13 @@ export const BOSS_ARENAS = {
   ogre: { x: 28, z: -96, r: 16, name: 'Twilight Ogre Yard', pillar: '#6a4a2a', gem: '#ffb05a', floor: '#8a7a5a', gate: [12, -74], set: 'ogre' },
   clock: { x: -137, z: -27, r: 18, name: 'Infinity Clock Ruins', pillar: '#8a8070', gem: '#9affd8', floor: '#9a9080', gate: [-122, -8], set: 'clock' },
   domus: { x: -313.6, z: -116.8, r: 9, name: 'Domus Flau Arena Floor', pillar: '#8a7a6a', gem: '#ffffff', floor: '#c8b898', gate: [-313.6, -106], noFlat: true },
+  eclipse: { x: -306, z: -206, r: 18, name: 'Eclipse Gate, Crocus', pillar: '#c8b888', gem: '#ffe8a0', floor: '#a89878', gate: [-306, -182], set: 'eclipse' },
+  sun: { x: -236, z: -512, r: 18, name: 'Sun Village, Eternal Ice', pillar: '#cfe0ee', gem: '#bfe8ff', floor: '#e0eaf2', gate: [-206, -506], set: 'sun' },
+  tartaros: { x: -392, z: -282, r: 18, name: 'The Cube, Tartaros', pillar: '#3a1a2a', gem: '#ff3a6a', floor: '#4a2a3a', gate: [-370, -262], set: 'cube' },
+  avatar: { x: 69, z: -300, r: 18, name: 'Avatar\'s Altar, Worth Woodsea', pillar: '#4a3a2a', gem: '#ff8a3a', floor: '#6a5a4a', gate: [50, -280], set: 'altar' },
+  sands: { x: -133, z: 162, r: 18, name: 'Hargeon Beachhead', pillar: '#d8c090', gem: '#f0d090', floor: '#d8c8a0', gate: [-112, 146], set: 'sands' },
+  irene: { x: 112, z: -112, r: 18, name: 'East Field, Battle of Magnolia', pillar: '#6a2a3a', gem: '#ff5a5a', floor: '#7a6a5a', gate: [96, -94], set: 'warfield' },
+  zeref: { x: -58, z: -78, r: 18, name: 'Fairy Heart Gate, Magnolia', pillar: '#2a2a32', gem: '#8a3aff', floor: '#4a4a52', gate: [-46, -54], set: 'fairyheart' },
+  hundred: { x: 440, z: -212, r: 20, name: 'Guiltina Landing, the Hundred-Year Quest', pillar: '#4a7a9a', gem: '#7ae0ff', floor: '#8aa0a8', gate: [420, -186], set: 'tide' },
 };
 export const arenaOf = (tpl) => BOSS_ARENAS[tpl.arena || 'canyon'];

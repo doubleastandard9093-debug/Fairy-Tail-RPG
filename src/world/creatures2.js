@@ -187,6 +187,12 @@ export const WSTYLE = {
   teebo: { style: 'dive', cloth: ['#5a3a1a', '#3a2a1a'], tints: ['#ffb05a', '#ff7a3a', '#ff3a1a'], fx: 'magic', fxc: '#c08040', spark: '#ffd0a0' },
   byro: { style: 'frost', cloth: ['#3a4a3a', '#a8a890'], tints: ['#9affd8', '#5ad0b0', '#e0fff4'], fx: 'heaven', fxc: '#9affd8', spark: '#ffffff' },
   sting: { style: 'heaven', cloth: ['#3a3a4a', '#e8e8f0'], tints: ['#ffffff', '#fff4c0', '#ffd86a'], fx: 'heaven', fxc: '#ffffff', spark: '#fff8e0' },
+  rogue: { style: 'shadow', cloth: ['#1e1e28', '#3a2a4a'], tints: ['#6a3a8a', '#3a1a5a', '#c03aff'], wisp: ['#3a1a4a', '#c0a0ff', '#0a0612'], fx: 'shadow', fxc: '#2a1a3a', spark: '#b08aff' },
+  mard: { style: 'shadow', cloth: ['#2a1a2a', '#e8e0e8'], tints: ['#ff3a6a', '#c01a4a', '#5a0a2a'], wisp: ['#6a1a3a', '#ffb0c8', '#1a0610'], fx: 'shadow', fxc: '#3a0a1a', spark: '#ff8ab0' },
+  arlock: { style: 'dive', cloth: ['#3a2a1a', '#8a5a2a'], tints: ['#ff8a3a', '#ff5a1a', '#ffd06a'], fx: 'magic', fxc: '#ff8a3a', spark: '#ffe0a0' },
+  ajeel: { style: 'dive', cloth: ['#e8d8a8', '#8a6a3a'], tints: ['#f0d090', '#d8b060', '#fff0c0'], fx: 'magic', fxc: '#e0c080', spark: '#fff8d0' },
+  irene: { style: 'heaven', cloth: ['#3a2a3a', '#b01a2a'], tints: ['#ff5a5a', '#ff9a6a', '#ffd0a0'], fx: 'heaven', fxc: '#ff7a6a', spark: '#ffe0d0' },
+  zeref: { style: 'shadow', cloth: ['#1a1a1a', '#e8e0d0'], tints: ['#2a0a2a', '#8a1a3a', '#000000'], wisp: ['#1a0a1a', '#ff6a8a', '#000000'], fx: 'shadow', fxc: '#1a0a1a', spark: '#ff5a7a' },
   hades: { style: 'shadow', cloth: ['#2a1a1a', '#6a1a1a'], tints: ['#ff3a3a', '#c01a3a', '#5a0a1a'], wisp: ['#8a1a2a', '#ffb0b0', '#2a0606'], fx: 'shadow', fxc: '#3a0a0a', spark: '#ff8a8a' },
 };
 export function animateWizardExtra(p, t) {

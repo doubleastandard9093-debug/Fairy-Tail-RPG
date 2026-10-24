@@ -68,6 +68,67 @@ const SETS = {
     for (let k = 0; k < 4; k++) { const gx = bx + (R() - 0.5) * 18, gz = bz + (R() - 0.5) * 8; const gr = mesh(new THREE.TorusGeometry(2 + R() * 1.5, 0.5, 6, 12), bronze, gx, by + 1.2, gz); gr.rotation.x = 1.2 + R() * 0.6; g.add(gr); }
     g.add(mesh(new THREE.BoxGeometry(4, 10, 2), dark, bx, by + 5, bz)); W.circles.push({ x: bx, z: bz, r: 4 });
   },
+  eclipse({ g, W, R, bx, bz, by, face }) {
+    // The Eclipse Gate: a towering ring-gate of carved stone, half-open, with a dragon's shadow inside
+    const st = toon('#c8b888'), dk = toon('#6a5a3a'), gl = glow('#ffe8a0');
+    const ring = mesh(new THREE.TorusGeometry(9, 1.3, 10, 40), st, bx, by + 11, bz); ring.rotation.y = face; g.add(ring);
+    const inner = mesh(new THREE.CircleGeometry(7.6, 40), gl, bx, by + 11, bz); inner.rotation.y = face; inner.material = inner.material.clone(); inner.material.side = THREE.DoubleSide; inner.material.transparent = true; inner.material.opacity = 0.35; g.add(inner);
+    for (const s of [-1, 1]) { const leg = mesh(new THREE.BoxGeometry(3, 4, 3), dk, bx + Math.cos(face) * s * 7, by + 2, bz - Math.sin(face) * s * 7); g.add(leg); W.circles.push({ x: leg.position.x, z: leg.position.z, r: 2 }); }
+    for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; const rn = mesh(new THREE.BoxGeometry(0.6, 0.6, 0.3), gl, bx + Math.cos(face) * Math.cos(a) * 9, by + 11 + Math.sin(a) * 9, bz - Math.sin(face) * Math.cos(a) * 9); rn.rotation.y = face; g.add(rn); }
+  },
+  sun({ g, W, R, bx, bz, by }) {
+    // Sun Village: giant huts and a giant frozen mid-stride in a block of eternal ice
+    const ice = toon('#bfe8ff'), wood = toon('#6a4a2a'), skin = toon('#c89070'), thatch = toon('#b89a5a');
+    const block = mesh(new THREE.BoxGeometry(7, 14, 6), ice, bx, by + 7, bz); block.material = block.material.clone(); block.material.transparent = true; block.material.opacity = 0.55; g.add(block);
+    g.add(mesh(new THREE.CylinderGeometry(1.4, 1.6, 7, 10), skin, bx, by + 6.5, bz)); g.add(mesh(new THREE.SphereGeometry(1.3, 12, 10), skin, bx, by + 11, bz));
+    for (const s of [-1, 1]) { const arm = mesh(new THREE.CylinderGeometry(0.5, 0.5, 5, 8), skin, bx + s * 2, by + 7.5, bz); arm.rotation.z = s * 0.5; g.add(arm); }
+    W.circles.push({ x: bx, z: bz, r: 4.5 });
+    for (let k = 0; k < 3; k++) { const hx = bx + (k - 1) * 14, hz = bz + 10 + (k % 2) * 4; g.add(mesh(new THREE.CylinderGeometry(4, 4.5, 6, 10), wood, hx, by + 3, hz)); g.add(mesh(new THREE.ConeGeometry(5.5, 5, 10), thatch, hx, by + 8.5, hz)); W.circles.push({ x: hx, z: hz, r: 4.6 }); }
+  },
+  cube({ g, W, R, bx, bz, by }) {
+    // Tartaros' Cube: a black fortress-cube hanging in the sky, with thorn vines down to the ground
+    const blk = toon('#2a1a2a'), thorn = toon('#3a1a1a'), gl = glow('#ff3a6a');
+    const cb = mesh(new THREE.BoxGeometry(16, 16, 16), blk, bx, by + 32, bz); cb.rotation.set(0.3, 0.6, 0.2); g.add(cb);
+    const core = mesh(new THREE.OctahedronGeometry(3, 0), gl, bx, by + 22, bz); g.add(core);
+    for (let k = 0; k < 7; k++) { const x = bx + (R() - 0.5) * 16, z = bz + (R() - 0.5) * 10; const v = mesh(new THREE.CylinderGeometry(0.25, 0.6, 24, 5), thorn, x, by + 12, z); v.rotation.z = (R() - 0.5) * 0.3; g.add(v); W.circles.push({ x, z, r: 0.8 }); }
+  },
+  altar({ g, W, R, bx, bz, by }) {
+    // Avatar's altar: a stepped stone dais with a ritual brazier and cult banners
+    const st = toon('#5a4a3a'), dk = toon('#3a2a1a'), fire = glow('#ff8a3a'), ban = toon('#8a2a1a');
+    for (let k = 0; k < 3; k++) g.add(mesh(new THREE.BoxGeometry(14 - k * 4, 1, 10 - k * 3), st, bx, by + 0.5 + k, bz));
+    g.add(mesh(new THREE.CylinderGeometry(1.2, 0.8, 1.6, 10), dk, bx, by + 3.8, bz)); const fl = mesh(new THREE.ConeGeometry(1.1, 3, 8), fire, bx, by + 6, bz); g.add(fl);
+    W.circles.push({ x: bx, z: bz, r: 6 });
+    for (const s of [-1, 1]) { g.add(mesh(new THREE.CylinderGeometry(0.15, 0.15, 8, 6), dk, bx + s * 9, by + 4, bz)); g.add(mesh(new THREE.BoxGeometry(2.4, 4, 0.1), ban, bx + s * 9, by + 5.5, bz + 0.2)); }
+  },
+  sands({ g, W, R, bx, bz, by }) {
+    // Alvarez beachhead: sand dunes, broken masts and an imperial war banner
+    const sand = toon('#d8c090'), wood = toon('#5a3a1a'), ban = toon('#2a3a6a'), gold = toon('#d8a83a');
+    for (let k = 0; k < 6; k++) { const d = mesh(new THREE.SphereGeometry(4 + R() * 3, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), sand, bx + (R() - 0.5) * 26, by - 0.3, bz + (R() - 0.5) * 12); d.scale.y = 0.4; g.add(d); }
+    for (let k = 0; k < 3; k++) { const m = mesh(new THREE.CylinderGeometry(0.3, 0.4, 12, 6), wood, bx + (k - 1) * 8, by + 5, bz); m.rotation.z = (R() - 0.5) * 0.6; g.add(m); W.circles.push({ x: bx + (k - 1) * 8, z: bz, r: 0.6 }); }
+    g.add(mesh(new THREE.BoxGeometry(4, 6, 0.1), ban, bx, by + 8, bz + 0.4)); g.add(mesh(new THREE.CircleGeometry(1, 16), gold, bx, by + 8.5, bz + 0.47));
+  },
+  warfield({ g, W, R, bx, bz, by }) {
+    // The east field: an enchanted, cracked battleground with toppled siege towers and red banners
+    const wood = toon('#4a3a2a'), ban = toon('#8a1a2a'), gl = glow('#ff5a5a');
+    for (let k = 0; k < 2; k++) { const tw = mesh(new THREE.BoxGeometry(4, 12, 4), wood, bx + (k ? 8 : -8), by + 5, bz); tw.rotation.z = k ? 0.35 : -0.25; g.add(tw); W.circles.push({ x: bx + (k ? 8 : -8), z: bz, r: 2.6 }); }
+    for (let k = 0; k < 5; k++) { g.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 6, 5), wood, bx + (k - 2) * 4, by + 3, bz - 4)); g.add(mesh(new THREE.BoxGeometry(1.6, 2.4, 0.06), ban, bx + (k - 2) * 4 + 0.8, by + 4.8, bz - 4)); }
+    const sig = mesh(new THREE.RingGeometry(5, 5.6, 6), gl, bx, by + 6, bz + 3); sig.material = sig.material.clone(); sig.material.side = THREE.DoubleSide; g.add(sig);
+  },
+  fairyheart({ g, W, R, bx, bz, by }) {
+    // Fairy Heart gate: Lumen Histoire's crystal glowing beneath Magnolia, cracked open to the sky
+    const cr = glow('#8a3aff'), st = toon('#2a2a32'), pale = toon('#d8d0e8');
+    const c1 = mesh(new THREE.OctahedronGeometry(4, 0), cr, bx, by + 7, bz); c1.scale.y = 1.8; g.add(c1);
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; const sh = mesh(new THREE.BoxGeometry(1.4, 6 + R() * 4, 1.4), st, bx + Math.cos(a) * 6, by + 3, bz + Math.sin(a) * 6); sh.rotation.set((R() - 0.5) * 0.5, a, (R() - 0.5) * 0.5); g.add(sh); W.circles.push({ x: sh.position.x, z: sh.position.z, r: 1 }); }
+    const halo = mesh(new THREE.TorusGeometry(6.5, 0.2, 6, 40), pale, bx, by + 0.3, bz); halo.rotation.x = Math.PI / 2; g.add(halo); W.circles.push({ x: bx, z: bz, r: 4 });
+  },
+  tide({ g, W, R, bx, bz, by }) {
+    // Guiltina landing: a wrecked ship, coral spires and a sea-carved dragon idol
+    const wood = toon('#5a3a22'), coral = toon('#e07a6a'), st = toon('#4a7a9a'), gl = glow('#7ae0ff');
+    const hull = mesh(new THREE.CylinderGeometry(3, 3, 16, 10, 1, false, 0, Math.PI), wood, bx, by + 1.5, bz); hull.rotation.set(0, 0, Math.PI / 2); hull.rotation.z = Math.PI / 2 + 0.2; g.add(hull);
+    g.add(mesh(new THREE.CylinderGeometry(0.3, 0.4, 14, 6), wood, bx + 2, by + 7, bz + 1)); W.circles.push({ x: bx, z: bz, r: 7 });
+    for (let k = 0; k < 6; k++) { const x = bx + (R() - 0.5) * 30, z = bz + (R() - 0.5) * 14; g.add(mesh(new THREE.ConeGeometry(0.8 + R(), 4 + R() * 4, 6), coral, x, by + 2.5, z)); }
+    const idol = mesh(new THREE.ConeGeometry(2.2, 10, 6), st, bx - 10, by + 5, bz - 3); g.add(idol); g.add(mesh(new THREE.OctahedronGeometry(1, 0), gl, bx - 10, by + 10.8, bz - 3)); W.circles.push({ x: bx - 10, z: bz - 3, r: 2.4 });
+  },
   icecave({ g, W, R, bx, bz, by, gap }) {
     // The Vulcans' den: a frozen cave mouth flanked by icicle spires
     const ice = toon('#d8ecf8'), deep = toon('#1a2a3a'), blue = glow('#8acaff');

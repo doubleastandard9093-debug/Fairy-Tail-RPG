@@ -106,12 +106,12 @@ function tufts(par, m, n, r, y, z0, len, spread = Math.PI * 2, a0 = 0, tilt = 0.
 }
 
 // ------------------------------------------------------------------ builders
-export const CREATURES = new Set(['vulcan', 'boar', 'golem', 'wisp']);
+export const CREATURES = new Set(['vulcan', 'boar', 'golem', 'wisp', 'dragon']);
 
 export function buildCreature(model, opt = {}) {
   const g = new THREE.Group(); const P = { kind: model }; g.userData.seed = Math.random() * 100;
   if (model === 'vulcan') buildVulcan(g, P, opt); else if (model === 'boar') buildBoar(g, P, opt);
-  else if (model === 'golem') buildGolem(g, P, opt); else if (model === 'wisp') buildWisp(g, P, opt);
+  else if (model === 'golem') buildGolem(g, P, opt); else if (model === 'wisp') buildWisp(g, P, opt); else if (model === 'dragon') buildDragon(g, P, opt);
   P.seed = g.userData.seed; return { group: g, parts: P };
 }
 
@@ -207,7 +207,7 @@ function buildBoar(g, P, opt) {
 }
 
 function buildGolem(g, P, opt) {
-  const st = cmat(opt.stone || '#7a7068', 'moss'), st2 = cmat(shade(opt.stone || '#7a7068', 0.72), 'stone'), mossM = cmat('#4a7a2a', 'fur', { scale: 3.5 });
+  const noMoss = opt.moss === false; const st = cmat(opt.stone || '#7a7068', noMoss ? 'stone' : 'moss'), st2 = cmat(shade(opt.stone || '#7a7068', 0.72), 'stone'), mossM = cmat('#4a7a2a', 'fur', { scale: 3.5 });
   const rune = glow(opt.rune || '#7affc0'), crys = cmat('#9ad0ff', 'crystal', { emissive: '#2a5a90', glowK: 1 }), vine = toon('#3a5a22');
   P.fx = { kind: 'stone', color: opt.stone || '#7a7068', spark: opt.rune || '#7affc0' }; P.runes = [];
   const b = grp(g, 0, 0, 0); P.body = b; const tr = grp(b, 0, 2.2, 0); P.torso = tr;
@@ -218,9 +218,9 @@ function buildGolem(g, P, opt) {
   for (let i = 0; i < 6; i++) { const r = add(tr, box(0.06, 0.42 + (i % 3) * 0.18, 0.04), rune, -0.75 + i * 0.3, 0.55 + (i % 2) * 0.35, 1.18 - Math.abs(i - 2.5) * 0.08); r.rotation.z = (i - 2.5) * 0.28; r.userData.noOutline = true; P.runes.push(r); }
   const core = add(tr, new THREE.OctahedronGeometry(0.26, 0), crys, 0, 0.75, 1.25); P.core = core;
   // mossy mantle with hanging vines and ferns
-  const mant = add(tr, rockGeo(1.1, 9, 1, 0.25), mossM, 0, 1.85, -0.25); mant.scale.set(1.45, 0.38, 1.15);
+  if (!noMoss) { const mant = add(tr, rockGeo(1.1, 9, 1, 0.25), mossM, 0, 1.85, -0.25); mant.scale.set(1.45, 0.38, 1.15);
   for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; const l = 0.5 + H(i) * 0.7; const v = add(tr, cyl(0.025, 0.012, l, 4), vine, Math.sin(a) * 1.45, 1.75 - l / 2, Math.cos(a) * 1.05 - 0.2); v.userData.noOutline = true; }
-  for (let i = 0; i < 7; i++) { const a = i * 0.9; const f = add(tr, cone(0.12, 0.5, 4), mossM, Math.sin(a) * 0.9, 2.15, Math.cos(a) * 0.7 - 0.3); f.rotation.set(Math.cos(a) * 0.5, 0, -Math.sin(a) * 0.5); }
+  for (let i = 0; i < 7; i++) { const a = i * 0.9; const f = add(tr, cone(0.12, 0.5, 4), mossM, Math.sin(a) * 0.9, 2.15, Math.cos(a) * 0.7 - 0.3); f.rotation.set(Math.cos(a) * 0.5, 0, -Math.sin(a) * 0.5); } }
   P.crystals = [];
   for (let i = 0; i < 6; i++) { const s = i % 2 ? 1 : -1; const c = add(tr, new THREE.OctahedronGeometry(0.4 + H(i) * 0.22, 0), crys, s * (0.45 + i * 0.17), 2.3 + H(i + 4) * 0.35, -0.8 - H(i + 2) * 0.3); c.scale.y = 2.6; c.rotation.set(-0.5, 0, -s * 0.5); P.crystals.push(c); }
   const head = grp(tr, 0, 2.05, 0.95); P.head = head;
@@ -241,6 +241,44 @@ function buildGolem(g, P, opt) {
   P.legs = [];
   for (const s of [-1, 1]) { const hp = grp(b, s * 0.8, 1.55, 0); add(hp, rockGeo(0.55, 30 + s, 1, 0.18), st2, 0, -0.35, 0).scale.y = 1.2;
     const kn = grp(hp, 0, -0.95, 0); add(kn, rockGeo(0.6, 33 + s, 1, 0.16), st, 0, -0.3, 0.05).scale.set(1.05, 0.9, 1.25); P.legs.push({ hp, kn, s }); }
+}
+
+function buildDragon(g, P, opt) {
+  // Dragon: long-necked quadruped with membrane wings, horned head and a tapering tail
+  const sc = cmat(opt.scale || '#5a8a4a', 'scale'), sc2 = cmat(shade(opt.scale || '#5a8a4a', 0.7), 'scale'), belly = cmat(opt.belly || '#c8d08a', 'hide');
+  const horn = cmat(opt.horn || '#e8e0c0', 'bone'), wingM = toon(shade(opt.scale || '#5a8a4a', 0.85)); wingM.side = THREE.DoubleSide;
+  P.fx = { kind: 'scale', color: opt.scale || '#5a8a4a' };
+  const b = grp(g, 0, 0, 0); P.body = b; const tr = grp(b, 0, 1.7, 0); P.torso = tr;
+  add(tr, sph(1, 16, 12), sc).scale.set(1.0, 0.85, 1.6);
+  add(tr, sph(0.85, 14, 10), belly, 0, -0.25, 0.1).scale.set(0.9, 0.7, 1.4);
+  for (let i = 0; i < 6; i++) add(tr, cone(0.14, 0.45, 4), horn, 0, 0.9 - Math.abs(i - 2.5) * 0.04, 1.1 - i * 0.45).rotation.x = -0.3;
+  // neck + head
+  const nk = grp(tr, 0, 0.4, 1.35); P.neck = nk; let par = nk; P.neckSeg = [];
+  for (let i = 0; i < 4; i++) { const s = grp(par, 0, 0.32, 0.28); add(s, sph(0.42 - i * 0.04, 12, 10), sc).scale.set(1, 1, 1.2); add(s, cone(0.1, 0.3, 4), horn, 0, 0.36, 0).rotation.x = -0.4; P.neckSeg.push(s); par = s; }
+  const head = grp(par, 0, 0.25, 0.35); P.head = head;
+  add(head, sph(0.45, 14, 10), sc).scale.set(0.9, 0.75, 1.2);
+  add(head, box(0.5, 0.3, 0.7), sc2, 0, -0.08, 0.55);
+  for (const s of [-1, 1]) { const h = add(head, cone(0.08, 0.9, 5), horn, s * 0.25, 0.35, -0.3); h.rotation.set(-1.1, 0, s * 0.35); }
+  P.eyes = [eye(head, -0.24, 0.12, 0.35, 0.08, opt.eye || '#ffd03a', { glow: true }), eye(head, 0.24, 0.12, 0.35, 0.08, opt.eye || '#ffd03a', { glow: true })];
+  const jaw = grp(head, 0, -0.22, 0.3); P.jaw = jaw; add(jaw, box(0.44, 0.12, 0.6), belly, 0, 0, 0.25);
+  for (const s of [-1, 1]) for (let k = 0; k < 3; k++) add(jaw, cone(0.03, 0.1, 4), horn, s * 0.16, 0.08, 0.1 + k * 0.17).rotation.x = Math.PI;
+  // wings
+  P.wings = [];
+  for (const s of [-1, 1]) { const w = grp(tr, s * 0.7, 0.75, 0.3); const arm = add(w, cyl(0.07, 0.05, 2.6, 6), sc2, s * 1.3, 0.3, 0); arm.rotation.z = s * -1.35;
+    const shape = new THREE.Shape(); shape.moveTo(0, 0); shape.lineTo(2.7, 0.55); shape.lineTo(2.4, -0.6); shape.lineTo(1.6, -1.1); shape.lineTo(0.8, -1.4); shape.lineTo(0, -0.9);
+    const mem = add(w, new THREE.ShapeGeometry(shape), wingM, 0, 0.1, 0); mem.rotation.x = -Math.PI / 2; mem.rotation.z = 0; if (s < 0) mem.scale.x = -1; mem.userData.noOutline = true; w.userData.s = s; P.wings.push(w); }
+  // legs
+  P.legs = [];
+  for (const [x, z, fr] of [[-0.65, 0.9, 1], [0.65, 0.9, 1], [-0.65, -0.9, 0], [0.65, -0.9, 0]]) {
+    const up = grp(tr, x, -0.35, z); add(up, cap(0.26, 0.5, 8), sc, 0, -0.35, 0);
+    const lo = grp(up, 0, -0.75, 0); add(lo, cap(0.19, 0.45, 8), sc2, 0, -0.3, 0.05);
+    for (let k = -1; k <= 1; k++) add(lo, cone(0.05, 0.2, 4), horn, k * 0.1, -0.62, 0.22).rotation.x = Math.PI / 2;
+    P.legs.push({ up, lo, fr });
+  }
+  // tail
+  const tl = grp(tr, 0, 0.05, -1.5); P.tail = []; par = tl;
+  for (let i = 0; i < 7; i++) { const s = grp(par, 0, 0, -0.38); add(s, sph(0.34 - i * 0.04, 10, 8), i % 2 ? sc2 : sc).scale.set(1, 0.9, 1.3); P.tail.push(s); par = s; }
+  add(par, cone(0.22, 0.5, 4), horn, 0, 0, -0.3).rotation.x = -Math.PI / 2;
 }
 
 function buildWisp(g, P, opt) {
@@ -320,6 +358,14 @@ export function animateCreature(m, model, t, move, atk) {
     p.head.rotation.y = idle && sniff < 0 ? look * 0.6 : 0; p.jaw.rotation.x = strike * 0.35;
     p.ears.forEach((e, i) => { const fl = ((t * 1.3 + sd + i * 2.1) % 3.1) < 0.15 ? 0.5 : 0; e.rotation.x = -0.3 - move * 0.6 - up * 0.5 + fl; });
     p.tail.rotation.z = Math.sin(t * (move ? 16 : 6)) * 0.5;
+  } else if (model === 'dragon') {
+    const ph = t * (move > 0.5 ? 8 : 4); const flap = Math.sin(t * (up > 0 ? 9 : 2.2) + sd);
+    p.torso.position.y = 1.7 + Math.abs(Math.sin(ph)) * 0.08 * move + up * 0.3; p.torso.rotation.x = -up * 0.25 + strike * 0.2;
+    p.legs.forEach((l, i) => { const q = Math.sin(ph + (l.fr ? 0 : Math.PI) + (i % 2) * Math.PI); l.up.rotation.x = q * 0.55 * move - (l.fr ? up * 0.6 : 0); l.lo.rotation.x = Math.max(0, -q) * 0.6 * move; });
+    p.wings.forEach((w) => { const s = w.userData.s; w.rotation.z = s * (0.25 + flap * (0.25 + up * 0.5)); w.rotation.y = s * -0.15; });
+    p.neckSeg.forEach((n, i) => { n.rotation.x = -0.25 + up * -0.18 + strike * 0.3 + Math.sin(t * 1.3 + i * 0.5 + sd) * 0.04; n.rotation.y = idle ? look * 0.12 : 0; });
+    p.head.rotation.x = 0.35 - up * 0.3 + strike * 0.4; p.jaw.rotation.x = Math.max(up, strike) * 0.6 + Math.max(0, Math.sin(t * 0.9 + sd)) * 0.06;
+    p.tail.forEach((s, i) => { s.rotation.y = Math.sin(t * 2 - i * 0.6 + sd) * 0.15; s.rotation.x = 0.06; });
   } else if (model === 'golem') {
     const ph = t * 3.2; p.body.position.y = Math.abs(Math.sin(ph)) * 0.12 * move - strike * 0.25; p.torso.rotation.z = Math.sin(ph) * 0.07 * move + (idle ? Math.sin(t * 0.6 + sd) * 0.03 : 0);
     p.torso.rotation.x = 0.1 * move - up * 0.28 + strike * 0.45; p.torso.rotation.y = Math.sin(ph) * 0.08 * move;

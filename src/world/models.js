@@ -551,6 +551,37 @@ export function buildMob(model, opt = {}) {
       const pad = mesh(new THREE.SphereGeometry(0.2, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), iron, -0.36, 1.32, 0); c.group.add(pad);
       for (let k = 0; k < 3; k++) { const sp = mesh(G.cone(0.04, 0.16, 4), iron, -0.36 + (k - 1) * 0.08, 1.48, 0); c.group.add(sp); }
     }
+    if (opt.body === 'mard') {
+      // Mard Geer: pale high-collared coat and a thorn circlet
+      const coat = toon('#2a1a2a'), thorn = toon('#3a1a1a');
+      const sk = mesh(new THREE.CylinderGeometry(0.3, 0.6, 1.15, 14, 1, true), coat, 0, 0.5, 0); sk.material = coat.clone(); sk.material.side = THREE.DoubleSide; c.group.add(sk); parts.skirt = sk;
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; const sp = mesh(G.cone(0.03, 0.16, 4), thorn, Math.cos(a) * 0.26, 0.28, Math.sin(a) * 0.26); c.parts.head.add(sp); }
+    } else if (opt.body === 'zeref') {
+      // Zeref: a black robe with a pale toga sash
+      const robe = toon('#1a1a1a'), sash = toon('#e8e0d0');
+      const sk = mesh(new THREE.CylinderGeometry(0.3, 0.58, 1.15, 14, 1, true), robe, 0, 0.5, 0); sk.material = robe.clone(); sk.material.side = THREE.DoubleSide; c.group.add(sk); parts.skirt = sk;
+      const sh = mesh(new THREE.TorusGeometry(0.32, 0.07, 6, 18), sash, 0, 1.15, 0); sh.rotation.set(Math.PI / 2, 0.5, 0); c.group.add(sh);
+    } else if (opt.body === 'irene') {
+      // Irene: a tall witch's hat and a long scarlet gown
+      const gown = toon('#3a2a3a'), hat = toon('#2a1a2a');
+      const sk = mesh(new THREE.CylinderGeometry(0.3, 0.62, 1.15, 14, 1, true), gown, 0, 0.5, 0); sk.material = gown.clone(); sk.material.side = THREE.DoubleSide; c.group.add(sk); parts.skirt = sk;
+      const br = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.04, 16), hat, 0, 0.3, 0); c.parts.head.add(br); const tp = mesh(G.cone(0.24, 0.7, 12), hat, 0, 0.66, -0.04); tp.rotation.x = -0.2; c.parts.head.add(tp);
+    } else if (opt.body === 'ajeel') {
+      // Ajeel: a desert turban and loose sand-coloured robes
+      const cl = toon('#e8d8a8'), gold = toon('#d8a83a', { metal: 0.5 });
+      const tb = mesh(new THREE.SphereGeometry(0.3, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), cl, 0, 0.12, 0); tb.scale.y = 0.8; c.parts.head.add(tb); c.parts.head.add(mesh(new THREE.SphereGeometry(0.05, 8, 6), gold, 0, 0.2, 0.28));
+      const sk = mesh(new THREE.CylinderGeometry(0.34, 0.5, 0.8, 14, 1, true), cl, 0, 0.5, 0); sk.material = cl.clone(); sk.material.side = THREE.DoubleSide; c.group.add(sk);
+    } else if (opt.body === 'arlock') {
+      // Arlock: a priest's mantle and a tall ritual mitre
+      const mant = toon('#3a2a1a'), gold = toon('#c8903a', { metal: 0.5 });
+      const sk = mesh(new THREE.CylinderGeometry(0.3, 0.56, 1.1, 14, 1, true), mant, 0, 0.5, 0); sk.material = mant.clone(); sk.material.side = THREE.DoubleSide; c.group.add(sk); parts.skirt = sk;
+      const mt = mesh(new THREE.CylinderGeometry(0.12, 0.24, 0.45, 8), gold, 0, 0.42, 0); c.parts.head.add(mt);
+    } else if (opt.body === 'rogue') {
+      // Future Rogue: a ragged black cloak with a high collar
+      const cl = toon('#1e1e28');
+      const sk = mesh(new THREE.CylinderGeometry(0.34, 0.66, 1.2, 12, 1, true), cl, 0, 0.5, 0); sk.material = cl.clone(); sk.material.side = THREE.DoubleSide; c.group.add(sk); parts.skirt = sk;
+      const col = mesh(new THREE.CylinderGeometry(0.3, 0.24, 0.3, 12, 1, true), cl, 0, 1.5, 0); col.material = sk.material; c.group.add(col);
+    }
     const aura = mesh(new THREE.SphereGeometry(1.1, 16, 12), glow(opt.aura || '#ffffff'), 0, 1, 0); aura.material = aura.material.clone(); aura.material.transparent = true; aura.material.opacity = 0.12; aura.material.depthWrite = false; aura.scale.set(1, 1.5, 1); g.add(aura); parts.aura = aura;
   } else if (model === 'mage') {
     // Eisenwald dark-guild mage: hooded, cloaked humanoid with a scythe-staff

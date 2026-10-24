@@ -14,7 +14,8 @@ import { Audio } from './core/audio.js';
 import { loadFiore } from './world/fiore.js';
 import { derived } from './core/state.js';
 import { TREES } from './data/skilltree.js';
-import { MOBS } from './data/mobs.js';
+import { MOBS, BOSS_ARENAS } from './data/mobs.js';
+import { PLACE } from './world/fiore.js';
 
 const S = loadSettings();
 const qs = new URLSearchParams(location.search);
@@ -77,6 +78,6 @@ async function boot() {
     audio.play(ui.bossEnt ? 'boss' : game.zone === 'Fairy Tail Guild Hall' || game.zone === 'Magnolia' ? 'hall' : 'field');
   };
   requestAnimationFrame(frame);
-  window.__ew = { game, G, ui, P, S, THREE, D: { derived, TREES, MOBS }, T: TREE_API };
+  window.__ew = { game, G, ui, P, S, THREE, D: { derived, TREES, MOBS }, T: TREE_API, PLACE, BOSS_ARENAS };
 }
 boot().catch((e) => { console.error(e); const d = document.createElement('div'); d.id = 'loading'; d.textContent = 'Something exploded (not the guild this time): ' + e.message; document.body.appendChild(d); });
