@@ -232,6 +232,12 @@ export class UI {
     b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
     if (first) this.audio?.sfx('level');
   }
+  rideBar(kind, dest) {
+    let b = document.getElementById('ridebar'); if (!b) { b = document.createElement('div'); b.id = 'ridebar'; b.style.cssText = 'position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:40;background:rgba(30,18,40,.88);border:1px solid #c8a040;border-radius:12px;padding:8px 14px;color:#ffe8c0;font-weight:700;display:flex;gap:12px;align-items:center'; document.body.appendChild(b); }
+    if (!kind) { b.style.display = 'none'; return; }
+    const p = PLACE[dest]; b.innerHTML = `<span>${kind === 'boat' ? '⛵ Sailing to ' + esc(p.name) : '🚂 Riding to ' + esc(p.station.label)}</span><button class="btn small gold" id="ride-skip">Skip ⏩</button>`; b.style.display = 'flex';
+    b.querySelector('#ride-skip').onclick = () => this.game.transit.skip();
+  }
   fade(text, mid) {
     let f = document.getElementById('fade'); if (!f) { f = document.createElement('div'); f.id = 'fade'; document.body.appendChild(f); }
     f.textContent = text; f.classList.add('on'); this.closeWorldMap(); this.closePanel();

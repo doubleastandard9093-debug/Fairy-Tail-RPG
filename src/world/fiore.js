@@ -52,6 +52,7 @@ export const PLACES = [
   P('eastforest', 'East Forest', [790, 372], 95, { banner: 'Forest Vulcan territory' }),
   { ...P('hargeon', 'Hargeon Port', [607, 503], 80), station: { off: [16, -24], label: 'Hargeon Station' }, port: true, banner: 'Fiore\'s great trading port' },
   { ...P('crocus', 'Crocus Outskirts', [538, 340], 60), station: { at: toWorld(552, 356), label: 'Crocus East Station' }, banner: 'The Flower Capital of Fiore' },
+  P('domusflau', 'Domus Flau', [501, 347], 18, { banner: 'Arena of the Grand Magic Games' }),
   { ...P('hakobe', 'Mt. Hakobe', [568, 98], 120), banner: 'Eternal snow. Vulcans. Bring a coat.' },
   { ...P('hakobetrail', 'Hakobe Trailhead', [612, 165], 34), station: { off: [10, 8], label: 'Hakobe Carriage Stop' }, banner: 'The road to Mt. Hakobe' },
   { ...P('oshibana', 'Oshibana Station', [395, 252], 52), station: { off: [0, 0], label: 'Oshibana Station' }, banner: 'Junction of the western lines' },

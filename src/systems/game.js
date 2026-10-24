@@ -9,6 +9,7 @@ import { derived, countItem, addItem, skillLevel, classRank, canAdd, saveGame } 
 import { buildCharacter, buildMob, animateCharacter, animateMob, equipVisual } from '../world/models.js';
 import { buildWorld, groundAt, HALL, zoneAt, placeAt, blockedAt, rng } from '../world/world.js';
 import { PLACE, trainCost, FERRY_COST } from '../world/fiore.js';
+import { Transit, railPath, seaPath as seaPathFor } from './transit.js';
 import { glow, GFX } from '../world/toon.js';
 import * as P from './progress.js';
 import { artisanBonus, abilityLearned, abilityBonus, NODE } from '../data/skilltree.js';
@@ -24,6 +25,7 @@ export class Game {
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
     this.cam = { yaw: Math.PI, pitch: 0.55, dist: 11, tx: 0, ty: 0, tz: 0 };
     this.world = buildWorld(this.scene);
+    this.transit = new Transit(this);
     this.t = 0; this.entities = []; this.projectiles = []; this.teles = []; this.traps = []; this.fx = [];
     this.input = { x: 0, z: 0 }; this.autoAttack = S.autoAttack !== false;
     this.rand = rng(Date.now() & 0xffff);
@@ -475,7 +477,8 @@ export class Game {
       if (ooc) G.adr = Math.max(0, G.adr - dt * 4);
     }
     // movement
-    let mx = this.input.x, mz = this.input.z; const moving = (mx || mz) && !pl.dead;
+    let mx = this.transit.ride ? 0 : this.input.x, mz = this.transit.ride ? 0 : this.input.z; const moving = (mx || mz) && !pl.dead;
+    if (this.transit.ride) { pl.moveTo = null; pl.follow = null; }
     if (moving) { pl.moveTo = null; pl.follow = null; pl.gathering = null; }
     const fol = pl.follow;
     if (fol && !pl.dead) {
@@ -501,7 +504,7 @@ export class Game {
       const tr = Math.atan2(mx, mz); pl.rot += ang(tr - pl.rot) * Math.min(1, dt * 14); mv = Math.min(1, len);
     }
     pl.moving = mv;
-    pl.pos.y += (groundAt(pl.pos.x, pl.pos.z) - pl.pos.y) * Math.min(1, dt * 20);
+    if (!this.transit.ride) pl.pos.y += (groundAt(pl.pos.x, pl.pos.z) - pl.pos.y) * Math.min(1, dt * 20);
     // auto attack
     const tgt = this.validTarget();
     if (tgt && this.autoAttack && !pl.dead && !pl.gathering) {
@@ -537,6 +540,7 @@ export class Game {
     this.ui.boss(boss && !boss.dead && boss.aggro ? boss : null);
     // camera + world
     this.updateCamera(dt);
+    this.transit.update(dt);
     this.world.update(this.t, pl.pos);
     const inside = pl.pos.x > HALL.minX && pl.pos.x < HALL.maxX && pl.pos.z > HALL.minZ && pl.pos.z < HALL.maxZ;
     this.world.hallRoof.visible = !inside;
@@ -558,14 +562,23 @@ export class Game {
     if (this.entities.some((e) => e.kind === 'mob' && e.aggro && !e.dead)) { this.ui.toast('You can\'t travel in the middle of a fight!'); return false; }
     if (G.jewels < cost) { this.ui.toast(`Not enough Jewels (${cost} J needed).`); return false; }
     G.jewels -= cost; this.travelling = true;
-    this.ui.fade(kind === 'boat' ? `⛵ Sailing to ${p.name}…` : kind === 'train' ? `🚂 Magic train to ${p.station.label}…` : `✨ ${p.name}`, () => {
+    const arrive = () => {
       pl.pos.set(tx, 0, tz); pl.pos.y = groundAt(tx, tz); pl.rot = rot; pl.moveTo = null; pl.follow = null; pl.gathering = null; this.setTarget(null);
       this.cam.yaw = rot; this.cam.tx = tx; this.cam.tz = tz; this.cam.ty = pl.pos.y + 1.4;
       for (const e of this.entities) if (e.kind === 'escort' || e.kind === 'ally') { e.pos.set(tx + 1.5, groundAt(tx + 1.5, tz), tz); }
       this.world.flush(tx, tz); this.travelling = false;
       if (cost) this.ui.log(`Paid ${cost} Jewels for the ${kind === 'boat' ? 'ferry' : 'train'}. ${kind === 'train' && G.look && dest !== 'magnolia' ? '(Natsu would have thrown up twice by now.)' : ''}`, 'info');
       saveGame(G); this.ui.refresh();
-    });
+    };
+    if (kind === 'train' || kind === 'boat') { // ride the real route
+      const from = this.placeId || 'magnolia'; let path;
+      if (kind === 'train') path = railPath(PLACE[from].station ? PLACE[from].station.pos : [pl.pos.x, pl.pos.z], p.station.pos);
+      else { const A = this.ui.wmOpts && this.ui.wmOpts.from ? this.world.docks[this.ui.wmOpts.from] : null; const B = this.world.docks[dest]; const land = (x, z) => this.world.yAt(x, z) > -1.6; path = seaPathFor(A ? A.boat.slice(0, 2) : [pl.pos.x, pl.pos.z], B.boat.slice(0, 2), land); }
+      this.ui.log(kind === 'boat' ? `⛵ All aboard for ${p.name}! (Press Skip to arrive now.)` : `🚂 All aboard the magic train to ${p.station.label}! (Press Skip to arrive now.)`, 'info');
+      this.ui.closeWorldMap(); this.ui.closePanel(); this.setTarget(null); this.transit.start(kind, path, dest, () => this.ui.fade(kind === 'boat' ? `⛵ Docking at ${p.name}…` : `🚂 Arriving at ${p.station.label}…`, arrive));
+      return true;
+    }
+    this.ui.fade(`✨ ${p.name}`, arrive);
     return true;
   }
   attackRange() {

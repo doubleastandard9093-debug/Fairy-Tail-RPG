@@ -37,6 +37,7 @@ function initFlat() {
     if (p.station && p.id !== 'magnolia' && p.id !== 'oshibana') { const [sx, sz] = p.station.pos; FLAT.push({ x: sx, z: sz, r: 12, blend: 10, h: mapHeight(sx, sz) }); }
   }
   const [sx, sz] = PLACE.magnolia.station.pos; FLAT.push({ x: sx, z: sz, r: 12, blend: 10, h: 0 });
+  { const Cc = toWorld(516, 337); FLAT.push({ x: Cc[0], z: Cc[1], r: 50, blend: 18, h: mapHeight(...Cc) }); } // Crocus city plaza + Domus Flau
   // Clover Canyon: a ravine cut through the ridge from Clover Town to the arena
   CARVE.push({ a: PLACE.clover.pos, b: [BOSS_ARENA.x, BOSS_ARENA.z], w: 5, blend: 9, h: 3 });
 }
@@ -477,6 +478,7 @@ export function buildWorld(scene) {
     const it = { kind: 'rail', place: place.id, name: place.station.label, x: tx, z: tz, r: 4.2, obj: tk }; W.interactables.push(it);
     return g;
   };
+  W.makeTrain = train; W.makeBoat = boat; W.yAt = yAt;
   // Railway track (instanced sleepers + rails)
   {
     const pts = []; for (const l of RAILS_W) for (let i = 0; i < l.length - 1; i++) { const [x0, z0] = l[i], [x1, z1] = l[i + 1]; const len = Math.hypot(x1 - x0, z1 - z0); for (let s = 0; s < len; s += 1.6) pts.push([x0 + (x1 - x0) * s / len, z0 + (z1 - z0) * s / len, Math.atan2(x1 - x0, z1 - z0)]); }
@@ -545,9 +547,29 @@ export function buildWorld(scene) {
     gate.add(mesh(new THREE.BoxGeometry(8, 3, 2.4), wallM, 0, 9.5, 0)); gate.add(mesh(new THREE.BoxGeometry(6, 8, 0.5), toon('#7a4a2a'), 0, 4, 0.2));
     const banner = mesh(new THREE.PlaneGeometry(5, 1.1), new THREE.MeshBasicMaterial({ map: textTexture('CROCUS', { bg: '#5a2a5a', fg: '#ffe8f4' }), side: THREE.DoubleSide, fog: true }), 0, 9.6, 1.25); gate.add(banner);
     W.circles.push({ x: gx, z: gz, r: 4.6 });
-    const skyline = [[0, 0, 7, 30, roofC2], [-14, -10, 3, 20, roofC], [12, -12, 3, 22, roofC], [-18, 12, 3.5, 16, roofC2], [16, 14, 3, 18, roofC], [0, -24, 3, 15, roofC], [-26, -4, 2.6, 13, roofC2], [26, 0, 2.6, 14, roofC2], [6, 20, 3, 12, roofC]];
+    const skyline = [[0, 0, 7, 30, roofC2], [-14, -10, 3, 20, roofC], [12, -12, 3, 22, roofC], [16, 14, 3, 18, roofC], [0, -24, 3, 15, roofC], [-26, -4, 2.6, 13, roofC2], [26, 0, 2.6, 14, roofC2], [6, 20, 3, 12, roofC]];
     for (const [dx, dz, r, hh, rc] of skyline) { const x = Cc[0] + dx, z = Cc[1] + dz, yb = yAt(x, z); g.add(mesh(new THREE.CylinderGeometry(r, r * 1.08, hh, 10), wallM, x, yb + hh / 2, z)); g.add(mesh(new THREE.ConeGeometry(r * 1.25, r * 2, 10), rc, x, yb + hh + r, z)); }
     const pal = mesh(new THREE.BoxGeometry(22, 12, 14), wallM, Cc[0], yAt(...Cc) + 6, Cc[1]); g.add(pal); g.add(mesh(new THREE.SphereGeometry(6, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), toon('#8ad0c0'), Cc[0], yAt(...Cc) + 12, Cc[1]));
+    // Domus Flau: the Grand Magic Games arena. Tiered stone bowl, four gates, guild-colour banners, lacrima vision screens.
+    { const D = PLACE.domusflau.pos; const dy = yAt(...D); const dg = new THREE.Group(); dg.position.set(D[0], dy, D[1]); g.add(dg); const Ri = 10, Ro = 15, gates = 4;
+      const stone = toon('#d8ccb4'), seat = toon('#b8a890'), trimG = toon('#c8a040');
+      for (let k = 0; k < 5; k++) { const r0 = Ri + k * 1.2; const ring = mesh(new THREE.CylinderGeometry(r0 + 1.2, r0 + 1.2, 1.5 + k * 1.5, 40, 1, true), k % 2 ? seat : stone, 0, (1.5 + k * 1.5) / 2, 0); ring.material.side = THREE.DoubleSide; dg.add(ring);
+        const top = mesh(new THREE.RingGeometry(r0, r0 + 1.2, 40), k % 2 ? stone : seat, 0, 1.5 + k * 1.5, 0); top.rotation.x = -Math.PI / 2; top.material.side = THREE.DoubleSide; dg.add(top); }
+      const outer = mesh(new THREE.CylinderGeometry(Ro, Ro + 0.4, 10, 40, 1, true), stone, 0, 5, 0); outer.material.side = THREE.DoubleSide; dg.add(outer);
+      for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2; dg.add(mesh(new THREE.BoxGeometry(1.2, 11, 1.2), toon('#efe4cc'), Math.cos(a) * (Ro + 0.5), 5.5, Math.sin(a) * (Ro + 0.5))); }
+      { const tr = mesh(new THREE.TorusGeometry(Ro + 0.5, 0.35, 6, 48), trimG, 0, 10.6, 0); tr.rotation.x = Math.PI / 2; dg.add(tr); }
+      const floor = mesh(new THREE.CircleGeometry(Ri, 40), toon('#c8b48a'), 0, 0.06, 0); floor.rotation.x = -Math.PI / 2; dg.add(floor);
+      const ringL = mesh(new THREE.RingGeometry(Ri * 0.55, Ri * 0.6, 40), glow('#ffd76a', 0.7), 0, 0.09, 0); ringL.rotation.x = -Math.PI / 2; dg.add(ringL);
+      const cols = ['#c83a3a', '#3a6ad0', '#e8c040', '#3aa060', '#a040c0', '#e8e8f0', '#e07a2a', '#2a2a3a'];
+      for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2 + 0.1; const f = mesh(new THREE.PlaneGeometry(1.4, 2.6), toon(cols[i % 8], { side: THREE.DoubleSide }), Math.cos(a) * (Ro + 1.4), 12.4, Math.sin(a) * (Ro + 1.4)); f.rotation.y = -a + Math.PI / 2; dg.add(f); dg.add(mesh(new THREE.CylinderGeometry(0.06, 0.06, 4, 4), woodD, Math.cos(a) * (Ro + 1.4), 12, Math.sin(a) * (Ro + 1.4))); }
+      for (let i = 0; i < gates; i++) { const a = i / gates * Math.PI * 2; const gx = Math.cos(a) * Ro, gz = Math.sin(a) * Ro; const ga = mesh(new THREE.BoxGeometry(4, 6, 3), toon('#7a4a2a'), gx, 3, gz); ga.rotation.y = -a; dg.add(ga); const arch = mesh(new THREE.TorusGeometry(2.4, 0.5, 6, 12, Math.PI), stone, gx * 1.02, 6, gz * 1.02); arch.rotation.y = -a + Math.PI / 2; dg.add(arch); }
+      for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + Math.PI / 4; const sc = mesh(new THREE.PlaneGeometry(6, 3.4), glow('#7ad8ff', 0.55), Math.cos(a) * (Ri - 1), 9.5, Math.sin(a) * (Ri - 1)); sc.rotation.y = -a - Math.PI / 2; sc.material.side = THREE.DoubleSide; dg.add(sc); }
+      const crowd = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.22, 0.4, 2, 6), new THREE.MeshLambertMaterial(), 360); const mm = new THREE.Matrix4(), cc = new THREE.Color();
+      for (let i = 0; i < 360; i++) { const k = Math.floor(i / 72), a = (i % 72) / 72 * Math.PI * 2 + k * 0.3; const r0 = Ri + k * 1.2 + 0.6; mm.makeTranslation(Math.cos(a) * r0, 1.5 + k * 1.5 + 0.4, Math.sin(a) * r0); crowd.setMatrixAt(i, mm); crowd.setColorAt(i, cc.set(cols[i % 8]).offsetHSL(0, -0.2, (i % 3) * 0.08)); }
+      crowd.userData.dyn = true; dg.add(crowd); W.anim.push((t) => { crowd.position.y = Math.abs(Math.sin(t * 6)) * 0.12; });
+      const tb = mesh(new THREE.PlaneGeometry(8, 1.4), new THREE.MeshBasicMaterial({ map: textTexture('DOMUS FLAU', { bg: '#5a2a5a', fg: '#ffe8a0' }), side: THREE.DoubleSide, fog: true }), Math.cos(0) * (Ro + 0.2), 8.2, 0); tb.rotation.y = Math.PI / 2; dg.add(tb);
+      for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; if (Math.abs(Math.atan2(Math.sin(a * gates / 1), Math.cos(a * gates))) < 0.6) continue; W.circles.push({ x: D[0] + Math.cos(a) * (Ri + 3), z: D[1] + Math.sin(a) * (Ri + 3), r: 3.2 }); }
+      W.arena = { x: D[0], z: D[1], r: Ri }; }
     sign(g, PLACE.crocus.pos[0] + 6, PLACE.crocus.pos[1] - 6, 'CROCUS · Gates open for the Grand Magic Games', -Math.PI / 2);
     station(g, PLACE.crocus); addOutlines(g); }
   // Oshibana Station (a big junction station on the Oshibana Line)
@@ -578,6 +600,12 @@ export function buildWorld(scene) {
     for (let i = 0; i < 5; i++) { const s = 14 + (i % 2) * 7, o = (i - 2) * 7; hut(g, d.x + bx * s - bz * o, d.z + bz * s + bx * o, i, 3.6, 3.6, '#b89060', '#8a6a3a'); }
     sign(g, d.x + bx * 8 + bz * 4, d.z + bz * 8 - bx * 4, 'GALUNA VILLAGE', Math.atan2(-bx, -bz));
     const tx = Gp[0], tz = Gp[1], ty = yAt(tx, tz); for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; g.add(mesh(new THREE.CylinderGeometry(0.8, 1, 8, 8), toon('#a8a090'), tx + Math.cos(a) * 9, ty + 3.5, tz + Math.sin(a) * 9)); W.circles.push({ x: tx + Math.cos(a) * 9, z: tz + Math.sin(a) * 9, r: 1.1 }); }
+    { const ice = mesh(new THREE.IcosahedronGeometry(4.2, 1), new THREE.MeshPhongMaterial({ color: '#bfe8ff', transparent: true, opacity: 0.55, shininess: 90, emissive: '#204060' }), tx, ty + 4, tz); ice.scale.set(1, 1.5, 1); g.add(ice);
+      const dem = new THREE.Group(); dem.position.set(tx, ty + 2, tz); g.add(dem); const dm = toon('#3a2a3a');
+      dem.add(mesh(new THREE.BoxGeometry(2.2, 2.8, 1.4), dm, 0, 2.6, 0)); dem.add(mesh(new THREE.SphereGeometry(0.9, 10, 8), dm, 0, 4.6, 0)); for (const s of [-1, 1]) { dem.add(mesh(new THREE.ConeGeometry(0.25, 1.4, 6), toon('#e8e0c8'), s * 0.6, 5.6, 0)); dem.add(mesh(new THREE.BoxGeometry(0.7, 2.6, 0.7), dm, s * 1.6, 2.6, 0.2)); dem.add(mesh(new THREE.BoxGeometry(0.8, 2, 0.8), dm, s * 0.6, 0.6, 0)); }
+      const beam = mesh(new THREE.CylinderGeometry(1.4, 2.8, 40, 16, 1, true), glow('#c8b0ff', 0.28), tx, ty + 20, tz); beam.material.side = THREE.DoubleSide; beam.userData.dyn = true; g.add(beam); W.anim.push((t) => { beam.material.opacity = 0.18 + Math.sin(t * 1.7) * 0.08; });
+      W.circles.push({ x: tx, z: tz, r: 4.6 }); sign(g, tx + 11, tz + 3, 'MOON DRIP TEMPLE · Deliora sleeps in Iced Shell', 0); }
+    for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2; const px = d.x + bx * 17 + Math.cos(a) * 15, pz = d.z + bz * 17 + Math.sin(a) * 15; if (Math.abs(a - Math.atan2(-bz, -bx)) < 0.4) continue; g.add(mesh(new THREE.CylinderGeometry(0.25, 0.3, 3.4, 5), woodD, px, yAt(px, pz) + 1.5, pz)); }
     const moon = mesh(new THREE.TorusGeometry(3, 0.5, 8, 24, Math.PI * 1.3), glow('#b8a0ff'), tx, ty + 13, tz); moon.userData.dyn = true; g.add(moon); W.anim.push((t) => { moon.rotation.y = t * 0.3; });
     addOutlines(g); }
   // Tenrou Island: the great Tenrou tree
