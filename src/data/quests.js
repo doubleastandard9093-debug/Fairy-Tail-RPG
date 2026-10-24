@@ -2,6 +2,7 @@
 // talk to `turnIn` (or it advances automatically when turnIn is omitted).
 // obj types: talk {npc} | kill {mob,n} | item {id,n,take} | craft {id,n} | job {n}
 // questDrops: while the quest is on that stage, the mob may drop that item.
+import { STORY_QUESTS } from './quests_story.js';
 export const QUESTS = [
   {
     id: 'q_welcome', name: 'Welcome to Fairy Tail! (Tutorial)', qp: 1, start: 'mirajane',
@@ -38,7 +39,7 @@ export const QUESTS = [
     reward: { jewels: 120, xp: 300, items: { stew: 3 } },
   },
   {
-    id: 'q_lullaby', name: 'The Lullaby Incident', qp: 3, start: 'makarov',
+    id: 'q_lullaby', arc: 'a_lullaby', name: 'The Lullaby Incident', qp: 3, start: 'makarov', requires: 'q_daybreak',
     intro: [
       ['makarov', 'Brat. A dark guild, Eisenwald, has stolen a flute named Lullaby. A demon from the books of Zeref. Its song kills anyone who hears it.'],
       ['makarov', 'They seized Oshibana Station and plan to play it in Clover Canyon, where the guild masters meet. Natsu, Wendy and Erza will go with you on the S-Class job.'],
@@ -56,7 +57,7 @@ export const QUESTS = [
     reward: { jewels: 400, xp: 1200, items: { sword1h_t3: 1 } },
   },
   {
-    id: 'q_phantom', name: 'Phantom Lord War', qp: 4, start: 'makarov', requires: 'q_lullaby',
+    id: 'q_phantom', arc: 'a_phantom', name: 'Phantom Lord War', qp: 4, start: 'makarov', requires: 'q_galuna',
     intro: [
       ['makarov', 'Brat... Phantom Lord fired their Jupiter cannon at our guild hall. Then they took Lucy, because her father pays well.'],
       ['lucy', 'This is my fault. I should just go home to my father and...'],
@@ -72,7 +73,7 @@ export const QUESTS = [
     reward: { jewels: 1200, xp: 4200, items: { lacrima_shard: 2 } },
   },
   {
-    id: 'q_tower', name: 'The Tower of Heaven', qp: 5, start: 'erza', requires: 'q_phantom',
+    id: 'q_tower', arc: 'a_tower', name: 'The Tower of Heaven', qp: 5, start: 'erza', requires: 'q_loke',
     intro: [
       ['erza', 'I... used to be a slave in a tower built for Zeref. My friend Jellal stayed behind. Now he has finished it.'],
       ['erza', 'The Tower of Heaven stands off Akane Beach. The Council will fire Etherion at it. Jellal wants them to.'],
@@ -165,3 +166,4 @@ export const QUESTS = [
     reward: { jewels: 700, xp: 2000, items: { stew: 3 } },
   },
 ];
+QUESTS.push(...STORY_QUESTS);

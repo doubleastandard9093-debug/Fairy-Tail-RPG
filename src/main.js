@@ -53,7 +53,7 @@ async function boot() {
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
   if (GFX.shadows) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = GFX.real ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; }
   const ui = new UI(); ui.audio = audio;
-  Object.assign(P.hooks, { log: (m, c) => ui.log(m, c), toast: (m) => ui.toast(m), refresh: () => ui.refresh(), levelUp: () => { ui.refresh(); audio.sfx('level'); }, jobDone: () => {} });
+  Object.assign(P.hooks, { log: (m, c) => ui.log(m, c), toast: (m) => ui.toast(m), refresh: () => ui.refresh(), levelUp: () => { ui.refresh(); audio.sfx('level'); }, jobDone: () => {}, story: (lines) => ui.playLines(lines) });
   const game = new Game(renderer, G, S, ui);
   ui.attach(game);
   const inputUpdate = setupInput(game, ui, canvas);

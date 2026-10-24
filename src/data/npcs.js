@@ -36,10 +36,21 @@ export const NPCS = {
     talk: ['Gihi. Need something forged? Hand it over. If it\'s iron, I might eat it first.', 'Shoo-bee-doo-bah. ...You didn\'t hear that.', 'Forge refines ore into bars. Workbench handles wood, cloth and leather. Don\'t touch my snacks.'] },
   wendy: { name: 'Wendy (Inn & Healing)', role: 'inn', pos: [16.2, 20], face: [0, 20], look: { preset: 'wendy', hair: 'twintails', hairColor: '#3a68d0', outfit: 'mage', outfitColor: '#f0f0ff', skin: '#fbe2d0', eyeColor: '#5a3a2a', scale: 0.8, build: { head: 1.06 } },
     talk: ['I can heal you with Sky Dragon magic! Please hold still. And try not to get hurt so much?', 'Carla says I worry too much. I think everyone else worries too little!', 'Rest here any time. The beds are soft and Natsu is banned from the kitchen.'] },
+  romeo: { name: 'Romeo', role: 'talk', pos: [-11.5, -19.5], y: 1.3, face: [0, -20], look: { hair: 'spiky', hairColor: '#2a2a3a', outfit: 'adventurer', outfitColor: '#c84a2a', skin: '#f0c8a0', eyeColor: '#2a2a2a', scale: 0.72, build: { head: 1.08 } },
+    talk: ['When I\'m older I\'m going to use purple fire like my dad. ...And regular fire like Natsu.', 'Dad came home and told everyone he beat nineteen Vulcans. He says it every day now.', 'Fairy Tail wizards never leave their friends behind. That\'s the rule.'] },
+  loke: { name: 'Loke', role: 'talk', pos: [11.5, -19.5], face: [0, -20], look: { hair: 'spiky', hairColor: '#e8a040', outfit: 'adventurer', outfitColor: '#2a2a3a', skin: '#f0d0b0', eyeColor: '#3a2a1a', acc: 'glasses' },
+    talk: ['Tinted glasses are not a fashion choice. ...Okay, they are a little bit a fashion choice.', 'A gentleman never keeps a lady waiting. Or a guildmate. Or a quest board.', 'Lucy and her keys... it is complicated. I like the stars, though.'] },
+  macao: { name: 'Macao Conbolt', role: 'talk', pos: [-224, -537], face: [-240, -556], look: { hair: 'short', hairColor: '#3a2a5a', outfit: 'mage', outfitColor: '#4a3a6a', skin: '#d8b090', eyeColor: '#2a2a3a', acc: 'cape' },
+    talk: ['Nineteen Vulcans. I counted. The twentieth does not count.', 'Purple Flare burns slow and sticky. Like my reputation.', 'Tell Romeo I am coming down the mountain. Slowly. With dignity.'] },
+  moka: { name: 'Village Chief Moka (Galuna)', role: 'talk', pos: [-636, 100], face: [-651, 96], look: { hair: 'beard', hairColor: '#d8d0c0', outfit: 'adventurer', outfitColor: '#8a5a3a', skin: '#c89070', eyeColor: '#2a2a2a', acc: 'hood', scale: 0.92 },
+    talk: ['The moon over Galuna is purple. It should not be purple.', 'Our village gate is made of driftwood and stubbornness.', 'Wizards from the mainland! Please, sit, eat. Then save us.'] },
+  jura: { name: 'Jura Neekis (Lamia Scale)', role: 'talk', pos: [70, -313], face: [76.8, -322], look: { hair: 'short', hairColor: '#2a2a2a', outfit: 'mage', outfitColor: '#c8a050', skin: '#c89070', eyeColor: '#2a2a2a', build: { w: 1.2 }, scale: 1.1 },
+    talk: ['Earth magic is patient. The mountain does not hurry, and it is never late.', 'A Wizard Saint is only a title. The guild is what matters.', 'Lamia Scale sends its regards. Lyon also sends his. Loudly.'] },
 };
 // Points in the world referenced by jobs (escorts) and the minimap.
 export const POIS = {
   gate: { name: 'Magnolia South Gate', pos: [0, 44] },
   shrine: { name: 'Kardia Cathedral Steps', pos: [63, -14.4] },
   arena: { name: 'Clover Canyon', pos: [-363.2, -60.8] },
+  karen: { name: 'Karen\'s Grave', pos: [58, 18] },
 };

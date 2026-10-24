@@ -15,6 +15,7 @@ import { PLACE, trainCost, FERRY_COST } from '../world/fiore.js';
 import { Transit, railPath, seaPath as seaPathFor } from './transit.js';
 import { glow, GFX } from '../world/toon.js';
 import * as P from './progress.js';
+import * as STORY from './story.js';
 import { MagicFX, schoolOf, SCHOOL_COLORS } from './magicfx.js';
 import { PARTY } from '../data/combos.js';
 import { artisanBonus, abilityLearned, abilityBonus, NODE, passiveFx, abilityRank } from '../data/skilltree.js';
@@ -26,7 +27,7 @@ const dist2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const SCHOOL_POSE = { flame: 'natsu', ice: 'gray', celestial: 'lucy', requip: 'erza', lightning: 'laxus', rune: 'levy' };
 export class Game {
   constructor(renderer, G, S, ui) {
-    this.renderer = renderer; this.G = G; this.S = S; this.ui = ui;
+    this.renderer = renderer; this.G = G; this.S = S; this.ui = ui; STORY.primeStory(G);
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
     this.cam = { yaw: Math.PI, pitch: 0.55, dist: 11, tx: 0, ty: 0, tz: 0 };
@@ -186,9 +187,9 @@ export class Game {
     const R = this.rand;
     for (const sp of SPAWNS) for (let i = 0; i < (sp.count || 1); i++) {
       let x, z, tries = 0;
-      do { if (sp.at) { [x, z] = sp.at; break; } const a = R() * Math.PI * 2, r = Math.sqrt(R()) * sp.r; x = sp.c[0] + Math.cos(a) * r; z = sp.c[1] + Math.sin(a) * r; tries++; }
+      do { if (sp.at) { [x, z] = sp.at; break; } if (sp.ring) { const a = (i / (sp.count || 1)) * Math.PI * 2 + tries * 0.13; x = sp.ring[0] + Math.cos(a) * sp.ring[2]; z = sp.ring[1] + Math.sin(a) * sp.ring[2]; tries++; continue; } const a = R() * Math.PI * 2, r = Math.sqrt(R()) * sp.r; x = sp.c[0] + Math.cos(a) * r; z = sp.c[1] + Math.sin(a) * r; tries++; }
       while ((blockedAt(x, z) || this.world.keepOut(x, z, 1)) && tries < 40);
-      this.makeMob(sp.mob, x, z);
+      const e = this.makeMob(sp.mob, x, z); const lock = sp.arc || STORY.arcOfMob(sp.mob); if (e && lock) e.arcLock = lock;
     }
   }
   makeMob(id, x, z) {
@@ -623,13 +624,16 @@ export class Game {
     G.pos = [pl.pos.x, pl.pos.z]; G.rot = pl.rot;
     this.saveT += dt; if (this.saveT > 15) { this.saveT = 0; saveGame(G); }
     this.zone = zoneAt(pl.pos.x, pl.pos.z);
+    this._storyT = (this._storyT || 0) - dt; if (this._storyT <= 0) { this._storyT = 0.4; this._arcC = {}; STORY.tickStory(G, pl.pos.x, pl.pos.z, this.ui); }
     const place = placeAt(pl.pos.x, pl.pos.z); const pid = place ? place.id : null;
     if (pid !== this.placeId) { this.placeId = pid; if (place) { const first = !G.discovered[pid]; G.discovered[pid] = true; this.ui.arrive(place, first); if (first && place.station) this.ui.log(`Discovered ${place.station.label}: fast travel unlocked on the World Map (M).`, 'lvl'); } }
   }
   // ------------------------------------------------------------------ travel
   /** Teleport with a fade. kind: 'train' | 'boat' | 'debug' */
+  arcOpenC(id) { const c = this._arcC ||= {}; return c[id] ?? (c[id] = STORY.arcOpen(this.G, id)); }
   travel(dest, kind = 'train') {
     const G = this.G, pl = this.player; const p = PLACE[dest]; if (!p || pl.dead || this.travelling) return false;
+    const blk = kind !== 'debug' && STORY.travelBlock(G, dest); if (blk) { this.ui.toast(`🔒 ${p.name} opens in Chapter ${blk.n}: ${blk.name}`); return false; }
     let cost = 0, tx, tz, rot = pl.rot;
     if (kind === 'train') { cost = trainCost(this.placeId || 'magnolia', dest); [tx, tz] = p.station.pos; const st = this.world.interactables.find((i) => i.kind === 'rail' && i.place === dest); if (st) { tx = st.x; tz = st.z; } }
     else if (kind === 'boat') { cost = FERRY_COST; const d = this.world.docks[dest]; tx = d.x; tz = d.z; rot = d.rot; }
@@ -687,6 +691,7 @@ export class Game {
   allyTargets() { return [{ ref: 'player', pos: this.player.pos, dead: this.player.dead }, ...this.entities.filter((e) => e.kind === 'ally' && !e.downed).map((e) => ({ ref: e, pos: e.pos, taunt: e.tpl.taunt }))]; }
   updateMob(m, dt) {
     const pl = this.player, tpl = m.tpl;
+    if (m.arcLock && !this.arcOpenC(m.arcLock)) { if (!m.dead) { m.dead = true; m.aggro = false; m.dying = null; m.obj.visible = false; if (pl.target === m) this.setTarget(null); } m.respawn = 2; return; }
     if (m.dead) { m.respawn -= dt; if (m.respawn <= 0) this.respawnMob(m); return; }
     if (m.burn) { if (this.t > m.burn.until) m.burn = null; else { m.burn.tick -= dt; if (m.burn.tick <= 0) { m.burn.tick = 1; this.damageMob(m, m.burn.dps, null, 'dot'); if (m.dead) return; } } }
     if (m.slowT > 0) { m.slowT -= dt; if (m.slowT <= 0) m.slow = 0; }

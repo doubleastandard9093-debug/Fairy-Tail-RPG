@@ -2,7 +2,7 @@ import { guildMarkTexture, MARK_SIZES } from './mark.js';
 import * as THREE from 'three';
 import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
 import { CREATURES, buildCreature, animateCreature, dressLizard, animateLizardExtra } from './creatures.js';
-import { C2, buildC2, animateC2, dressLullaby, animateLullabyExtra, dressMage, animateMageExtra, dressWizard, animateWizardExtra } from './creatures2.js';
+import { C2, buildC2, animateC2, dressLullaby, animateLullabyExtra, dressMage, animateMageExtra, dressWizard, animateWizardExtra, dressBossAura, animateBossAura } from './creatures2.js';
 import { refineCharacter, animateDetail, refineMob, FRAMES, ACCESSORIES, EXTRA_OUTFITS } from './detail.js';
 export { FRAMES, ACCESSORIES };
 
@@ -263,7 +263,7 @@ export function animateCharacter(char, st) {
 
 // ------------------------------- Mobs -----------------------------------
 export function buildMob(model, opt = {}) {
-  if (CREATURES.has(model)) { const c = buildCreature(model, opt); addOutlines(c.group); shadowAll(c.group, true, false); return c; }
+  if (CREATURES.has(model)) { const c = buildCreature(model, opt); if (opt.bossAura) dressBossAura(c.group, c.parts, opt.bossAura); addOutlines(c.group); shadowAll(c.group, true, false); return c; }
   if (C2.has(model)) { const c = buildC2(model, opt, buildCharacter); addOutlines(c.group); shadowAll(c.group, true, false); return c; }
   const g = new THREE.Group(); const parts = {};
   const eyes = (parent, y, z, sx = 0.1, r = 0.05) => {
@@ -496,6 +496,44 @@ export function buildMob(model, opt = {}) {
       for (const sx of [-1, 1]) { const sh = mesh(new THREE.BoxGeometry(0.26, 0.07, 0.3), gold, sx * 0.31, 1.38, 0); sh.rotation.z = -sx * 0.35; c.group.add(sh); }
       c.group.add(mesh(new THREE.BoxGeometry(0.5, 0.06, 0.34), gold, 0, 0.86, 0));
     }
+    else if (opt.body === 'laxus') {
+      // Laxus: dark greatcoat worn over the shoulders with a thick fur collar, spiked headphones and a lightning scar
+      const coat = toon('#2a2a30'), fur = toon('#5a4a3a', { rough: 0.95 }), gold = toon('#d8b050', { metal: 0.6 });
+      const sk = mesh(new THREE.CylinderGeometry(0.34, 0.6, 1.25, 14, 1, true, Math.PI * 0.35, Math.PI * 1.3), coat, 0, 0.62, 0); sk.material = coat.clone(); sk.material.side = THREE.DoubleSide; sk.rotation.y = Math.PI; c.group.add(sk); parts.skirt = sk;
+      const fc = mesh(new THREE.TorusGeometry(0.3, 0.11, 8, 18), fur, 0, 1.4, -0.02); fc.rotation.x = Math.PI / 2; fc.scale.set(1.1, 1, 0.7); c.group.add(fc);
+      for (const sx of [-1, 1]) { const ph = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.07, 10), gold, sx * 0.3, 0.02, 0); ph.rotation.z = Math.PI / 2; c.parts.head.add(ph); const sp = mesh(G.cone(0.035, 0.22, 4), gold, sx * 0.33, 0.14, 0); sp.rotation.z = -sx * 0.5; c.parts.head.add(sp); }
+      for (const [y, rz] of [[0.12, 0.5], [0.04, -0.5], [-0.04, 0.5]]) { const sc = mesh(new THREE.BoxGeometry(0.02, 0.09, 0.01), glow('#ffe24a', 0.7), 0.1, y, 0.31); sc.rotation.z = rz; c.parts.head.add(sc); }
+      cape.visible = false;
+    } else if (opt.body === 'lyon') {
+      // Lyon: long white coat with a flared skirt, slate-blue trim and a tall collar
+      const coat = toon('#e8eef6'), trim = toon('#3a4a6a');
+      const sk = mesh(new THREE.CylinderGeometry(0.3, 0.55, 1.0, 14, 1, true), coat, 0, 0.48, 0); sk.material = coat.clone(); sk.material.side = THREE.DoubleSide; c.group.add(sk); parts.skirt = sk;
+      const hem = mesh(new THREE.TorusGeometry(0.53, 0.025, 6, 20), trim, 0, -0.01, 0); hem.rotation.x = Math.PI / 2; c.group.add(hem);
+      const col = mesh(new THREE.CylinderGeometry(0.22, 0.17, 0.28, 12, 1, true, Math.PI * 0.3, Math.PI * 1.4), trim, 0, 1.49, -0.02); col.material = trim.clone(); col.material.side = THREE.DoubleSide; col.rotation.y = Math.PI; c.group.add(col);
+      c.group.add(mesh(new THREE.BoxGeometry(0.5, 0.06, 0.34), trim, 0, 0.88, 0)); cape.material = coat; cape.scale.set(1, 1.2, 1);
+    } else if (opt.body === 'everlue') {
+      // Duke Everlue: round gold-brocade belly, purple cape, ruffled collar and a twirled moustache
+      const gold = toon('#c89a3a', { pat: 'brick' }), purple = toon('#6a2a5a');
+      const belly = mesh(new THREE.SphereGeometry(0.42, 16, 12), gold, 0, 0.95, 0.05); belly.scale.set(1.05, 1, 0.95); c.group.add(belly);
+      for (let i = 0; i < 3; i++) c.group.add(mesh(G.sph(0.03, 6, 4), toon('#f4e8c0', { metal: 0.5 }), 0, 1.15 - i * 0.16, 0.45 - Math.abs(i - 1) * 0.04));
+      const ruff = mesh(new THREE.TorusGeometry(0.17, 0.06, 6, 14), toon('#f4f0e8'), 0, 1.42, 0); ruff.rotation.x = Math.PI / 2; c.group.add(ruff);
+      cape.material = purple; cape.scale.set(1.15, 1.1, 1);
+      for (const sx of [-1, 1]) { const mu = mesh(new THREE.TorusGeometry(0.06, 0.018, 5, 10, Math.PI * 1.3), toon('#1a1420'), sx * 0.09, -0.08, 0.31); mu.rotation.z = sx > 0 ? -0.6 : Math.PI + 0.6; c.parts.head.add(mu); }
+    } else if (opt.body === 'brain') {
+      // Brain: floor-length white robe, dark green sash, and his skull-topped staff Darkness Ruler
+      const robe = toon('#e8e4d8'), sash = toon('#2a3a2a');
+      const sk = mesh(new THREE.CylinderGeometry(0.3, 0.6, 1.2, 14, 1, true), robe, 0, 0.55, 0); sk.material = robe.clone(); sk.material.side = THREE.DoubleSide; c.group.add(sk); parts.skirt = sk;
+      c.group.add(mesh(new THREE.BoxGeometry(0.52, 0.09, 0.36), sash, 0, 0.9, 0)); cape.material = sash; cape.scale.set(1.1, 1.3, 1); cape.position.y = 0.9;
+      const st = mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.0, 6), toon('#3a2a1a'), 0, 0, 0); c.parts.armR.userData.grip.add(st); st.position.y = 0.2;
+      const sk2 = mesh(G.sph(0.13, 10, 8), toon('#e8e0c8'), 0, 1.15, 0); st.add(sk2); for (const sx of [-1, 1]) sk2.add(mesh(G.sph(0.03, 5, 4), glow('#5aff8a'), sx * 0.05, 0.02, 0.11));
+    } else if (opt.body === 'hades') {
+      // Hades: black longcoat with a blood-red lining, a long white beard and an eyepatch
+      const coat = toon('#2a1a1a'), red = toon('#6a1a1a');
+      const sk = mesh(new THREE.CylinderGeometry(0.32, 0.56, 1.1, 14, 1, true), coat, 0, 0.5, 0); sk.material = coat.clone(); sk.material.side = THREE.DoubleSide; c.group.add(sk); parts.skirt = sk;
+      cape.material = red; cape.scale.set(1.15, 1.3, 1); cape.position.y = 0.9;
+      const beard = mesh(G.cone(0.16, 0.55, 8), toon('#f0f0f0'), 0, -0.32, 0.18); beard.rotation.x = Math.PI + 0.25; c.parts.head.add(beard);
+      const ep = mesh(new THREE.BoxGeometry(0.1, 0.08, 0.02), toon('#111111'), 0.1, 0.06, 0.31); c.parts.head.add(ep);
+    }
     const aura = mesh(new THREE.SphereGeometry(1.1, 16, 12), glow(opt.aura || '#ffffff'), 0, 1, 0); aura.material = aura.material.clone(); aura.material.transparent = true; aura.material.opacity = 0.12; aura.material.depthWrite = false; aura.scale.set(1, 1.5, 1); g.add(aura); parts.aura = aura;
   } else if (model === 'mage') {
     // Eisenwald dark-guild mage: hooded, cloaked humanoid with a scythe-staff
@@ -517,7 +555,7 @@ export function buildMob(model, opt = {}) {
 
 export function animateMob(m, model, t, move, atk) {
   const p = m.parts;
-  if (CREATURES.has(model)) { animateCreature(m, model, t, move, atk); return; }
+  if (CREATURES.has(model)) { animateCreature(m, model, t, move, atk); if (p.bossAura) animateBossAura(p, t); return; }
   if (C2.has(model)) { animateC2(m, model, t, move, atk, animateCharacter); return; }
   if (model === 'puffcap') { p.body.position.y = Math.abs(Math.sin(t * (move ? 10 : 3))) * (move ? 0.25 : 0.05); p.body.scale.y = 1 - Math.abs(Math.sin(t * 10)) * 0.08 * move; p.body.rotation.x = atk > 0 ? Math.sin(atk * Math.PI) * 0.6 : 0; }
   else if (model === 'boar') { p.legs.forEach((l, i) => { l.rotation.x = Math.sin(t * 14 + (i % 2 ? 0 : Math.PI) + (i > 1 ? Math.PI : 0)) * 0.6 * move; }); p.head.rotation.x = atk > 0 ? -Math.sin(atk * Math.PI) * 0.5 : Math.sin(t * 2) * 0.05; }

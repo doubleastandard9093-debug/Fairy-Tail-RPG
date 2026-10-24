@@ -129,6 +129,128 @@ export const MOBS = {
     party: { jobs: ['j_s_jellal'], quest: ['q_tower', 1], ids: ['gm_erza', 'gm_natsu', 'gm_wendy'], line: '⚔️ Erza, Natsu and Wendy climb the Tower of Heaven with you!' },
     bark: ['Erza... you came all this way to die?', 'Zeref will be reborn in this tower.', 'This is the Tower of Heaven. I am its god.'],
   },
+  // ---------------- Story arcs (data/story.js) ----------------
+  macao_vulcan: {
+    name: 'Possessed Vulcan (Macao)', short: 'Possessed Vulcan', level: 9, hp: 3600, dmg: 14, speed: 3.4, aggro: 18, range: 2.6, atkCd: 1.8, xp: 900, model: 'vulcan', boss: true, leash: 24, radius: 1.6, scale: 2.3,
+    opt: { fur: '#f6f6fa', face: '#e8b0b0', bossAura: ['#9adcff', '#c8a0ff', '#ff8a6a'] }, arena: 'hakobe', defeat: '🏆 The Vulcan collapses, and Macao tumbles out of the light!', projColor: '#bfe8ff',
+    // Phase 2 (60%): calls the pack. Phase 3 (30%): the stolen Purple Flare magic bleeds through.
+    telegraphs: [
+      { id: 'slam', name: 'Avalanche Slam', shape: 'rect', length: 12, width: 4, windup: 1.4, dmg: 26, cd: 7, at: 'self', phase: 1 },
+      { id: 'snow', name: 'Snowball Barrage', shape: 'circle', radius: 3, windup: 1.4, dmg: 18, cd: 9, at: 'targets', count: 3, phase: 1 },
+      { id: 'pack', name: 'Mountain Howl', shape: 'circle', radius: 2.2, windup: 1.8, dmg: 0, cd: 22, at: 'summon', count: 2, mob: 'hakobe_pup', phase: 2 },
+      { id: 'flare', name: 'Purple Flare (stolen)', shape: 'ring', inner: 4, radius: 13, windup: 2.4, dmg: 34, cd: 13, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.85, trans: 2, line: 'The Vulcan beats its chest and howls for its pack (phase 2)!' },
+      { at: 0.3, n: 3, cdMul: 0.65, trans: 2.4, line: 'Purple fire leaks from the Vulcan. Macao\'s magic is fighting back inside it (final phase)!' },
+    ],
+    drops: [{ id: 'hide_t2', chance: 1, min: 3, max: 4 }, { id: 'spore', chance: 1, min: 3, max: 5 }, { id: 'tonic_hp', chance: 1, min: 2, max: 2 }], jewels: [120, 200],
+    party: { jobs: [], quest: ['q_macao', 1], ids: ['gm_natsu'], line: '⚔️ Natsu charges in beside you: "Give Macao BACK!"' },
+    bark: ['WOMAN?! ...WIZARD! SMASH!', '*a hollow voice inside: "Ro... meo..."*', 'This mountain is MINE!'],
+  },
+  hakobe_pup: { name: 'Young Vulcan', level: 6, hp: 160, dmg: 8, speed: 3.8, aggro: 30, range: 2, atkCd: 1.6, xp: 30, model: 'vulcan', opt: { fur: '#eef0f6', face: '#e0b0b0' }, scale: 0.75, temp: true, drops: [], jewels: [2, 6], bark: ['*squeaky howl*'] },
+  everlue_guard: {
+    name: 'Everlue Mansion Guard', level: 10, hp: 220, dmg: 12, speed: 3, aggro: 11, range: 9, atkCd: 2.1, xp: 140, model: 'mage', opt: { robe: '#7a2a5a' }, scale: 1.05, ranged: true, projColor: '#ff9ad0',
+    drops: [{ id: 'fibre_t2', chance: 0.4 }, { id: 'tea_mp', chance: 0.2 }, { id: 'hide_t2', chance: 0.3 }], jewels: [14, 26],
+    bark: ['Intruder! The Duke is not receiving guests!', 'Ugly maids only past this point. ...That came out wrong.'],
+  },
+  everlue: {
+    name: 'Duke Everlue', short: 'Everlue', level: 13, hp: 5400, dmg: 16, speed: 3, aggro: 18, range: 9, atkCd: 2.2, xp: 1300, model: 'wizard', ranged: true, boss: true, leash: 24, radius: 1.3, scale: 1.25,
+    opt: { look: { hair: 'short', hairColor: '#2a2018', outfit: 'mage', outfitColor: '#c89a3a', skin: '#e8c8a8', eyeColor: '#2a2a2a', build: { w: 1.25 } }, body: 'everlue', mustache: false }, arena: 'everlue', projColor: '#e0b040',
+    defeat: '🏆 Duke Everlue is dug out of his own courtyard. The book "Daybreak" is yours.',
+    // Phase 1: Diver dashes through the ground. Phase 2 (60%): summons his maids. Phase 3 (30%): the courtyard caves in.
+    telegraphs: [
+      { id: 'dive', name: 'Diver: Burrowing Charge', shape: 'rect', length: 18, width: 3.5, windup: 1.2, dmg: 30, cd: 6, at: 'self', dash: true, phase: 1 },
+      { id: 'erupt', name: 'Diver: Earth Eruption', shape: 'circle', radius: 3, windup: 1.4, dmg: 24, cd: 8, at: 'targets', count: 3, phase: 1 },
+      { id: 'maids', name: '"Maids! Deal with them!"', shape: 'circle', radius: 2.2, windup: 1.8, dmg: 0, cd: 20, at: 'summon', count: 2, mob: 'everlue_guard', phase: 2 },
+      { id: 'cave', name: 'Courtyard Cave-in', shape: 'ring', inner: 4, radius: 15, windup: 2.6, dmg: 40, cd: 14, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.85, trans: 2, line: 'Everlue: "Maids! MAIDS!" The ground churns as he dives deeper (phase 2).' },
+      { at: 0.3, n: 3, cdMul: 0.6, trans: 2.4, line: 'The Duke tunnels in a frenzy. The whole courtyard starts to sink (final phase)!' },
+    ],
+    drops: [{ id: 'fibre_t3', chance: 1, min: 2, max: 3 }, { id: 'tea_mp', chance: 1, min: 2, max: 2 }, { id: 'lacrima_shard', chance: 0.5 }], jewels: [250, 400],
+    party: { jobs: [], quest: ['q_daybreak', 1], ids: ['gm_natsu'], line: '⚔️ Natsu bursts through the wall: "Lucy said it\'s FINE to break this place!"' },
+    bark: ['A commoner in MY mansion? Wipe your feet!', 'Diver! I swim through stone like a fish!', 'That book is MINE. Everything here is MINE.'],
+  },
+  lyon: {
+    name: 'Lyon Vastia, Ice-Make Wizard', short: 'Lyon', level: 19, hp: 11000, dmg: 20, speed: 3.4, aggro: 18, range: 10, atkCd: 2.0, xp: 2400, model: 'wizard', ranged: true, boss: true, leash: 24, radius: 1.3, scale: 1.45,
+    opt: { look: { hair: 'spiky', hairColor: '#e8eef8', outfit: 'mage', outfitColor: '#e8eef6', skin: '#f0d8c4', eyeColor: '#2a3a5a' }, body: 'lyon' }, arena: 'moon', projColor: '#bfe8ff',
+    defeat: '🏆 Lyon\'s ice shatters. Far behind him, Deliora\'s shell cracks... and the demon crumbles to dust.',
+    // Phase 1: dynamic Ice-Make animals. Phase 2 (60%): ice beasts fight for him. Phase 3 (25%): Deliora's roar.
+    telegraphs: [
+      { id: 'eagle', name: 'Ice-Make: Eagle', shape: 'circle', radius: 2.8, windup: 1.2, dmg: 34, cd: 7, at: 'targets', count: 4, phase: 1 },
+      { id: 'ape', name: 'Ice-Make: Ape', shape: 'rect', length: 14, width: 4, windup: 1.4, dmg: 44, cd: 8, at: 'self', phase: 1 },
+      { id: 'beasts', name: 'Ice-Make: Snow Tiger', shape: 'circle', radius: 2.4, windup: 1.8, dmg: 0, cd: 20, at: 'summon', count: 2, mob: 'ice_beast', phase: 2 },
+      { id: 'roar', name: 'Deliora\'s Roar', shape: 'ring', inner: 4.5, radius: 17, windup: 3, dmg: 70, cd: 15, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.85, trans: 2.2, line: 'Lyon: "My ice is alive. Ur\'s was only still." Ice beasts take shape (phase 2).' },
+      { at: 0.25, n: 3, cdMul: 0.6, trans: 3, line: 'The Moon Drip peaks. Deliora roars inside its shell, shaking the whole island (final phase)!' },
+    ],
+    drops: [{ id: 'lacrima_shard', chance: 1, min: 1, max: 2 }, { id: 'fibre_t3', chance: 1, min: 3, max: 4 }, { id: 'tea_mp', chance: 1, min: 2, max: 2 }], jewels: [450, 700],
+    party: { jobs: [], quest: ['q_galuna', 2], ids: ['gm_natsu', 'gm_erza'], line: '⚔️ Natsu and Erza arrive. Gray steps forward: "Lyon is mine. Cover me."' },
+    bark: ['Gray. You still fight with both hands? How static.', 'Ur would want me to surpass her!', 'Deliora will be MY proof.'],
+  },
+  ice_beast: { name: 'Ice-Make Tiger', level: 16, hp: 300, dmg: 15, speed: 4.4, aggro: 40, range: 2.2, atkCd: 1.6, xp: 50, model: 'boar', scale: 1.1, temp: true, opt: { fur: '#c8e6f8' },
+    charge: { cd: 6, speed: 14, dur: 0.6, dmg: 22 }, drops: [], jewels: [3, 8], bark: ['*a cold, crystalline snarl*'] },
+  spirit_echo: {
+    name: 'Celestial Echo', level: 24, hp: 520, dmg: 20, speed: 3.6, aggro: 14, range: 9, atkCd: 2.0, xp: 360, model: 'wisp', opt: { color: '#ffd86a' }, scale: 1.4, ranged: true, projColor: '#ffe8a0', eliteChance: 0,
+    drops: [{ id: 'stardust', chance: 0.5 }, { id: 'tea_mp', chance: 0.25 }], jewels: [20, 40],
+    bark: ['*a voice like distant bells: "Leo... it is time."*'],
+  },
+  thunder_lacrima: {
+    name: 'Thunder Palace Lacrima', level: 30, hp: 900, dmg: 26, speed: 0.6, aggro: 14, range: 12, atkCd: 2.6, xp: 520, model: 'wisp', opt: { color: '#ffe24a' }, scale: 1.7, ranged: true, projColor: '#fff4a0', eliteChance: 0,
+    drops: [{ id: 'lacrima_shard', chance: 0.2 }, { id: 'ore_t4', chance: 0.4 }], jewels: [40, 70],
+    bark: ['*crackle*', '*the air smells of a storm*'],
+  },
+  laxus: {
+    name: 'Laxus Dreyar, Lightning Dragon Slayer', short: 'Laxus', level: 36, hp: 34000, dmg: 56, speed: 3.8, aggro: 18, range: 10, atkCd: 1.9, xp: 6200, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.4, scale: 1.65,
+    opt: { look: { hair: 'spiky', hairColor: '#f0d050', outfit: 'brawler', outfitColor: '#2a2a30', skin: '#e8c8a8', eyeColor: '#3a3a3a', build: { w: 1.2, arm: 1.1 } }, body: 'laxus' }, arena: 'kardia', projColor: '#fff4a0',
+    defeat: '🏆 Laxus drops to one knee. The storm over Magnolia breaks, and the Harvest Festival goes on.',
+    // Phase 1: lightning roar and bolts. Phase 2 (60%): Thunder Palace lacrima join in. Phase 3 (25%): Dragon Slayer mode + Fairy Law.
+    telegraphs: [
+      { id: 'roar', name: 'Lightning Dragon\'s Roar', shape: 'rect', length: 24, width: 5, windup: 1.4, dmg: 90, cd: 7, at: 'self', phase: 1 },
+      { id: 'bolts', name: 'Raging Bolt', shape: 'circle', radius: 3, windup: 1.1, dmg: 70, cd: 8, at: 'targets', count: 4, phase: 1 },
+      { id: 'flash', name: 'Lightning Body', shape: 'rect', length: 18, width: 3.5, windup: 0.9, dmg: 80, cd: 9, at: 'self', dash: true, phase: 2 },
+      { id: 'palace', name: 'Thunder Palace', shape: 'circle', radius: 2.4, windup: 1.8, dmg: 0, cd: 22, at: 'summon', count: 2, mob: 'thunder_lacrima_s', phase: 2 },
+      { id: 'law', name: 'Fairy Law', shape: 'ring', inner: 5, radius: 20, windup: 3.4, dmg: 150, cd: 18, at: 'self', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, line: 'Laxus: "You want to see a real storm?" He moves like lightning itself (phase 2).' },
+      { at: 0.25, n: 3, cdMul: 0.6, trans: 3, line: 'Scales of light spread across his skin: Dragon Slayer mode. He raises his hands for Fairy Law (final phase)!' },
+    ],
+    drops: [{ id: 'lacrima_shard', chance: 1, min: 3, max: 4 }, { id: 'ore_t4', chance: 1, min: 4, max: 6 }, { id: 'tea_mp', chance: 1, min: 3, max: 3 }], jewels: [1100, 1600],
+    party: { jobs: [], quest: ['q_bof', 1], ids: ['gm_natsu', 'gm_erza', 'gm_wendy'], line: '⚔️ Natsu, Erza and Wendy stand with you against Laxus!' },
+    bark: ['The old man is too soft for this guild.', 'Fairy Tail belongs to the strong!', 'You are nothing but noise, brat.'],
+  },
+  thunder_lacrima_s: { name: 'Thunder Palace Lacrima (summoned)', level: 30, hp: 420, dmg: 22, speed: 0.4, aggro: 40, range: 12, atkCd: 2.4, xp: 60, model: 'wisp', opt: { color: '#ffe24a' }, scale: 1.4, ranged: true, temp: true, projColor: '#fff4a0', drops: [], jewels: [4, 8], bark: ['*crackle*'] },
+  oracion_mage: {
+    name: 'Oración Seis Scout', level: 34, hp: 760, dmg: 28, speed: 3.4, aggro: 12, range: 10, atkCd: 1.9, xp: 560, model: 'mage', opt: { robe: '#1e3a2a' }, scale: 1.05, ranged: true, projColor: '#5aff8a',
+    drops: [{ id: 'fibre_t4', chance: 0.35 }, { id: 'hide_t4', chance: 0.3 }, { id: 'tea_mp', chance: 0.25 }, { id: 'lacrima_shard', chance: 0.08 }], jewels: [40, 70],
+    bark: ['Nirvana will turn light into darkness!', 'Master Brain sees everything.'],
+  },
+  brain: {
+    name: 'Brain, Master of Oración Seis', short: 'Brain', level: 40, hp: 42000, dmg: 60, speed: 3.4, aggro: 18, range: 11, atkCd: 2.0, xp: 7800, model: 'wizard', ranged: true, boss: true, leash: 26, radius: 1.4, scale: 1.6,
+    opt: { look: { hair: 'long', hairColor: '#e8e8e0', outfit: 'mage', outfitColor: '#e8e4d8', skin: '#a88a70', eyeColor: '#2a3a2a' }, body: 'brain' }, arena: 'nirvana', projColor: '#5aff8a',
+    defeat: '🏆 Zero\'s voice goes quiet. The spires of Nirvana sink back into Worth Woodsea.',
+    // Phase 1: Dark Rondo and Dark Capriccio. Phase 2 (60%): calls his scouts. Phase 3 (25%): the seals break and Zero takes over.
+    telegraphs: [
+      { id: 'rondo', name: 'Dark Rondo', shape: 'circle', radius: 3.2, windup: 1.2, dmg: 75, cd: 7, at: 'targets', count: 4, phase: 1 },
+      { id: 'capriccio', name: 'Dark Capriccio', shape: 'rect', length: 24, width: 4, windup: 1.3, dmg: 95, cd: 8, at: 'self', phase: 1 },
+      { id: 'scouts', name: 'Oración Seis, Assemble', shape: 'circle', radius: 2.4, windup: 1.8, dmg: 0, cd: 22, at: 'summon', count: 2, mob: 'oracion_mage_s', phase: 2 },
+      { id: 'genesis', name: 'Zero: Genesis Zero', shape: 'ring', inner: 5, radius: 20, windup: 3.4, dmg: 160, cd: 17, at: 'self', phase: 3 },
+      { id: 'void', name: 'Zero: Dark Gravity', shape: 'circle', radius: 7, windup: 2.4, dmg: 110, cd: 12, at: 'victim', phase: 3 },
+    ],
+    phases: [
+      { at: 0.6, n: 2, cdMul: 0.8, trans: 2.4, line: 'Brain: "Oración Seis! To me!" The dark guild answers its master (phase 2).' },
+      { at: 0.25, n: 3, cdMul: 0.6, trans: 3, heal: 0.06, line: 'The last seal on Brain\'s face breaks. A colder will looks out of his eyes: Zero (final phase)!' },
+    ],
+    drops: [{ id: 'lacrima_shard', chance: 1, min: 4, max: 5 }, { id: 'ore_t4', chance: 1, min: 5, max: 7 }, { id: 'tea_mp', chance: 1, min: 3, max: 3 }], jewels: [1400, 2000],
+    party: { jobs: [], quest: ['q_oracion', 1], ids: ['gm_natsu', 'gm_erza', 'gm_wendy'], line: '⚔️ The Light Alliance arrives: Natsu, Erza and Wendy fight at your side!' },
+    bark: ['Light guilds. How very bright. How very breakable.', 'Nirvana will be the end of your kind of justice.', 'I have six faces. You have seen only one.'],
+  },
+  oracion_mage_s: { name: 'Oración Seis Scout (summoned)', level: 34, hp: 400, dmg: 22, speed: 3.6, aggro: 40, range: 10, atkCd: 2.2, xp: 60, model: 'mage', opt: { robe: '#1e3a2a' }, scale: 1, ranged: true, temp: true, projColor: '#5aff8a', drops: [], jewels: [4, 8], bark: ['For Master Brain!'] },
 };
 // Ally templates (celestial spirits and boss-party guildmates)
 export const ALLIES = {
@@ -163,6 +285,16 @@ export const SPAWNS = [
   { mob: 'tower_guard', count: 5, c: [372, -184], r: 22 },       // Akane Beach / causeway
   { mob: 'jose', count: 1, at: [-128, -272] },                   // Phantom Lord HQ, Oak Town (map 617,250)
   { mob: 'jellal', count: 1, at: [424, -150.4] },                // Tower of Heaven, off Akane Beach (map 962,326)
+  // story arcs (data/story.js); arc-locked bosses stay hidden until their chapter opens
+  { mob: 'macao_vulcan', count: 1, at: [-240, -556] },           // Mt. Hakobe ice cave
+  { mob: 'everlue_guard', count: 5, c: [-440, -395], r: 16 },    // Everlue mansion, Shirotsume
+  { mob: 'everlue', count: 1, at: [-440, -430] },
+  { mob: 'lyon', count: 1, at: [-690, 92] },                     // Galuna western ruins
+  { mob: 'spirit_echo', count: 3, c: [60, 24], r: 6, arc: 'a_loke' }, // Karen's grave
+  { mob: 'thunder_lacrima', count: 6, ring: [0, 0, 56], arc: 'a_bof' }, // Thunder Palace, circling Magnolia
+  { mob: 'laxus', count: 1, at: [78, -54] },                     // behind Kardia Cathedral
+  { mob: 'oracion_mage', count: 6, c: [40, -365], r: 26, arc: 'a_oracion' }, // deep Worth Woodsea
+  { mob: 'brain', count: 1, at: [22, -392] },                    // Nirvana ruins
 ];
 export const BOSS_ARENA = { x: -363.2, z: -60.8, r: 22 }; // Clover Canyon (map px 470,382)
 // Every story boss fights inside its own arena. gate = the side the entrance faces (world x,z of the approach).
@@ -170,5 +302,11 @@ export const BOSS_ARENAS = {
   canyon: { ...BOSS_ARENA, name: 'Clover Canyon', pillar: '#7a7068', gem: '#ff8a3a', floor: '#8a7a6a', h: 3 },
   phantom: { x: -128, z: -272, r: 22, name: 'Phantom Lord Guild, Oak Town', pillar: '#3a3448', gem: '#9a5aff', floor: '#5a5068', h: 3, gate: [-128, -230] },
   heaven: { x: 424, z: -150.4, r: 22, name: 'Tower of Heaven', pillar: '#4a4a58', gem: '#ffe08a', floor: '#6a6a78', h: 2.5, gate: [380, -168], causeway: true },
+  // story arcs: h omitted = sits on the terrain (computed at build). set = set-piece builder in world/arcsets.js
+  hakobe: { x: -240, z: -556, r: 18, name: 'Ice Cave, Mt. Hakobe', pillar: '#cfe0ee', gem: '#9adcff', floor: '#e8eef4', gate: [-206, -515], set: 'icecave' },
+  everlue: { x: -440, z: -430, r: 17, name: 'Everlue Mansion Courtyard', pillar: '#c8b080', gem: '#e0b040', floor: '#a89070', gate: [-440, -395], set: 'mansion' },
+  moon: { x: -690, z: 92, r: 18, name: 'Galuna Western Ruins', pillar: '#a8a090', gem: '#b8a0ff', floor: '#8a8478', gate: [-651, 96], set: 'ruins' },
+  kardia: { x: 78, z: -54, r: 18, name: 'Kardia Cathedral Grounds', pillar: '#d8d0c0', gem: '#ffe24a', floor: '#b8b0a0', gate: [74, -24], set: 'storm' },
+  nirvana: { x: 22, z: -392, r: 20, name: 'Nirvana Ruins, Worth Woodsea', pillar: '#4a5a48', gem: '#5aff8a', floor: '#5a6a58', gate: [60, -360], set: 'nirvana' },
 };
 export const arenaOf = (tpl) => BOSS_ARENAS[tpl.arena || 'canyon'];

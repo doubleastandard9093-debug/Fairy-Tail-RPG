@@ -345,3 +345,18 @@ body.touch #emoteb { display: block; }
 .chip.on { border-color: #ffd76a; color: #ffe9a8; }
 #abar .rk { position: absolute; left: 3px; top: 2px; font: 800 10px/1 Georgia, serif; color: #ffe08a; text-shadow: 0 0 3px #000, 0 0 2px #000; }
 #abar .ultb { box-shadow: 0 0 0 2px #ff7a3a inset, 0 0 10px #ff5a1a; }
+/* ---- story chapters: letterbox scenes, title card, chapter journal ---- */
+body::before, body::after { content: ''; position: fixed; left: 0; right: 0; height: 0; background: #000; z-index: 40; pointer-events: none; transition: height .6s ease; }
+body::before { top: 0; } body::after { bottom: 0; }
+body.cine::before, body.cine::after { height: min(11vh, 80px); }
+body.cine #dialog { z-index: 41; }
+#chapter { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; z-index: 42; opacity: 0; transition: opacity .7s ease; text-align: center; padding: 0 24px; }
+#chapter.show { opacity: 1; }
+#chapter::before { content: ""; position: absolute; left: 0; right: 0; top: 30%; bottom: 30%; background: radial-gradient(ellipse at center, rgba(10,6,20,.78), rgba(10,6,20,0) 70%); z-index: -1; }
+#chapter .cs { font: 600 13px var(--serif); letter-spacing: .3em; text-transform: uppercase; color: #ffd98a; text-shadow: 0 2px 8px #000; }
+#chapter .cn { font: 700 clamp(30px, 6vw, 58px) var(--serif); color: #fff6e6; text-shadow: 0 3px 18px #000, 0 0 30px rgba(255,140,60,.5); margin: 6px 0; }
+#chapter .cb { font: italic 15px var(--serif); color: #f0e2c8; max-width: 640px; text-shadow: 0 2px 8px #000; }
+.sect { font: 700 12px var(--serif); letter-spacing: .2em; text-transform: uppercase; color: var(--gold); margin: 12px 4px 4px; }
+.row.arc .ic { font: 700 18px var(--serif); color: var(--gold); }
+.row.arc.locked, .row.arc.planned { opacity: .55; }
+.row.arc .jq { margin-top: 6px; font-size: 13px; } .row.arc .jr { font-size: 12px; opacity: .8; margin-left: 14px; } .row.arc .jr.now { color: #ffd98a; opacity: 1; }

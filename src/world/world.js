@@ -10,6 +10,7 @@ import { createSea, buildFountain, riverMesh, addWake } from './water.js';
 import { planRivers, riverCarve, riverNear, RIVERS } from './rivers.js';
 import { mapHeight, biomeAt, PLACES, PLACE, WORLD, WATER_Y, RAILS_W, ROADS_W, distToLines, toWorld } from './fiore.js';
 import { Terrain } from './terrain.js';
+import { buildArcSets, buildKarenGrave } from './arcsets.js';
 import { buildRegions, SITE_FLATS, WOODSEA_CLEARING } from './regions.js';
 import { Grass } from './foliage.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -34,6 +35,7 @@ function initFlat() {
   FLAT.push({ rect: TOWN, r: 0, blend: 30, h: 0 });
   FLAT.push({ x: CATHEDRAL.x, z: CATHEDRAL.z, r: 17, blend: 16, h: 0.3 });
   for (const A of Object.values(BOSS_ARENAS)) {
+    if (A.h == null) A.h = Math.max(WATER_Y + 1.2, mapHeight(A.x, A.z));
     FLAT.push({ x: A.x, z: A.z, r: A.r + 1, blend: 5, h: A.h });
     if (A.causeway) { const [gx, gz] = A.gate; for (let k = 0; k <= 8; k++) { const t = k / 8; FLAT.push({ x: gx + (A.x - gx) * t, z: gz + (A.z - gz) * t, r: 4, blend: 3, h: A.h }); } }
   }
@@ -207,7 +209,7 @@ export function buildWorld(scene) {
     for (const c of W.circles) if (c.r > 1.5 && Math.hypot(x - c.x, z - c.z) < c.r + pad) return true;
     return false;
   };
-  const ARENA_LIST = Object.values(BOSS_ARENAS).map((A) => ({ ...A, col: new THREE.Color(A.floor) }));
+  initFlat(); const ARENA_LIST = Object.values(BOSS_ARENAS).map((A) => ({ ...A, col: new THREE.Color(A.floor) }));
   const eastForest = PLACE.eastforest.pos;
   W.terrain = new Terrain(scene, {
     height, keepOut: (x, z, pad) => W.keepOut(x, z, pad),
@@ -632,6 +634,7 @@ export function buildWorld(scene) {
       const p = mesh(new THREE.CylinderGeometry(0.9, 1.3, 5 + R() * 4, 6), toon('#7a7068'), x, height(x, z) + 2.5, z); p.rotation.z = (R() - 0.5) * 0.2; g.add(p);
       const cr = mesh(new THREE.OctahedronGeometry(0.5, 0), glow('#ff8a3a'), x, height(x, z) + 6.8, z); g.add(cr); W.circles.push({ x, z, r: 1.2 }); }
     addOutlines(g); shadowAll(g); }
+  buildArcSets({ zoneGroup, W, R, sign, groundAt: height }); buildKarenGrave({ zoneGroup, W, groundAt: height });
   // Story-boss arenas: Phantom Lord's guild (Oak Town) and the Tower of Heaven (off Akane Beach)
   for (const key of ['phantom', 'heaven']) {
     const A = BOSS_ARENAS[key]; const g = zoneGroup(A.x, A.z, 70); const [gx, gz] = A.gate; const gap = Math.atan2(gz - A.z, gx - A.x);

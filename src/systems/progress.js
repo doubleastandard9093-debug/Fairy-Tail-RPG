@@ -11,7 +11,7 @@ import { addItem, removeItem, countItem, skillLevel, guildRank, classRank, daySt
 import { charLevelForXp } from '../core/xp.js';
 import { skillBonus, globalSkillFx, SYNERGIES, PERKS, SETS, setTier } from '../data/skills.js';
 
-export const hooks = { log: () => {}, toast: () => {}, refresh: () => {}, levelUp: () => {}, jobDone: () => {} };
+export const hooks = { log: () => {}, toast: () => {}, refresh: () => {}, levelUp: () => {}, jobDone: () => {}, story: () => {} };
 export const JOB_BY_ID = Object.fromEntries(JOBS.map((j) => [j.id, j]));
 export const QUEST_BY_ID = Object.fromEntries(QUESTS.map((q) => [q.id, q]));
 export const MAX_ACTIVE_JOBS = 3;
@@ -155,6 +155,7 @@ function primeStage(G, id) {
 export function stageReady(G, id) {
   const q = QUEST_BY_ID[id], s = G.quests[id]; if (!s) return false; const st = q.stages[s.stage]; if (!st) return false;
   if (st.obj.type === 'talk') return true;
+  if (st.obj.type === 'reach') return s.prog >= 1;
   if (st.obj.type === 'item') return countItem(G, st.obj.id) >= st.obj.n;
   return s.prog >= st.obj.n;
 }
@@ -168,7 +169,7 @@ export function stageText(G, id) {
 }
 function maybeAutoAdvance(G, id) {
   const q = QUEST_BY_ID[id], s = G.quests[id]; const st = q.stages[s.stage];
-  if (st && !st.turnIn && st.obj.type !== 'talk' && stageReady(G, id)) advance(G, id);
+  if (st && !st.turnIn && st.obj.type !== 'talk' && stageReady(G, id)) { const d = advance(G, id); if (d && d.length) hooks.story(d); }
 }
 export function advance(G, id) {
   const q = QUEST_BY_ID[id], s = G.quests[id]; const st = q.stages[s.stage];
@@ -190,6 +191,7 @@ export function questEvent(G, ev) {
     else if (ev.type === 'craft' && o.type === 'craft' && o.id === ev.id) s.prog += ev.n || 1;
     else if (ev.type === 'job' && o.type === 'job') s.prog++;
     else if (ev.type === 'item' && o.type === 'item') s.prog = countItem(G, o.id);
+    else if (ev.type === 'reach' && o.type === 'reach' && ev.id === q.id) s.prog = 1;
     else continue;
     if (stageReady(G, q.id) && q.stages[s.stage].turnIn) hooks.log(`Quest objective done. ${stageText(G, q.id)}`, 'quest');
     maybeAutoAdvance(G, q.id);

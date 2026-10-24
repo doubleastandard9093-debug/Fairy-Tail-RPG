@@ -135,41 +135,87 @@ export function animateMageExtra(m, t, atk) {
 
 // ------------------------------------------------------------------ Story bosses: Jose + Jellal
 export function dressWizard(g, P, opt) {
-  const c = P.char; const jose = opt.body === 'jose'; const col = opt.aura || '#ffffff';
+  const c = P.char; const S = WSTYLE[opt.body] || WSTYLE.jellal; const jose = S.style === 'shadow'; const col = opt.aura || S.tints[0];
   // cloth surfaces on coats / capes
-  const kinds = jose ? ['#3a2a5a', '#1a1424'] : ['#1e2030', '#2a2a44'];
+  const kinds = S.cloth;
   for (const k of kinds) { const cm = cmat(k, 'cloth'); g.traverse((o) => { if (o.isMesh && o.material && o.material.color && o.material.type !== 'MeshBasicMaterial' && o.material.color.equals(new THREE.Color(k))) { const side = o.material.side; o.material = side === THREE.DoubleSide ? dbl(cm) : cm; } }); }
   if (P.aura) P.aura.visible = false; // replaced by layered aura below
-  P.fx = { kind: jose ? 'shadow' : 'heaven', color: jose ? '#3a1a5a' : '#ffe08a', spark: jose ? '#b07aff' : '#ffffff' };
+  P.fx = { kind: S.fx, color: S.fxc, spark: S.spark };
   P.floor = runeCircle(g, 2.2, col, 0.05, 0.6); P.floor2 = runeCircle(g, 1.4, col, 0.07, 0.4);
   const shell = add(g, new THREE.SphereGeometry(1.15, 20, 14), glowA(col, 0.08), 0, 1.1, 0); shell.scale.set(1, 1.45, 1); shell.userData.noAO = true; shell.userData.noOutline = true; P.shell = shell;
   P.orbs = []; P.wisps = [];
   if (jose) {
     // Shade phantoms: hooded ghost silhouettes orbiting, shadow tendrils rising from the floor
-    const gm = glowA('#6a3aaa', 0.45), dm = toon('#120a1c');
+    const gm = glowA(S.wisp[0], 0.45), dm = toon('#120a1c');
     for (let i = 0; i < 6; i++) { const w = grp(g); const hood = add(w, new THREE.ConeGeometry(0.22, 0.7, 8, 1, true), gm, 0, 0, 0); hood.material = gm; add(w, new THREE.SphereGeometry(0.12, 8, 6), dm, 0, 0.12, 0.04);
-      for (const s of [-1, 1]) add(w, new THREE.SphereGeometry(0.025, 4, 4), glow('#e0b0ff'), s * 0.05, 0.14, 0.15); w.userData.k = i; w.traverse((o) => { o.userData.noAO = true; o.userData.noOutline = true; }); P.wisps.push(w); }
-    P.tendrils = []; for (let i = 0; i < 8; i++) { const td = add(g, new THREE.ConeGeometry(0.09, 1.6, 5), glowA('#2a0a4a', 0.6), 0, 0, 0); td.userData.k = H(i * 3); td.userData.noAO = true; td.userData.noOutline = true; P.tendrils.push(td); }
+      for (const s of [-1, 1]) add(w, new THREE.SphereGeometry(0.025, 4, 4), glow(S.wisp[1]), s * 0.05, 0.14, 0.15); w.userData.k = i; w.traverse((o) => { o.userData.noAO = true; o.userData.noOutline = true; }); P.wisps.push(w); }
+    P.tendrils = []; for (let i = 0; i < 8; i++) { const td = add(g, new THREE.ConeGeometry(0.09, 1.6, 5), glowA(S.wisp[2], 0.6), 0, 0, 0); td.userData.k = H(i * 3); td.userData.noAO = true; td.userData.noOutline = true; P.tendrils.push(td); }
+  } else if (S.style === 'storm') {
+    // Lightning Dragon Slayer: crackling ball-lightning orbs and jagged bolts arcing from them to the body
+    for (let i = 0; i < 6; i++) { const o = grp(g); add(o, new THREE.IcosahedronGeometry(0.09, 0), glow('#ffffff')); add(o, new THREE.SphereGeometry(0.24, 10, 8), glowA('#ffe24a', 0.35)); o.traverse((q) => { q.userData.noAO = true; q.userData.noOutline = true; }); P.orbs.push(o); }
+    P.bolts = []; const bm = glowA('#fff4a0', 0.9);
+    for (let i = 0; i < 6; i++) { const b = grp(g); for (let j = 0; j < 4; j++) { const sgm = add(b, new THREE.BoxGeometry(0.035, 0.4, 0.035), bm); sgm.userData.noAO = true; sgm.userData.noOutline = true; } P.bolts.push(b); }
+  } else if (S.style === 'frost') {
+    // Ice-Make: orbiting crystal shards and a frost ring that creeps outward
+    const im = toon('#cfeaff', { emissive: '#4a8ac0', rough: 0.1 }), ig = glowA('#9adcff', 0.3);
+    for (let i = 0; i < 8; i++) { const o = grp(g); const sh = add(o, new THREE.OctahedronGeometry(0.16, 0), im); sh.scale.set(0.6, 2.2, 0.6); add(o, new THREE.SphereGeometry(0.2, 8, 6), ig); o.traverse((q) => { q.userData.noAO = true; q.userData.noOutline = true; }); P.orbs.push(o); }
+    P.frost = []; for (let i = 0; i < 10; i++) { const sp = add(g, new THREE.ConeGeometry(0.12, 0.9, 5), im, 0, 0, 0); sp.userData.k = H(i * 5); sp.userData.noOutline = true; P.frost.push(sp); }
+  } else if (S.style === 'dive') {
+    // Diver magic: the ground ripples like water around him, with dirt clods flung up
+    P.ripples = []; for (let i = 0; i < 3; i++) { const r = add(g, new THREE.RingGeometry(0.8, 0.95, 40), glowA(S.tints[0], 0.5), 0, 0.05, 0); r.rotation.x = -Math.PI / 2; r.userData.k = i / 3; r.userData.noAO = true; r.userData.noOutline = true; P.ripples.push(r); }
+    const dm = toon('#6a5030'); for (let i = 0; i < 6; i++) { const o = grp(g); add(o, new THREE.DodecahedronGeometry(0.12, 0), dm); o.traverse((q) => { q.userData.noOutline = true; }); P.orbs.push(o); }
   } else {
     // Heavenly Body magic: seven star orbs (Grand Chariot), a gold halo and starlight motes
     for (let i = 0; i < 7; i++) { const o = grp(g); add(o, new THREE.SphereGeometry(0.1, 10, 8), glow('#fff6d0')); add(o, new THREE.SphereGeometry(0.22, 10, 8), glowA('#ffd86a', 0.3)); o.traverse((q) => { q.userData.noAO = true; q.userData.noOutline = true; }); P.orbs.push(o); }
     const halo = add(g, new THREE.TorusGeometry(0.42, 0.018, 4, 40), glowA('#ffe08a', 0.8), 0, 2.15, -0.2); halo.userData.noAO = true; P.halo2 = halo;
     // Jellal tattoo glow (red) over the right eye made emissive
-    const hd = c.parts.head; for (const [y, l] of [[0.1, 0.22], [0.02, 0.3]]) { const tt = add(hd, new THREE.BoxGeometry(0.035, l, 0.01), glow('#ff3a3a', 0.6), -0.12, y, 0.31); tt.rotation.z = 0.2; tt.userData.noOutline = true; }
+    if (opt.body === 'jellal') { const hd = c.parts.head; for (const [y, l] of [[0.1, 0.22], [0.02, 0.3]]) { const tt = add(hd, new THREE.BoxGeometry(0.035, l, 0.01), glow('#ff3a3a', 0.6), -0.12, y, 0.31); tt.rotation.z = 0.2; tt.userData.noOutline = true; } }
   }
   P.motes = []; const mm = glowA(col, 0.8); for (let i = 0; i < (GFX.high || GFX.real ? 16 : 8); i++) { const s = add(g, new THREE.OctahedronGeometry(0.045, 0), mm); s.userData.k = H(i * 7); s.userData.noAO = true; P.motes.push(s); }
-  P.moteM = mm; P.col = new THREE.Color(col); P.jose = jose;
+  P.moteM = mm; P.col = new THREE.Color(col); P.jose = jose; P.style = S.style; P.tints = S.tints;
 }
-const PHASE_TINT = { jose: ['#7a3aff', '#b03aff', '#ff3a6a'], jellal: ['#ffd86a', '#ffb03a', '#ff5a3a'] };
+// Story-boss looks. style: shadow (orbiting shades + tendrils) | heaven (star orbs + halo) | storm (ball lightning + bolts)
+// | frost (ice shards + floor spikes) | dive (ground ripples + clods). tints = phase 1..3 aura colour. New bosses are data only.
+export const WSTYLE = {
+  jose: { style: 'shadow', cloth: ['#3a2a5a', '#1a1424'], tints: ['#7a3aff', '#b03aff', '#ff3a6a'], wisp: ['#6a3aaa', '#e0b0ff', '#2a0a4a'], fx: 'shadow', fxc: '#3a1a5a', spark: '#b07aff' },
+  jellal: { style: 'heaven', cloth: ['#1e2030', '#2a2a44'], tints: ['#ffd86a', '#ffb03a', '#ff5a3a'], fx: 'heaven', fxc: '#ffe08a', spark: '#ffffff' },
+  everlue: { style: 'dive', cloth: ['#c89a3a', '#6a2a5a'], tints: ['#c8a060', '#e0b040', '#ff7a3a'], fx: 'magic', fxc: '#c8a060', spark: '#fff0a0' },
+  lyon: { style: 'frost', cloth: ['#e8eef6', '#3a4a6a'], tints: ['#9adcff', '#6ab8ff', '#e0f4ff'], fx: 'heaven', fxc: '#bfe8ff', spark: '#ffffff' },
+  laxus: { style: 'storm', cloth: ['#2a2a30', '#5a4a3a'], tints: ['#ffe24a', '#fff4a0', '#ffffff'], fx: 'heaven', fxc: '#ffe24a', spark: '#ffffff' },
+  brain: { style: 'shadow', cloth: ['#e8e4d8', '#2a3a2a'], tints: ['#5aff8a', '#3ad06a', '#1a5a2a'], wisp: ['#2a8a4a', '#aaffc0', '#0a2a12'], fx: 'shadow', fxc: '#1a4a2a', spark: '#8aff9a' },
+  hades: { style: 'shadow', cloth: ['#2a1a1a', '#6a1a1a'], tints: ['#ff3a3a', '#c01a3a', '#5a0a1a'], wisp: ['#8a1a2a', '#ffb0b0', '#2a0606'], fx: 'shadow', fxc: '#3a0a0a', spark: '#ff8a8a' },
+};
 export function animateWizardExtra(p, t) {
   if (!p.floor) return; const st = p.st || {}; const ph = Math.min(3, st.phase || 1); const tr = (st.transition || 0) > 0; const k = (ph - 1) / 2;
-  const col = (PHASE_TINT[p.jose ? 'jose' : 'jellal'])[ph - 1]; [p.floor.material, p.floor2.material, p.shell.material, p.moteM].forEach((m) => m.color.set(col));
+  const col = p.tints[ph - 1]; [p.floor.material, p.floor2.material, p.shell.material, p.moteM].forEach((m) => m.color.set(col));
   p.floor.rotation.z = t * (0.3 + k * 0.6); p.floor2.rotation.z = -t * (0.6 + k); p.floor.scale.setScalar(1 + k * 0.5 + (tr ? Math.sin(t * 18) * 0.08 : 0)); p.floor.material.opacity = 0.35 + k * 0.35 + (tr ? 0.3 : 0);
   p.shell.material.opacity = (tr ? 0.1 : 0.03 + k * 0.05) + Math.sin(t * 5) * 0.02; p.shell.scale.set(1 + k * 0.25, 1.45 + k * 0.3, 1 + k * 0.25);
   const nOn = p.jose ? 2 + ph * 1.4 : 3 + ph * 1.5;
   p.wisps.forEach((w, i) => { w.visible = i < nOn; const a = t * (0.9 + k * 0.6) + (i / 6) * Math.PI * 2; const r = 1.4 + k * 0.5 + Math.sin(t * 1.3 + i) * 0.15; w.position.set(Math.sin(a) * r, 1.2 + Math.sin(t * 2 + i) * 0.3, Math.cos(a) * r); w.rotation.y = a + Math.PI / 2; });
   (p.tendrils || []).forEach((td, i) => { const q = (td.userData.k + t * (0.35 + k * 0.3)) % 1; const a = i * 0.8 + td.userData.k * 6; const r = 0.7 + q * (1.2 + k); td.position.set(Math.sin(a) * r, q * 0.9, Math.cos(a) * r); td.scale.set(1, Math.sin(q * Math.PI) * (0.6 + k * 0.8), 1); td.visible = ph >= 2 || i < 4; });
   p.orbs.forEach((o, i) => { o.visible = i < nOn; const a = t * (0.7 + k * 0.5) + (i / 7) * Math.PI * 2; o.position.set(Math.sin(a) * (1.5 + k * 0.4), 2.1 + Math.sin(a * 2 + t) * 0.25, Math.cos(a) * (1.5 + k * 0.4)); o.scale.setScalar(1 + (tr ? Math.sin(t * 20 + i) * 0.3 : 0)); });
+  if (p.bolts) p.bolts.forEach((b, i) => { const o = p.orbs[i]; b.visible = o.visible && ((t * 9 + i * 1.7) % 1) < 0.35 + k * 0.4; if (!b.visible) return; const ex = o.position.x, ey = o.position.y, ez = o.position.z; const n = b.children.length;
+    b.children.forEach((sg, j) => { const f0 = j / n, f1 = (j + 1) / n; const j0 = j ? (H(i * 9 + j + Math.floor(t * 12)) - 0.5) * 0.5 : 0, j1 = (H(i * 9 + j + 1 + Math.floor(t * 12)) - 0.5) * 0.5;
+      const ax = ex * f0 + j0, ay = 1.2 + (ey - 1.2) * f0 + j1 * 0.5, az = ez * f0 - j0, bx = ex * f1 + j1, by = 1.2 + (ey - 1.2) * f1, bz = ez * f1 - j1; sg.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+      const L = Math.hypot(bx - ax, by - ay, bz - az); sg.scale.set(1, L / 0.4, 1); sg.lookAt(sg.position.x + (bx - ax), sg.position.y + (by - ay), sg.position.z + (bz - az)); sg.rotateX(Math.PI / 2); }); });
+  if (p.frost) p.frost.forEach((sp, i) => { const q = (sp.userData.k + t * 0.25) % 1; const a = i * 0.63 + sp.userData.k * 3; const r = 1 + q * (1.6 + k * 1.5); sp.position.set(Math.sin(a) * r, 0.2, Math.cos(a) * r); sp.scale.setScalar(Math.sin(q * Math.PI) * (0.7 + k)); sp.rotation.z = Math.sin(a) * 0.3; });
+  if (p.ripples) p.ripples.forEach((r) => { const q = (r.userData.k + t * (0.5 + k * 0.4)) % 1; r.scale.setScalar(0.6 + q * (3 + k * 2)); r.material.opacity = (1 - q) * 0.55; r.material.color.set(col); });
+  if (p.style === 'frost' || p.style === 'dive') p.orbs.forEach((o, i) => { o.rotation.y = t * 2; o.rotation.x = t; if (p.style === 'dive') o.position.y = 0.15 + Math.abs(Math.sin(t * 2.2 + i * 1.3)) * (0.8 + k); });
   if (p.halo2) { p.halo2.rotation.z = t; p.halo2.scale.setScalar(1 + k * 0.3); p.halo2.material.color.set(col); }
   p.motes.forEach((s, i) => { const q = (s.userData.k + t * (0.15 + k * 0.15)) % 1; const a = i * 2.4 + t * 0.3; s.position.set(Math.sin(a) * (0.6 + q), q * 3, Math.cos(a) * (0.6 + q)); s.scale.setScalar(Math.sin(q * Math.PI) * (1 + k)); });
+}
+
+/** Phase aura for creature-model bosses (e.g. the possessed Hakobe Vulcan): rune floor, rising motes and a heat shell that intensify per phase. */
+export function dressBossAura(g, P, tints) {
+  P.bossAura = { tints, floor: runeCircle(g, 2.6, tints[0], 0.05, 0.5) };
+  const sh = add(g, new THREE.SphereGeometry(1.5, 18, 12), glowA(tints[0], 0.06), 0, 1.4, 0); sh.scale.set(1, 1.3, 1); sh.userData.noAO = true; sh.userData.noOutline = true; P.bossAura.shell = sh;
+  const mm = glowA(tints[0], 0.8); P.bossAura.mm = mm; P.bossAura.motes = [];
+  for (let i = 0; i < (GFX.high || GFX.real ? 18 : 9); i++) { const s = add(g, new THREE.OctahedronGeometry(0.06, 0), mm); s.userData.k = H(i * 11); s.userData.noAO = true; s.userData.noOutline = true; P.bossAura.motes.push(s); }
+}
+export function animateBossAura(p, t) {
+  const A = p.bossAura; const st = p.st || {}; const ph = Math.min(3, st.phase || 1); const k = (ph - 1) / 2; const tr = (st.transition || 0) > 0; const col = A.tints[ph - 1];
+  for (const m of [A.floor.material, A.shell.material, A.mm]) m.color.set(col);
+  A.floor.rotation.z = t * (0.3 + k); A.floor.scale.setScalar(1 + k * 0.4 + (tr ? Math.sin(t * 18) * 0.1 : 0)); A.floor.material.opacity = 0.25 + k * 0.4 + (tr ? 0.3 : 0);
+  A.shell.material.opacity = (tr ? 0.12 : 0.02 + k * 0.06) + Math.sin(t * 4) * 0.015;
+  A.motes.forEach((s, i) => { const q = (s.userData.k + t * (0.2 + k * 0.2)) % 1; const a = i * 2.1 + t * 0.4; s.position.set(Math.sin(a) * (0.9 + q), q * 3.4, Math.cos(a) * (0.9 + q)); s.scale.setScalar(Math.sin(q * Math.PI) * (1 + k)); });
 }

@@ -13,6 +13,8 @@ import { WEAPON_ABILITIES } from '../data/abilities.js';
 import { derived, countItem, addItem, removeItem, skillLevel, totalLevel, guildRank, nextGuildRank, classRank, SKILLS, STAT_INFO, saveGame, saveSettings, SAVE_KEY, migrate, dayStamp, canAdd, freeSlots, INV_SIZE } from '../core/state.js';
 import { xpForLevel, levelForXp, progressToNext, charXpForLevel } from '../core/xp.js';
 import * as P from '../systems/progress.js';
+import { ARCS } from '../data/story.js';
+import { arcState, arcProgress } from '../systems/story.js';
 import { TOWN } from '../world/world.js';
 import { BOSS_ARENA, BOSS_ARENAS } from '../data/mobs.js';
 import { PARTY, unisonFor } from '../data/combos.js';
@@ -325,7 +327,7 @@ export class UI {
   }
   togglePanel(name) { if (this.panel === name) this.closePanel(); else this.openPanel(name); }
   openPanel(name, opts = {}) { this.closeDialog(); this.panel = name; this.popts = opts; this.sel = null; this.tab = opts.tab || this.tab0(name); this.el.panel.classList.remove('hidden'); this.renderPanel(); }
-  tab0(name) { if (name === 'tree') return this.treeTab0(); if (name === 'craft') return this.popts.station || 'forge'; if (name === 'skills') return 'list'; return { shop: 'buy', quests: 'story', board: 'E' }[name] || null; }
+  tab0(name) { if (name === 'tree') return this.treeTab0(); if (name === 'craft') return this.popts.station || 'forge'; if (name === 'skills') return 'list'; return { shop: 'buy', quests: 'arcs', board: 'E' }[name] || null; }
   closePanel() { this.panel = null; this.el.panel.classList.add('hidden'); if (this.game) saveGame(this.game.G); }
   renderPanel() {
     const fn = this['p_' + this.panel]; if (!fn) return; if (this.game) setPriceG(this.game.G);
@@ -485,7 +487,8 @@ export class UI {
     let html = head;
     if (this.tab === 'story') html += QUESTS.map((q) => { const s = P.questStatus(G, q.id); return `<div class="row"><div class="ic">${s === 'done' ? '✅' : s === 'active' ? '📜' : '❔'}</div><div class="grow"><div class="nm">${esc(q.name)} <span class="muted">${q.qp} QP</span></div><div class="ds">${s === 'new' ? `Start: talk to ${esc(NPCS[q.start].name.split(' (')[0])}` : s === 'done' ? 'Completed' : esc(P.stageText(G, q.id))}</div></div></div>`; }).join('');
     else html += G.jobs.active.length ? G.jobs.active.map((a) => { const j = P.JOB_BY_ID[a.id]; const r = P.jobReady(G, a); return `<div class="row"><div class="rk ${j.rank}">${j.rank}</div><div class="grow"><div class="nm">${esc(j.title)}</div><div class="ds">${esc(P.jobProgressText(G, a))}${r ? ' — <b style="color:#7aff9a">ready! Hand in to Mirajane</b>' : ''}</div></div><button class="btn small" data-act="abandon" data-arg="${a.id}">Abandon</button></div>`; }).join('') : '<div class="muted">No active jobs. Visit the request board in the Fairy Tail guild hall.</div>';
-    return { title: '📜 Quests & Jobs', tabs: [['story', 'Story quests'], ['jobs', `Jobs (${G.jobs.active.length}/${P.maxJobs(G)})`]], html };
+    if (this.tab === 'arcs') html = this.storyChapters();
+    return { title: '📜 Quests & Jobs', tabs: [['arcs', '📖 Chapters'], ['story', 'Story quests'], ['jobs', `Jobs (${G.jobs.active.length}/${P.maxJobs(G)})`]], html };
   }
   p_board() {
     const G = this.game.G; const my = guildRank(G);
@@ -641,7 +644,38 @@ export class UI {
     if (it.kind === 'rail') return this.openWorldMap({ mode: 'train', from: it.place });
     if (it.kind === 'ferry') return this.openWorldMap({ mode: 'boat', from: it.place });
   }
-  closeDialog() { this.el.dialog.classList.add('hidden'); this.dlg = null; }
+  closeDialog() { this.el.dialog.classList.add('hidden'); this.dlg = null; document.body.classList.remove('cine'); }
+  sceneBusy() { return !!this.dlg || !!this.panel || this._card; }
+  /** Play a list of [speaker, text] lines as a letterboxed scene (no NPC options). */
+  playLines(lines, cine = true) {
+    if (!lines || !lines.length) return; if (this.dlg && this.dlg.scene) { this.dlg.queue.push(...lines); return; }
+    this.closePanel(); this.dlg = { npcId: null, scene: true, queue: [...lines], options: [] }; if (cine) document.body.classList.add('cine');
+    this.el.dialog.classList.remove('hidden'); this.stepDialogue();
+  }
+  /** Chapter title card, then the arc's opening or closing scene. */
+  scene(a, kind) {
+    const c = document.getElementById('chapter') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'chapter' }));
+    c.innerHTML = `<div class="cs">${esc(a.post ? 'Beyond the anime' : a.season)} · Chapter ${a.n}</div><div class="cn">${esc(a.name)}</div><div class="cb">${kind === 'close' ? 'Chapter complete' : esc(a.blurb || '')}</div>`;
+    document.body.classList.add('cine'); c.className = 'show'; this._card = true;
+    setTimeout(() => { c.className = ''; this._card = false; this.playLines(a.scene[kind]); }, 2600);
+  }
+  storyChapters() {
+    const G = this.game.G; let out = '', season = '';
+    for (const a of ARCS) {
+      const st = arcState(G, a.id); const sn = a.post ? 'After the anime' : a.season;
+      if (sn !== season) { season = sn; out += `<div class="sect">${esc(sn)}</div>`; }
+      const badge = { done: '✅ Complete', open: '▶ In progress', locked: '🔒 Locked', planned: '🛠️ Coming soon' }[st];
+      const pr = st === 'planned' ? 0 : arcProgress(G, a.id) * 100;
+      let jr = '';
+      if (st === 'open' || st === 'done') {
+        for (const qid of a.quests) { const q = P.QUEST_BY_ID[qid]; if (!q) continue; const s = G.quests[qid]; const qs2 = P.questStatus(G, qid);
+          const notes = s ? q.stages.slice(0, s.stage).map((x) => `<div class="jr">✔ ${esc(x.desc)}</div>`).join('') : '';
+          jr += `<div class="jq"><b>${qs2 === 'done' ? '✅' : qs2 === 'active' ? '📜' : '❔'} ${esc(q.name)}</b>${qs2 === 'new' ? ` <span class="muted">— talk to ${esc(NPCS[q.start].name.split(' (')[0])}</span>` : ''}${notes}${qs2 === 'active' ? `<div class="jr now">▸ ${esc(P.stageText(G, qid))}</div>` : ''}</div>`; }
+      }
+      out += `<div class="row arc ${st}"><div class="ic">${a.n}</div><div class="grow"><div class="nm">${esc(a.name)} <span class="muted">Lv ${a.levels[0]}–${a.levels[1]} · ${badge}</span></div><div class="ds">${esc(a.blurb || '')}</div>${st !== 'planned' ? `<div class="bar gp"><i style="width:${pr}%"></i></div>` : ''}${jr}</div></div>`;
+    }
+    return out;
+  }
   openDialogue(npcId) {
     if (npcId === 'erza' && this.game) this.game.requipNpc('erza');
     this.closePanel(); const G = this.game.G;
@@ -664,7 +698,7 @@ export class UI {
   stepDialogue() {
     const D = this.dlg; if (!D) return; const el = this.el.dialog; const opts = el.querySelector('.opts'); opts.innerHTML = '';
     const line = D.queue.shift();
-    if (line) { const [who, txt] = line; el.querySelector('.who').textContent = NPCS[who] ? NPCS[who].name : who; el.querySelector('.txt').textContent = txt; }
+    if (line) { const [who, txt] = line; el.querySelector('.who').textContent = NPCS[who] ? NPCS[who].name : (who[0].toUpperCase() + who.slice(1)); el.querySelector('.txt').textContent = txt; }
     if (D.queue.length) { el.querySelector('.more').textContent = 'Tap to continue ▸'; const b = h('button', 'btn', 'Continue ▸'); b.onclick = () => this.stepDialogue(); opts.appendChild(b); el.onclick = (e) => { if (e.target === el || e.target.classList.contains('txt')) this.stepDialogue(); }; return; }
     el.onclick = null; el.querySelector('.more').textContent = '';
     const list = D.pending || D.options;
@@ -672,7 +706,7 @@ export class UI {
       const b = h('button', 'btn' + (o.quest ? ' gold' : ''), esc(o.label));
       b.onclick = () => this.chooseOption(o); opts.appendChild(b);
     }
-    const bye = h('button', 'btn', D.pending ? 'Maybe later' : 'Goodbye'); bye.onclick = () => { if (D.pending) { D.pending = null; this.stepDialogue(); } else this.closeDialog(); }; opts.appendChild(bye);
+    const bye = h('button', 'btn', D.pending ? 'Maybe later' : D.scene ? 'Continue' : 'Goodbye'); bye.onclick = () => { if (D.pending) { D.pending = null; this.stepDialogue(); } else this.closeDialog(); }; opts.appendChild(bye);
   }
   chooseOption(o) {
     const G = this.game.G; const D = this.dlg;
