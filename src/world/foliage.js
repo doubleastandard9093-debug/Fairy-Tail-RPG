@@ -19,6 +19,10 @@ function bladeGeo() {
   const n = g.attributes.normal; for (let i = 0; i < n.count; i++) n.setXYZ(i, n.getX(i) * 0.3, 1, n.getZ(i) * 0.3); n.needsUpdate = true; return g;
 }
 
+const vn = (x, z) => { const i = Math.floor(x), j = Math.floor(z); let fx = x - i, fz = z - j; fx = fx * fx * (3 - 2 * fx); fz = fz * fz * (3 - 2 * fz);
+  const a = hash(i, j, 91), b = hash(i + 1, j, 91), c = hash(i, j + 1, 91), d = hash(i + 1, j + 1, 91); return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz; };
+const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
 export class Grass {
   constructor(scene, { height, accept, prepare, count = 12000, radius = 40 }) {
     this.height = height; this.accept = accept; this.prepare = prepare; this.radius = radius; this.cap = count;
@@ -35,11 +39,13 @@ export class Grass {
     const i0 = Math.floor((x - R) / C), i1 = Math.ceil((x + R) / C), j0 = Math.floor((z - R) / C), j1 = Math.ceil((z + R) / C); let n = 0;
     for (let j = j0; j <= j1 && n < this.cap; j++) for (let i = i0; i <= i1 && n < this.cap; i++) {
       const px = (i + hash(i, j, 1)) * C, pz = (j + hash(i, j, 2)) * C; const d = Math.hypot(px - x, pz - z); if (d > R) continue;
-      const k = this.accept(px, pz); if (!k || hash(i, j, 3) > k) continue;
+      let k = this.accept(px, pz); if (!k) continue;
+      // clumps: dense tufts and thinner gaps, so the field reads as natural growth rather than a carpet
+      const clump = vn(px * 0.21, pz * 0.21) * 0.65 + vn(px * 0.9, pz * 0.9) * 0.35; k *= 0.35 + 0.85 * sm(0.22, 0.68, clump); if (hash(i, j, 3) > k) continue;
       // thin out toward the rim so the field edge dissolves instead of ending in a hard circle
       const edge = d / R; if (edge > 0.7 && hash(i, j, 4) < (edge - 0.7) / 0.3) continue;
-      const sc = 0.6 + hash(i, j, 5) * 0.7; q.setFromAxisAngle(up, hash(i, j, 6) * Math.PI * 2); p.set(px, this.height(px, pz) - 0.02, pz); s.set(sc, sc * (0.8 + hash(i, j, 7) * 0.7), sc); m.compose(p, q, s); this.mesh.setMatrixAt(n, m);
-      col.setHSL(0.24 + hash(i, j, 8) * 0.06, 0.45, 0.42 + hash(i, j, 9) * 0.2); this.mesh.setColorAt(n, col); n++;
+      const sc = (0.55 + hash(i, j, 5) * 0.6) * (0.75 + clump * 0.6); q.setFromAxisAngle(up, hash(i, j, 6) * Math.PI * 2); p.set(px, this.height(px, pz) - 0.02, pz); s.set(sc, sc * (0.8 + hash(i, j, 7) * 0.7), sc); m.compose(p, q, s); this.mesh.setMatrixAt(n, m);
+      { const dry = sm(0.55, 0.85, vn(px * 0.035 + 7, pz * 0.035)), lush = sm(0.5, 0.8, clump); col.setHSL(0.245 + hash(i, j, 8) * 0.05 - dry * 0.07 + lush * 0.02, 0.42 + dry * 0.12, 0.4 + hash(i, j, 9) * 0.18 + dry * 0.1 - lush * 0.06); } this.mesh.setColorAt(n, col); n++;
     }
     this.mesh.count = n; this.mesh.instanceMatrix.needsUpdate = true; this.mesh.instanceColor.needsUpdate = true;
   }
