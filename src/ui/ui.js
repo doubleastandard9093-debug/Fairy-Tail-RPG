@@ -72,6 +72,8 @@ export class UI {
         <div id="abar"></div>
         <div id="menu"></div>
         <button id="interact" class="hidden"></button>
+        <div id="partyf" class="frame hidden"><div class="pnm"></div><div class="bar"><i></i></div><div class="ubar"><i></i></div><div class="pst"></div></div>
+        <button id="emoteb" title="Fairy Tail sign (H)">☝️</button>
         <div id="gather" class="frame hidden"><div class="gn"></div><div class="bar"><i></i></div></div>
         <div id="joy"><div class="knob"></div></div>
         <div id="toasts"></div>
@@ -79,7 +81,8 @@ export class UI {
       <div id="floaters"></div><div id="vignette"></div>
       <div id="panel" class="frame hidden"><header><div class="title"></div><button class="x" aria-label="Close">✕</button></header><div class="tabs"></div><div class="body"></div></div>
       <div id="dialog" class="frame hidden"><div class="who"></div><div class="txt"></div><div class="opts"></div><div class="more"></div></div>`);
-    this.el = { hud: $('#hud'), plate: $('#plate'), orbs: $('#orbs'), chat: $('#chat'), abar: $('#abar'), menu: $('#menu'), interact: $('#interact'), gather: $('#gather'), toasts: $('#toasts'), floaters: $('#floaters'), vig: $('#vignette'), panel: $('#panel'), dialog: $('#dialog'), target: $('#target'), boss: $('#boss'), map: $('#minimap'), zone: $('#zone'), buffs: $('#buffs') };
+    $('#emoteb').onclick = () => this.game && this.game.emote('salute');
+    this.el = { partyf: $('#partyf'), hud: $('#hud'), plate: $('#plate'), orbs: $('#orbs'), chat: $('#chat'), abar: $('#abar'), menu: $('#menu'), interact: $('#interact'), gather: $('#gather'), toasts: $('#toasts'), floaters: $('#floaters'), vig: $('#vignette'), panel: $('#panel'), dialog: $('#dialog'), target: $('#target'), boss: $('#boss'), map: $('#minimap'), zone: $('#zone'), buffs: $('#buffs') };
     this.el.panel.querySelector('.x').onclick = () => this.closePanel();
     this.el.chat.onclick = () => this.el.chat.classList.toggle('collapsed');
     const menu = [['worldmap', '🗺️', 'World Map (M)'], ['bag', '🎒', 'Bag (I)'], ['gear', '🛡️', 'Equipment (G)'], ['stats', '⭐', 'Stats (C)'], ['skills', '⛏️', 'Skills (K)'], ['quests', '📜', 'Quests & Jobs (J)'], ['tree', '🌳', 'Skill Tree (T)'], ['settings', '⚙️', 'Settings']];
@@ -127,6 +130,10 @@ export class UI {
   // ---------------------------------------------------------------- per-frame
   update(dt) {
     const g = this.game; if (!g) return; const G = g.G, d = derived(G), pl = g.player;
+    if (G.jewels !== this.lastJw) { const up = this.lastJw !== undefined && G.jewels > this.lastJw; this.lastJw = G.jewels; this.renderPlate(); if (up) { const j = this.el.plate.querySelector('.jw'); j && j.classList.remove('pop'); void (j && j.offsetWidth); j && j.classList.add('pop'); } }
+    { const pf = this.el.partyf, pt = g.magic && g.magic.partner(); pf.classList.toggle('hidden', !pt);
+      if (pt) { pf.querySelector('.pnm').textContent = pt.tpl.name.replace(' (party)', ''); pf.querySelector('.bar i').style.width = (pt.hp / pt.maxHp * 100) + '%'; const u = g.magic.unison; pf.querySelector('.ubar i').style.width = u + '%';
+        pf.classList.toggle('ready', u >= 100); pf.classList.toggle('down', !!pt.downed); pf.querySelector('.pst').textContent = pt.downed ? `💫 Down — revive! (${Math.ceil(pt.downT)}s)` : u >= 100 ? '⚡ UNISON READY (U)' : `Unison ${Math.floor(u)}%`; } }
     if (this.dirty) { this.dirty = false; this.renderPlate(); this.renderAbilities(); if (this.panel) this.renderPanel(); this.renderMenuDots(); }
     // orbs
     const orb = (el, v, max, label) => { el.querySelector('.fill').style.height = Math.max(0, Math.min(100, v / max * 100)) + '%'; el.querySelector('.v').innerHTML = `${Math.max(0, Math.ceil(v))}<small>${label}</small>`; };
@@ -149,7 +156,7 @@ export class UI {
     // interact prompt
     const it = this.el.dialog.classList.contains('hidden') && !this.panel && !pl.gathering ? g.nearestInteractable() : null;
     const ib = this.el.interact;
-    if (it) { const verb = it.kind === 'npc' ? 'Talk to' : it.kind === 'rail' ? 'Board the train at' : it.kind === 'ferry' ? 'Board the' : it.kind === 'node' ? { ore: 'Mine', wood: 'Chop', fibre: 'Pick' }[it.type] : 'Use'; const label = `<span class="key">E</span>${verb} ${esc(it.name.split(' (')[0])}`; if (ib.innerHTML !== label) ib.innerHTML = label; ib.classList.remove('hidden'); }
+    if (it) { const verb = it.kind === 'npc' ? 'Talk to' : it.kind === 'rail' ? 'Board the train at' : it.kind === 'ferry' ? 'Board the' : it.kind === 'revive' ? 'Revive' : it.kind === 'node' ? { ore: 'Mine', wood: 'Chop', fibre: 'Pick' }[it.type] : 'Use'; const label = `<span class="key">E</span>${verb} ${esc(it.name.split(' (')[0])}`; if (ib.innerHTML !== label) ib.innerHTML = label; ib.classList.remove('hidden'); }
     else ib.classList.add('hidden');
     // target / boss
     if (this.target && !this.target.dead) { this.el.target.querySelector('i').style.width = (this.target.hp / this.target.maxHp * 100) + '%'; const fx = []; if (this.target.burn) fx.push('🔥 burning'); if (this.target.slow) fx.push('❄️ slowed'); if (this.target.stun > 0) fx.push('💫 stunned'); this.el.target.querySelector('.fx').textContent = fx.join('  ') || `${fmt(this.target.hp)} / ${fmt(this.target.maxHp)}`; }

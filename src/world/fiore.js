@@ -64,8 +64,8 @@ export const PLACES = [
   P('shirotsume', 'Shirotsume', [422, 168], 28, { minor: true }),
   P('bluepegasus', 'Blue Pegasus (Guild)', [364, 204], 26, { minor: true }),
   P('lamiascale', 'Lamia Scale (Guild)', [322, 300], 26, { minor: true }),
-  P('oak', 'Oak Town (Phantom Lord)', [612, 262], 34, { minor: true, banner: 'Phantom Lord\'s fortress guild. Not friendly.' }),
-  P('akane', 'Akane Beach', [936, 312], 30, { minor: true, banner: 'Resort beach. The Tower of Heaven looms offshore.' }),
+  { ...P('oak', 'Oak Town (Phantom Lord)', [612, 262], 34), station: { off: [16, 20], label: 'Oak Town Carriage Stop' }, minor: true, banner: 'Phantom Lord\'s fortress guild. Not friendly.' },
+  { ...P('akane', 'Akane Beach', [936, 312], 30), station: { off: [-16, -4], label: 'Akane Resort Station' }, minor: true, banner: 'Resort beach. The Tower of Heaven looms offshore.' },
 ];
 export const PLACE = Object.fromEntries(PLACES.map((p) => [p.id, p]));
 for (const p of PLACES) if (p.station) p.station.pos = p.station.at ? p.station.at : [p.pos[0] + p.station.off[0], p.pos[1] + p.station.off[1]];

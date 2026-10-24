@@ -311,3 +311,17 @@ body.landscape.touch #worldmap .wm-mapbox { max-height: calc(100vh - 70px); }
 .rkstep { display: flex; gap: 6px; align-items: center; padding: 6px; border: 1px solid #ffffff22; border-radius: 8px; opacity: .6; }
 .rkstep.done { opacity: .85; } .rkstep.on { opacity: 1; border-color: var(--gold2); box-shadow: 0 0 8px #ffd76a55; }
 .row.lb.you { border-color: #e0303a; background: #e0303a22; }
+/* party frame + emote button */
+#partyf { position: absolute; left: 12px; top: 74px; width: 190px; padding: 6px 9px; font-size: 12px; pointer-events: none; }
+#partyf .pnm { font-weight: 700; color: #ffe6b0; }
+#partyf .bar, #partyf .ubar { height: 6px; background: #0006; border-radius: 4px; margin-top: 4px; overflow: hidden; }
+#partyf .bar i { display: block; height: 100%; background: linear-gradient(90deg, #4ad06a, #9af07a); }
+#partyf .ubar i { display: block; height: 100%; background: linear-gradient(90deg, #ff8a3a, #ffd84a, #7ad0ff); }
+#partyf .pst { margin-top: 3px; opacity: .85; font-size: 11px; }
+#partyf.ready { box-shadow: 0 0 14px #ffd84a; animation: uniPulse 1s infinite alternate; }
+#partyf.down .pnm { color: #ff8a8a; }
+@keyframes uniPulse { from { box-shadow: 0 0 6px #ffd84a; } to { box-shadow: 0 0 18px #ffb03a; } }
+#emoteb { position: absolute; right: 14px; bottom: 210px; width: 46px; height: 46px; border-radius: 50%; border: 2px solid #e6c27a; background: #2a1e3acc; color: #fff; font-size: 22px; display: none; }
+body.touch #emoteb { display: block; }
+.jw.pop { animation: jwPop .5s ease-out; display: inline-block; }
+@keyframes jwPop { 0% { transform: scale(1.5); color: #fff3a0; } 100% { transform: scale(1); } }

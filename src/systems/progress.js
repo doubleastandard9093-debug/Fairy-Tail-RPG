@@ -18,7 +18,7 @@ const today = () => Math.floor(Date.now() / 864e5);
 /** Fiore guild standings: your fame vs each rival guild. */
 export function guildStandings(G) {
   G.rivals ||= {}; const born = G.bornDay || today(); const days = Math.max(0, today() - born);
-  const list = [{ id: 'fairy', name: 'Fairy Tail', icon: '🧚', color: '#e0303a', fame: FAIRY_FAME_BASE + G.gp * 2 + (G.contestWins || 0) * 120 + (G.sclass ? 500 : 0), you: true }];
+  const list = [{ id: 'fairy', name: 'Fairy Tail', icon: '🧚', color: '#e0303a', fame: FAIRY_FAME_BASE + G.gp * 2 + (G.contestWins || 0) * 120 + (G.sclass ? 500 : 0) + Object.values(G.bossKills || {}).reduce((a, b) => a + Math.min(b, 3), 0) * 250, you: true }];
   for (const [id, r] of Object.entries(RIVALS)) { const st = G.rivals[id] || {}; list.push({ id, name: r.name, icon: r.icon, color: r.color, fame: r.fame + r.perDay * days + (st.wins || 0) * 120 - (st.losses || 0) * 60, wins: st.wins || 0, losses: st.losses || 0 }); }
   return list.sort((a, b) => b.fame - a.fame);
 }
@@ -208,7 +208,7 @@ export function npcDialogue(G, npcId) {
   const lines = []; const options = [];
   for (const q of QUESTS) {
     const s = G.quests[q.id];
-    if (!s && q.start === npcId) { options.push({ label: `📜 ${q.name}`, quest: q.id, kind: 'start' }); continue; }
+    if (!s && q.start === npcId && (!q.requires || questStatus(G, q.requires) === 'done')) { options.push({ label: `📜 ${q.name}`, quest: q.id, kind: 'start' }); continue; }
     if (!s || s.stage >= q.stages.length) continue;
     const st = q.stages[s.stage];
     if (st.obj.type === 'talk' && st.obj.npc === npcId) options.push({ label: `📜 ${q.name}`, quest: q.id, kind: 'advance' });

@@ -20,6 +20,7 @@ const TMP = new THREE.Vector3();
 const ang = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const dist2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
+const SCHOOL_POSE = { flame: 'natsu', ice: 'gray', celestial: 'lucy', requip: 'erza', lightning: 'laxus', rune: 'levy' };
 export class Game {
   constructor(renderer, G, S, ui) {
     this.renderer = renderer; this.G = G; this.S = S; this.ui = ui;
@@ -157,7 +158,7 @@ export class Game {
     if (npcId) this.summon(PARTY[npcId].ally, 0, 1 + derived(this.G).level * 0.06, { party: true });
     this.ui.refresh(); saveGame?.(this.G);
   }
-  emote(kind = 'salute', dur = 2.2) { const pl = this.player; if (pl.dead) return; pl.emote = { kind, until: this.t + dur }; if (kind === 'salute') this.ui.log('You raise the Fairy Tail sign. Somewhere, Laxus pretends not to notice.', 'npc'); }
+  emote(kind = 'salute', dur = 2.2) { const pl = this.player; if (pl.dead) return; pl.emote = { kind, until: this.t + dur, face: true }; if (kind === 'salute') this.ui.log('You raise the Fairy Tail sign. Somewhere, Laxus pretends not to notice.', 'npc'); }
   validTarget() { const t = this.player.target; return t && !t.dead && t.kind === 'mob' ? t : null; }
   setTarget(m) { this.player.target = m; this.ui.setTarget(m); }
 
@@ -385,7 +386,12 @@ export class Game {
       if (G.hp <= 0) this.playerDie(srcName);
     } else {
       target.hp -= amt; this.ui.floatText(target.pos, 2, '-' + Math.round(amt), 'hurtAlly');
-      if (target.hp <= 0) { this.ui.log(`${target.tpl.name} retreats, exhausted.`, 'npc'); this.fxBurst(target.pos, '#ffe0a0', 14); this.removeEntity(target); }
+      if (target.hp <= 0) {
+        if ((target.party || target.guildmate) && !target.downed) { target.hp = 0; target.downed = true; target.downT = 30; target.atk = -1; target.moving = 0;
+          this.ui.log(`${target.tpl.name.replace(' (party)', '')} is down! Stand next to them and press E (or tap Revive) to help them up.`, 'warn'); this.ui.toast(`💫 ${target.tpl.name.replace(' (party)', '')} is down — revive them!`);
+          target.reviveIt = { kind: 'revive', ally: target, name: target.tpl.name.replace(' (party)', ''), x: target.pos.x, z: target.pos.z, r: 2.6 }; this.world.interactables.push(target.reviveIt); }
+        else if (!target.downed) { this.ui.log(`${target.tpl.name} retreats, exhausted.`, 'npc'); this.fxBurst(target.pos, '#ffe0a0', 14); this.removeEntity(target); }
+      }
     }
   }
   playerDie(src) {
@@ -449,6 +455,7 @@ export class Game {
     if (d > it.r) { pl.follow = it; pl.moveTo = null; return; }
     pl.follow = null; pl.moveTo = null; pl.rot = Math.atan2(it.x - pl.pos.x, it.z - pl.pos.z);
     if (it.kind === 'node') return this.startGather(it);
+    if (it.kind === 'revive') { pl.reviving = { ally: it.ally, t: 0, need: 2 }; this.ui.bossCast?.('Reviving ' + it.name, 2); this.ui.log(`You help ${it.name} up...`, 'info'); return; }
     this.ui.openInteract(it);
   }
   startGather(node) {
@@ -541,10 +548,12 @@ export class Game {
     if (pl.atk >= 0) { pl.atk += dt * 3.2; if (pl.atk >= 1) pl.atk = -1; }
     pl.cast = Math.max(0, pl.cast - dt);
     const g = pl.char.group; g.position.copy(pl.pos); g.rotation.y = pl.rot;
+    if (pl.emote && pl.emote.face && this.t < pl.emote.until && mv < 0.1) pl.rot += ang(this.cam.yaw + Math.PI - pl.rot) * Math.min(1, dt * 10);
+    { const L = G.equip.lacrima ? ITEMS[G.equip.lacrima] : null; pl.char.parts.pose = (L && SCHOOL_POSE[L.school]) || 'hero'; }
     animateCharacter(pl.char, { t: this.t, move: mv, atk: pl.atk, kind: pl.atkKind, cast: pl.cast > 0 ? Math.min(1, pl.cast * 3) : 0, dead: !!pl.dead, emote: pl.emote && this.t < pl.emote.until && mv < 0.1 ? pl.emote.kind : null });
     if (pl.iframes > 0 && pl.dash) g.rotation.x = 0; // roll is implied by the dash burst
     // world systems
-    this.updateEntities(dt); this.updateProjectiles(dt); this.updateTeles(dt); this.updateTraps(dt); this.updateFx(dt); this.magic.update(dt); P.tickRivals(this.G, dt);
+    this.updateEntities(dt); this.updateProjectiles(dt); this.updateTeles(dt); this.updateTraps(dt); this.updateFx(dt); this.magic.update(dt); P.tickRivals(this.G, dt); this.fameT = (this.fameT || 0) - dt; if (this.fameT <= 0 && this.world.setFame) { this.fameT = 3; const rows = P.guildStandings(G); const key = rows.map((r) => r.id + Math.round(r.fame)).join(); if (key !== this.fameKey) { this.fameKey = key; this.world.setFame(rows); } }
     for (const n of this.world.nodes) if (n.respawn > 0) { n.respawn -= dt; if (n.respawn <= 0) { n.respawn = 0; n.uses = NODE_TIERS[n.tier].uses; n.obj.scale.setScalar(1); } }
     // boss party: guildmates join on the boss's S-rank job or its quest stage (one arena at a time)
     let boss = null, bd = 1e9;
@@ -553,7 +562,7 @@ export class Game {
     const pty = boss && boss.tpl.party;
     const wantsParty = pty && (G.jobs.active.some((a) => pty.jobs.includes(a.id)) || (pty.quest && G.quests[pty.quest[0]] && G.quests[pty.quest[0]].stage === pty.quest[1]));
     if (inArena && wantsParty && !this.entities.some((e) => e.guildmate)) {
-      for (const id of pty.ids) this.summon(id, 0, 1 + d.level * 0.05, { guildmate: true });
+      for (const id of pty.ids) this.summon(id, 0, 0.6 + d.level * 0.03, { guildmate: true });
       this.ui.toast(pty.line);
     }
     for (const e of [...this.entities]) if (e.guildmate && (!inArena && Object.values(BOSS_ARENAS).every((A) => dist2(e.pos, A) > A.r + 30))) this.removeEntity(e);
@@ -621,12 +630,12 @@ export class Game {
       if (!e.dead) {
         e.obj.position.set(e.pos.x, e.pos.y + (e.tpl && e.tpl.float ? e.tpl.float : 0), e.pos.z); e.obj.rotation.y = e.rot;
         if (e.atk >= 0) { e.atk += dt * 2.5; if (e.atk >= 1) e.atk = -1; }
-        if (e.model.char) animateCharacter(e.model.char, { t: this.t + e.pos.x, move: e.moving || 0, atk: e.atk, kind: e.tpl.role === 'healer' ? 'slash' : 'punch', cast: e.tpl.role === 'healer' && e.atk >= 0 ? 1 : 0 });
+        if (e.model.char) animateCharacter(e.model.char, { dead: !!e.downed, t: this.t + e.pos.x, move: e.moving || 0, atk: e.atk, kind: e.tpl.role === 'healer' ? 'slash' : 'punch', cast: e.tpl.role === 'healer' && e.atk >= 0 ? 1 : 0 });
         else animateMob(e.model, e.tpl ? e.tpl.model : (e.modelName || 'cat'), this.t + e.pos.x, e.moving || 0, e.atk);
       }
     }
   }
-  allyTargets() { return [{ ref: 'player', pos: this.player.pos, dead: this.player.dead }, ...this.entities.filter((e) => e.kind === 'ally').map((e) => ({ ref: e, pos: e.pos, taunt: e.tpl.taunt }))]; }
+  allyTargets() { return [{ ref: 'player', pos: this.player.pos, dead: this.player.dead }, ...this.entities.filter((e) => e.kind === 'ally' && !e.downed).map((e) => ({ ref: e, pos: e.pos, taunt: e.tpl.taunt }))]; }
   updateMob(m, dt) {
     const pl = this.player, tpl = m.tpl;
     if (m.dead) { m.respawn -= dt; if (m.respawn <= 0) this.respawnMob(m); return; }
@@ -634,7 +643,7 @@ export class Game {
     if (m.slowT > 0) { m.slowT -= dt; if (m.slowT <= 0) m.slow = 0; }
     m.moving = 0;
     if (m.stun > 0) { m.stun -= dt; return; }
-    const homeD = dist2(m.pos, m.home);
+    let homeD = dist2(m.pos, m.home);
     if (m.aggro && (pl.dead || dist2(pl.pos, m.pos) > 90)) { m.aggro = false; m.hp = m.maxHp; m.burn = null; if (tpl.boss) this.resetBoss(m); }
     const pd = pl.dead ? 1e9 : dist2(pl.pos, m.pos);
     if (!m.aggro) {
@@ -649,11 +658,14 @@ export class Game {
         m.pos.y = groundAt(m.pos.x, m.pos.z); return;
       }
     }
+    if (tpl.boss && tpl.arena && !pl.dead) { // bosses stay inside their arena and only reset when you actually leave it
+      const A = arenaOf(tpl); const ad = Math.hypot(m.pos.x - A.x, m.pos.z - A.z); if (ad > A.r - 2) { const k = (A.r - 2) / ad; m.pos.x = A.x + (m.pos.x - A.x) * k; m.pos.z = A.z + (m.pos.z - A.z) * k; }
+      if (Math.hypot(pl.pos.x - A.x, pl.pos.z - A.z) < A.r + 10) homeD = 0; }
     if (homeD > (tpl.leash || 32) || pl.dead) { if (m.temp) { this.removeEntity(m); return; } m.aggro = false; m.hp = m.maxHp; m.wander = m.home.clone(); m.castLock = 0; if (tpl.boss) this.resetBoss(m); return; }
     // choose a victim: taunting ally near the mob, else player
     let victim = { ref: 'player', pos: pl.pos };
     let best = pd;
-    for (const a of this.entities) if (a.kind === 'ally' && a.tpl.taunt) { const ad = dist2(a.pos, m.pos); if (ad < best + 3) { best = ad; victim = { ref: a, pos: a.pos }; } }
+    for (const a of this.entities) if (a.kind === 'ally' && a.tpl.taunt && !a.downed) { const ad = dist2(a.pos, m.pos); if (ad < best + 3) { best = ad; victim = { ref: a, pos: a.pos }; } }
     const vd = dist2(victim.pos, m.pos);
     // boss telegraphs
     if (tpl.telegraphs) { if (this.bossThink(m, dt, victim)) { m.pos.y = groundAt(m.pos.x, m.pos.z); return; } }
@@ -737,15 +749,25 @@ export class Game {
     }
     return false;
   }
+  reviveAlly(a) {
+    a.downed = false; a.hp = a.maxHp * 0.5; this.world.interactables = this.world.interactables.filter((i) => i !== a.reviveIt); a.reviveIt = null;
+    this.fxRing(a.pos, 1.8, '#7affb0', true); this.fxBurst(a.pos, '#c0ffd8', 18); this.ui.toast(`✨ ${a.tpl.name.replace(' (party)', '')} is back on their feet!`); this.ui.sfx?.('level');
+  }
   updateAlly(a, dt) {
     const pl = this.player; const tpl = a.tpl;
+    if (a.downed) {
+      a.moving = 0; a.downT -= dt; if (a.reviveIt) { a.reviveIt.x = a.pos.x; a.reviveIt.z = a.pos.z; }
+      const r = pl.reviving; if (r && r.ally === a) { if (dist2(pl.pos, a.pos) > 3 || pl.dead) { pl.reviving = null; this.ui.log('Revive interrupted.', 'warn'); } else { r.t += dt; pl.cast = 0.4; if (r.t >= r.need) { pl.reviving = null; this.reviveAlly(a); } } }
+      if (a.downed && a.downT <= 0) { this.world.interactables = this.world.interactables.filter((i) => i !== a.reviveIt); this.ui.log(`${tpl.name} is carried back to the guild to recover.`, 'npc'); this.removeEntity(a); }
+      return;
+    }
     if (this.t > a.until) { this.fxBurst(a.pos, '#fff0b0', 12); this.ui.log(`${tpl.name} returns to the spirit world.`, 'npc'); this.removeEntity(a); return; }
     a.moving = 0;
     let foe = this.validTarget();
     if (!foe || dist2(foe.pos, pl.pos) > 20) foe = this.entities.find((e) => e.kind === 'mob' && !e.dead && e.aggro && dist2(e.pos, pl.pos) < 18) || null;
     if (tpl.role === 'healer') {
       a.healCd -= dt;
-      const hurtList = [{ ref: 'player', frac: this.G.hp / derived(this.G).maxHp, pos: pl.pos }, ...this.entities.filter((e) => e.kind === 'ally').map((e) => ({ ref: e, frac: e.hp / e.maxHp, pos: e.pos }))];
+      const hurtList = [{ ref: 'player', frac: this.G.hp / derived(this.G).maxHp, pos: pl.pos }, ...this.entities.filter((e) => e.kind === 'ally' && !e.downed).map((e) => ({ ref: e, frac: e.hp / e.maxHp, pos: e.pos }))];
       const low = hurtList.filter((h) => !(h.ref === 'player' && pl.dead)).sort((x, y) => x.frac - y.frac)[0];
       if (a.healCd <= 0 && low && low.frac < 0.85) {
         a.healCd = 3.2; a.atk = 0; const amt = tpl.heal * a.mult * (1 + derived(this.G).level * 0.08);
@@ -792,7 +814,7 @@ export class Game {
       if (p.faction === 'mob') {
         const pl = this.player;
         if (!pl.dead && Math.hypot(pl.pos.x - p.pos.x, pl.pos.z - p.pos.z) < 0.8 && Math.abs(pl.pos.y + 1 - p.pos.y) < 1.6) { this.hurt('player', p.dmg, p.src || 'dark magic'); done = true; }
-        for (const a of this.entities) if (!done && a.kind === 'ally' && dist2(a.pos, p.pos) < 0.8) { this.hurt(a, p.dmg, 'dark magic'); done = true; }
+        for (const a of this.entities) if (!done && a.kind === 'ally' && !a.downed && dist2(a.pos, p.pos) < 0.8) { this.hurt(a, p.dmg, 'dark magic'); done = true; }
       } else {
         for (const m of this.entities) {
           if (m.kind !== 'mob' || m.dead || p.hits.has(m)) continue;

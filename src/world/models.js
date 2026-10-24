@@ -112,7 +112,7 @@ export function buildCharacter(look = {}) {
     else if (place === 'stomach') { p.position.set(0, 1.07, 0.195); body.add(p); }
     else if (place === 'back') { p.position.set(0, 1.22, -0.205); p.rotation.y = Math.PI; body.add(p); markYaw = Math.PI; }
     else if (place.endsWith('hand')) { p.scale.setScalar(0.6); p.position.set(sd * 0.07, -0.3, 0); p.rotation.y = sd * Math.PI / 2; (sd < 0 ? armL : armR).userData.fore.add(p); markYaw = -sd * Math.PI / 2; }
-    else if (place.endsWith('shoulder')) { p.scale.setScalar(0.85); p.position.set(sd * 0.082, -0.03, 0); p.rotation.y = sd * Math.PI / 2; (sd < 0 ? armL : armR).add(p); markYaw = -sd * Math.PI / 2; }
+    else if (place.endsWith('shoulder')) { p.scale.setScalar(1.35); mm.toneMapped = false; p.position.set(sd * 0.09, -0.03, 0); p.rotation.y = sd * Math.PI / 2; (sd < 0 ? armL : armR).add(p); markYaw = -sd * Math.PI / 2; }
     else if (place.endsWith('thigh')) { p.position.set(sd * 0.07, -0.2, 0.068); p.rotation.y = sd * 0.8; (sd < 0 ? legL : legR).add(p); markYaw = -sd * 0.8; }
     else { const arm = sd < 0 ? armL : armR; p.position.set(sd * 0.079, -0.16, 0); p.rotation.y = sd * Math.PI / 2; arm.add(p); markYaw = -sd * Math.PI / 2; }
   }
@@ -234,7 +234,9 @@ export function animateCharacter(char, st) {
     else if (p.pose === 'gray') { aR = 0.18; aL = 0.18; fR = fL = -0.5; zR = 0.16; zL = -0.16; }
     else if (p.pose === 'lucy') { aR = 0.15; zR = 0.75; fR = -1.9; }
     else if (p.pose === 'wendy') { aR = aL = -0.55; fR = fL = -1.0; zR = -0.32; zL = 0.32; }
-    else if (p.pose === 'gajeel') { aR = aL = -1.0; fR = fL = -1.8; zR = -0.4; zL = 0.4; }
+    else if (p.pose === 'gajeel' || p.pose === 'laxus') { aR = aL = -1.0; fR = fL = -1.8; zR = -0.4; zL = 0.4; }
+    else if (p.pose === 'levy') { aR = aL = -0.7; fR = fL = -1.4; zR = -0.15; zL = 0.15; }
+    else if (p.pose === 'hero') { aR = aL = 0.1 + b * 0.5; fR = fL = -1.55; zR = 0.62; zL = -0.62; } // hands on hips
   }
   if (st.atk >= 0) {
     const k = st.atk; const wind = k < 0.35 ? k / 0.35 : 1 - (k - 0.35) / 0.65;
@@ -467,6 +469,25 @@ export function buildMob(model, opt = {}) {
     const cape = mesh(new THREE.BoxGeometry(0.9, 1.3, 0.06), toon(opt.look?.outfitColor || '#222'), 0, 1.05, -0.26); cape.rotation.x = 0.12; c.group.add(cape); parts.cape = cape;
     if (opt.mustache) { const mu = mesh(new THREE.BoxGeometry(0.26, 0.05, 0.05), toon('#1a1420'), 0, -0.08, 0.3); c.parts.head.add(mu); }
     if (opt.tattoo) { for (const [y, l] of [[0.1, 0.22], [0.02, 0.3], [-0.06, 0.18]]) { const tt = mesh(new THREE.BoxGeometry(0.03, l, 0.02), toon('#c0202a'), -0.12, y, 0.3); tt.rotation.z = 0.2; c.parts.head.add(tt); } }
+    if (opt.body === 'jose') {
+      // Jose: long purple greatcoat with flared skirt, tall stand-up collar, domed pauldrons and gold buttons
+      const coat = toon('#3a2a5a'), trim = toon('#c8a040'), dark = toon('#1a1424');
+      const skirt = mesh(new THREE.CylinderGeometry(0.3, 0.52, 0.9, 14, 1, true), coat, 0, 0.42, 0); skirt.material = coat.clone(); skirt.material.side = THREE.DoubleSide; c.group.add(skirt); parts.skirt = skirt;
+      { const hem = mesh(new THREE.TorusGeometry(0.5, 0.025, 6, 20), trim, 0, -0.02, 0); hem.rotation.x = Math.PI / 2; c.group.add(hem); }
+      const col = mesh(new THREE.CylinderGeometry(0.24, 0.17, 0.3, 12, 1, true, Math.PI * 0.25, Math.PI * 1.5), dark, 0, 1.5, -0.02); col.material = dark.clone(); col.material.side = THREE.DoubleSide; col.rotation.y = Math.PI; c.group.add(col);
+      for (const sx of [-1, 1]) { const pd = mesh(new THREE.SphereGeometry(0.17, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), coat, sx * 0.3, 1.33, 0); pd.scale.set(1.2, 0.8, 1); c.group.add(pd); const rg = mesh(new THREE.TorusGeometry(0.17, 0.02, 5, 14), trim, sx * 0.3, 1.33, 0); rg.rotation.x = Math.PI / 2; c.group.add(rg); }
+      for (let i = 0; i < 4; i++) c.group.add(mesh(G.sph(0.025, 6, 4), trim, 0, 1.25 - i * 0.14, 0.2));
+      cape.scale.set(1.1, 1.25, 1); cape.position.y = 0.95;
+    } else if (opt.body === 'jellal') {
+      // Jellal: dark long coat, floor-length cape with gold trim, high collar and gold shoulder guards
+      const coat = toon('#1e2030'), gold = toon('#d8b050'), cloth = toon('#2a2a44');
+      cape.geometry.dispose(); cape.geometry = new THREE.BoxGeometry(1.0, 1.75, 0.05); cape.material = cloth; cape.position.set(0, 0.62, -0.27);
+      cape.add(mesh(new THREE.BoxGeometry(1.02, 0.07, 0.06), gold, 0, -0.86, 0)); for (const sx of [-1, 1]) cape.add(mesh(new THREE.BoxGeometry(0.05, 1.75, 0.06), gold, sx * 0.5, 0, 0));
+      const tail = mesh(new THREE.CylinderGeometry(0.28, 0.44, 0.75, 12, 1, true, Math.PI * 0.6, Math.PI * 1.8), coat, 0, 0.48, 0); tail.material = coat.clone(); tail.material.side = THREE.DoubleSide; c.group.add(tail);
+      const col = mesh(new THREE.CylinderGeometry(0.23, 0.18, 0.26, 12, 1, true, Math.PI * 0.3, Math.PI * 1.4), cloth, 0, 1.48, -0.02); col.material = cloth.clone(); col.material.side = THREE.DoubleSide; col.rotation.y = Math.PI; c.group.add(col);
+      for (const sx of [-1, 1]) { const sh = mesh(new THREE.BoxGeometry(0.26, 0.07, 0.3), gold, sx * 0.31, 1.38, 0); sh.rotation.z = -sx * 0.35; c.group.add(sh); }
+      c.group.add(mesh(new THREE.BoxGeometry(0.5, 0.06, 0.34), gold, 0, 0.86, 0));
+    }
     const aura = mesh(new THREE.SphereGeometry(1.1, 16, 12), glow(opt.aura || '#ffffff'), 0, 1, 0); aura.material = aura.material.clone(); aura.material.transparent = true; aura.material.opacity = 0.12; aura.material.depthWrite = false; aura.scale.set(1, 1.5, 1); g.add(aura); parts.aura = aura;
   } else if (model === 'mage') {
     // Eisenwald dark-guild mage: hooded, cloaked humanoid with a scythe-staff

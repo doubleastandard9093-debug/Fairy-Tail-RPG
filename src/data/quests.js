@@ -55,4 +55,36 @@ export const QUESTS = [
     ],
     reward: { jewels: 400, xp: 1200, items: { sword1h_t3: 1 } },
   },
+  {
+    id: 'q_phantom', name: 'Phantom Lord War', qp: 4, start: 'makarov', requires: 'q_lullaby',
+    intro: [
+      ['makarov', 'Brat... Phantom Lord fired their Jupiter cannon at our guild hall. Then they took Lucy, because her father pays well.'],
+      ['lucy', 'This is my fault. I should just go home to my father and...'],
+      ['natsu', 'Your home is HERE, Lucy! We are going to Oak Town and we are taking down Jose!'],
+      ['makarov', 'Take the carriage to Oak Town (north-west of Magnolia). Clear the streets, then storm the fortress. Natsu, Erza and Wendy will fight with you.'],
+    ],
+    stages: [
+      { desc: 'Defeat 5 Phantom Lord mages in the streets of Oak Town (carriage from any station).', obj: { type: 'kill', mob: 'phantom_mage', n: 5 },
+        done: [['erza', 'The streets are clear. Jose is inside the keep. Stay close, and break his Shades when he hides behind them.']] },
+      { desc: 'Defeat Master Jose Porla inside the Phantom Lord fortress, then report to Master Makarov.', obj: { type: 'kill', mob: 'jose', n: 1 }, turnIn: 'makarov',
+        done: [['makarov', 'Jose is beaten, and the Magic Council is dissolving Phantom Lord. We will rebuild the hall. Bigger. With a pool.'], ['lucy', 'Thank you... all of you. I\'m staying. This is my guild.'], ['makarov', 'Then it is settled. And Erza has something she wants to tell you. She will not say what. Go and ask her.']] },
+    ],
+    reward: { jewels: 1200, xp: 4200, items: { lacrima_shard: 2 } },
+  },
+  {
+    id: 'q_tower', name: 'The Tower of Heaven', qp: 5, start: 'erza', requires: 'q_phantom',
+    intro: [
+      ['erza', 'I... used to be a slave in a tower built for Zeref. My friend Jellal stayed behind. Now he has finished it.'],
+      ['erza', 'The Tower of Heaven stands off Akane Beach. The Council will fire Etherion at it. Jellal wants them to.'],
+      ['natsu', 'Then we beat him before they fire. Simple!'],
+      ['erza', '...Thank you. Take the train to Akane Resort. Fight through his guards on the causeway.'],
+    ],
+    stages: [
+      { desc: 'Defeat 5 Tower of Heaven guards on the Akane causeway (train to Akane Resort Station).', obj: { type: 'kill', mob: 'tower_guard', n: 5 },
+        done: [['erza', 'The way to the top is open. Jellal will be fast — watch the ground for his Meteor lines. And when he glows gold, he has taken the Etherion.']] },
+      { desc: 'Defeat Jellal at the top of the Tower of Heaven, then report to Erza.', obj: { type: 'kill', mob: 'jellal', n: 1 }, turnIn: 'erza',
+        done: [['erza', 'It is over. The tower is falling into the sea, and I am... free of it.'], ['erza', 'You fought for me as family. Take my old blade. It has cut through worse than Jellal.']] },
+    ],
+    reward: { jewels: 1800, xp: 6000, items: { lacrima_shard: 3, sword1h_t4: 1 } },
+  },
 ];

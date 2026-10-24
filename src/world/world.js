@@ -182,7 +182,9 @@ export function buildWorld(scene) {
   W.keepOut = (x, z, pad) => {
     if (inTownPad(x, z, pad + 2)) return true;
     for (const f of FLAT) if (!f.rect && f.r < 40 && Math.hypot(x - f.x, z - f.z) < f.r * 0.85 + pad) return true;
-    for (const A of Object.values(BOSS_ARENAS)) if (Math.hypot(x - A.x, z - A.z) < A.r + 4) return true;
+    for (const A of Object.values(BOSS_ARENAS)) { if (Math.hypot(x - A.x, z - A.z) < A.r + 4) return true;
+      if (A.gate) { const [gx, gz] = A.gate; const vx = gx - A.x, vz = gz - A.z, L = Math.hypot(vx, vz); const ux = vx / L, uz = vz / L; const f = (x - A.x) * ux + (z - A.z) * uz; const sd = Math.abs((x - A.x) * uz - (z - A.z) * ux);
+        if (f > 0 && f < A.r + 75 && sd < 12 + pad) return true; } } // keep the approach lane clear of trees
     for (const b of W.boxes) if (x > b.minX - pad && x < b.maxX + pad && z > b.minZ - pad && z < b.maxZ + pad) return true;
     for (const c of W.circles) if (c.r > 1.5 && Math.hypot(x - c.x, z - c.z) < c.r + pad) return true;
     return false;
@@ -433,7 +435,7 @@ export function buildWorld(scene) {
     g.add(mesh(new THREE.BoxGeometry(2.2, 0.1, 6.6), toon('#c8a070'), 0, 0.92, 0));
     g.add(mesh(new THREE.CylinderGeometry(0.1, 0.12, 6, 6), woodD, 0, 3.8, 0.4));
     const sl = mesh(new THREE.PlaneGeometry(3, 3.6), toon(sail, { side: THREE.DoubleSide }), 0, 4.2, 0.45); sl.rotation.y = Math.PI / 2; g.add(sl);
-    g.userData.dyn = true; addOutlines(g); const ph = R() * 6; W.anim.push((t) => { g.position.y = WATER_Y - 0.1 + Math.sin(t * 1.3 + ph) * 0.08; g.rotation.z = Math.sin(t * 0.9 + ph) * 0.03; });
+    g.userData.dyn = true; addOutlines(g); const ph = R() * 6; W.anim.push((t) => { if (!g.parent) return false; if (g.userData.riding) return; g.position.y = WATER_Y - 0.1 + Math.sin(t * 1.3 + ph) * 0.08; g.rotation.z = Math.sin(t * 0.9 + ph) * 0.03; });
     return g;
   };
   const pier = (parent, place, from, dir, len = 16) => {
@@ -606,6 +608,7 @@ export function buildWorld(scene) {
     // floor sigil
     const sig = mesh(new THREE.RingGeometry(A.r - 3, A.r - 2.4, 64), glow(A.gem), A.x, A.h + 0.06, A.z); sig.rotation.x = -Math.PI / 2; sig.material.transparent = true; sig.material.opacity = 0.5; g.add(sig);
     const bx = A.x - Math.cos(gap) * (A.r + 16), bz = A.z - Math.sin(gap) * (A.r + 16); const by = A.h;
+    station(g, PLACE[key === 'phantom' ? 'oak' : 'akane']);
     if (key === 'phantom') {
       // Phantom Lord's fortress guild hall: a dark keep with six towers (it can walk; it chooses not to today)
       const wallM = toon('#3a3448'), roofM = toon('#24202e');
@@ -629,6 +632,27 @@ export function buildWorld(scene) {
     }
     addOutlines(g); shadowAll(g);
   }
+  // Sorcerer Weekly ranking boards: live guild fame in Magnolia's plaza and outside each rival guild hall
+  W.fameBoards = [];
+  const fameBoard = (x, z, rot, focus) => {
+    const g = zoneGroup(x, z, 20); const y = yAt(x, z);
+    for (const o of [-1.7, 1.7]) g.add(mesh(new THREE.CylinderGeometry(0.12, 0.14, 3.6, 6), woodD, x + Math.cos(rot) * o, y + 1.8, z - Math.sin(rot) * o));
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 384; const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const bd = mesh(new THREE.PlaneGeometry(3.6, 2.7), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: true }), x, y + 2.3, z); bd.rotation.y = rot; g.add(bd);
+    const back = mesh(new THREE.BoxGeometry(3.8, 2.9, 0.1), woodD, x - Math.sin(rot) * 0.07, y + 2.3, z - Math.cos(rot) * 0.07); back.rotation.y = rot; g.add(back);
+    W.circles.push({ x, z, r: 1 }); W.fameBoards.push({ cv, tex, focus });
+  };
+  W.setFame = (rows) => {
+    for (const b of W.fameBoards) { const x = b.cv.getContext('2d'); x.fillStyle = '#f2e6c8'; x.fillRect(0, 0, 512, 384); x.strokeStyle = '#7a5a2a'; x.lineWidth = 10; x.strokeRect(5, 5, 502, 374);
+      x.fillStyle = '#3a2414'; x.font = 'bold 34px Georgia, serif'; x.textAlign = 'center'; x.fillText('SORCERER WEEKLY', 256, 50); x.font = 'italic 20px Georgia, serif'; x.fillText('Strongest Guild in Fiore — this week', 256, 78);
+      const max = Math.max(...rows.map((r) => r.fame)); x.textAlign = 'left';
+      rows.slice(0, 6).forEach((r, i) => { const yy = 112 + i * 44; const me = r.id === b.focus; x.fillStyle = me ? '#ffe08a' : 'transparent'; x.fillRect(16, yy - 28, 480, 38);
+        x.fillStyle = '#3a2414'; x.font = (me ? 'bold ' : '') + '24px Georgia, serif'; x.fillText(`${i + 1}. ${r.name}`, 28, yy); x.fillStyle = r.color || '#7a2a2a'; x.fillRect(270, yy - 18, 150 * r.fame / max, 18);
+        x.fillStyle = '#3a2414'; x.font = '18px Georgia, serif'; x.fillText(Math.round(r.fame).toLocaleString(), 428, yy); });
+      b.tex.needsUpdate = true; }
+  };
+  fameBoard(11, 9, -0.6, 'fairy');
+  for (const [pid, key] of [['bluepegasus', 'pegasus'], ['lamiascale', 'lamia'], ['oak', 'phantom']]) { const P0 = PLACE[pid].pos; fameBoard(P0[0] + 6, P0[1] + 8, 0.3, key); }
   // Galuna Island: landing village and the Moon temple
   { const Gp = PLACE.galuna.pos; const g = zoneGroup(Gp[0], Gp[1], 110); const Hp = PLACE.hargeon.pos;
     pier(g, 'galuna', Gp, [Hp[0] - Gp[0], Hp[1] - Gp[1]], 14); const d = W.docks.galuna;
@@ -705,7 +729,7 @@ export function buildWorld(scene) {
   }
 
   W.update = (t, playerPos) => {
-    for (const f of W.anim) f(t);
+    if (W.anim.length) W.anim = W.anim.filter((f) => f(t) !== false);
     W.terrain.update(playerPos.x, playerPos.z, 2);
     const vis = scene.fog.far + 30; for (const z of W.groups) z.g.visible = Math.hypot(playerPos.x - z.x, playerPos.z - z.z) < z.r + vis;
     W.water.position.set(Math.round(playerPos.x / 50) * 50, WATER_Y, Math.round(playerPos.z / 50) * 50);

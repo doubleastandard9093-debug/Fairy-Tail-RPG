@@ -19,13 +19,32 @@ export function track(pts) {
   const len = L[L.length - 1];
   return { len, at(s) { s = Math.max(0, Math.min(len, s)); let i = 1; while (i < L.length - 1 && L[i] < s) i++; const k = (s - L[i - 1]) / Math.max(1e-6, L[i] - L[i - 1]); const a = pts[i - 1], b = pts[i]; return { x: a[0] + (b[0] - a[0]) * k, z: a[1] + (b[1] - a[1]) * k, dir: Math.atan2(b[0] - a[0], b[1] - a[1]) }; } };
 }
-/** Sea route between two docks: straight line bent out to sea through waypoints that stay off land. */
+/** Sea route between two docks: A* over a 4-unit water grid that keeps 5 units off the coast, then string-pulled
+ *  (line-of-sight smoothing) and lightly rounded so ferries follow believable lanes instead of a bent straight line. */
 export function seaPath(a, b, isLand) {
-  const pts = [a]; const n = 24; let last = a;
-  for (let i = 1; i < n; i++) { const k = i / n; let x = a[0] + (b[0] - a[0]) * k, z = a[1] + (b[1] - a[1]) * k;
-    if (isLand(x, z)) { const nx = -(b[1] - a[1]), nz = b[0] - a[0], l = Math.hypot(nx, nz); for (let o = 6; o < 160; o += 6) { let hit = false; for (const sg of [1, -1]) { const qx = x + nx / l * o * sg, qz = z + nz / l * o * sg; if (!isLand(qx, qz)) { x = qx; z = qz; hit = true; break; } } if (hit) break; } }
-    if (Math.hypot(x - last[0], z - last[1]) > 3) { pts.push([x, z]); last = [x, z]; } }
-  pts.push(b); return pts;
+  const C = 4, pad = 120; const x0 = Math.min(a[0], b[0]) - pad, z0 = Math.min(a[1], b[1]) - pad; const nx = Math.ceil((Math.max(a[0], b[0]) + pad - x0) / C), nz = Math.ceil((Math.max(a[1], b[1]) + pad - z0) / C);
+  const wet = new Uint8Array(nx * nz); for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const x = x0 + i * C, z = z0 + j * C; wet[j * nx + i] = isLand(x, z) ? 0 : 1; }
+  // coastal clearance: cells within ~5 units of land cost more (and are never preferred)
+  const cost = new Float32Array(nx * nz); for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { if (!wet[j * nx + i]) continue; let near = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii < nx && jj < nz && !wet[jj * nx + ii]) near = 1; } cost[j * nx + i] = near ? 6 : 1; }
+  const cellOf = (p) => [Math.max(0, Math.min(nx - 1, Math.round((p[0] - x0) / C))), Math.max(0, Math.min(nz - 1, Math.round((p[1] - z0) / C)))];
+  const nearestWet = (c) => { for (let r = 0; r < 12; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { const i = c[0] + di, j = c[1] + dj; if (i >= 0 && j >= 0 && i < nx && j < nz && wet[j * nx + i]) return [i, j]; } return c; };
+  const S = nearestWet(cellOf(a)), T = nearestWet(cellOf(b)); const si = S[1] * nx + S[0], ti = T[1] * nx + T[0];
+  const g = new Float32Array(nx * nz).fill(1e9), prev = new Int32Array(nx * nz).fill(-1), closed = new Uint8Array(nx * nz); g[si] = 0;
+  const open = [[Math.hypot(S[0] - T[0], S[1] - T[1]), si]]; const push = (f, k) => { open.push([f, k]); let c = open.length - 1; while (c > 0) { const p = (c - 1) >> 1; if (open[p][0] <= open[c][0]) break; [open[p], open[c]] = [open[c], open[p]]; c = p; } };
+  const pop = () => { const top = open[0], last = open.pop(); if (open.length) { open[0] = last; let c = 0; for (;;) { const l = 2 * c + 1, r = l + 1; let m = c; if (l < open.length && open[l][0] < open[m][0]) m = l; if (r < open.length && open[r][0] < open[m][0]) m = r; if (m === c) break; [open[m], open[c]] = [open[c], open[m]]; c = m; } } return top; };
+  let found = false;
+  while (open.length) { const [, k] = pop(); if (closed[k]) continue; closed[k] = 1; if (k === ti) { found = true; break; } const i = k % nx, j = (k / nx) | 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue; const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) continue; const kk = jj * nx + ii; if (!wet[kk] || closed[kk]) continue;
+      const ng = g[k] + Math.hypot(di, dj) * cost[kk]; if (ng < g[kk]) { g[kk] = ng; prev[kk] = k; push(ng + Math.hypot(ii - T[0], jj - T[1]), kk); } } }
+  if (!found) return [a, b];
+  const cells = []; for (let k = ti; k >= 0; k = prev[k]) cells.unshift([x0 + (k % nx) * C, z0 + ((k / nx) | 0) * C]);
+  const clear = (p, q) => { const n = Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 2); for (let s = 0; s <= n; s++) { const t = s / n; const x = p[0] + (q[0] - p[0]) * t, z = p[1] + (q[1] - p[1]) * t; if (isLand(x, z) || isLand(x + 4, z) || isLand(x - 4, z) || isLand(x, z + 4) || isLand(x, z - 4)) return false; } return true; };
+  const pts = [a]; let cur = a, idx = 0;
+  while (idx < cells.length - 1) { let best = idx + 1; for (let k = cells.length - 1; k > idx + 1; k--) if (clear(cur, cells[k])) { best = k; break; } cur = cells[best]; pts.push(cur); idx = best; }
+  pts.push(b);
+  // round the corners (Chaikin, 2 passes) for a sailing curve
+  let out = pts; for (let it = 0; it < 2; it++) { const n = [out[0]]; for (let k = 0; k < out.length - 1; k++) { const p = out[k], q = out[k + 1]; n.push([p[0] * 0.75 + q[0] * 0.25, p[1] * 0.75 + q[1] * 0.25], [p[0] * 0.25 + q[0] * 0.75, p[1] * 0.25 + q[1] * 0.75]); } n.push(out[out.length - 1]); out = n; }
+  return out;
 }
 
 export class Transit {
@@ -61,9 +80,13 @@ export class Transit {
   start(kind, path, dest, onEnd) {
     const W = this.g.world; const tr = track(path);
     const obj = kind === 'boat' ? W.makeBoat(this.g.scene, path[0][0], path[0][1], 0, 1.4, '#f4f0e0', '#5a3a22') : W.makeTrain(this.g.scene, path[0][0], path[0][1], 0, 2);
-    this.ride = { kind, tr, obj, s: 0, v: kind === 'boat' ? 16 : 30, dest, onEnd };
+    obj.userData.riding = true;
+    // the moored ferries at both piers step aside while you sail, so the ride boat never overlaps them
+    const hidden = kind === 'boat' ? W.interactables.filter((i) => i.kind === 'ferry' && i.obj && (Math.hypot(i.x - path[0][0], i.z - path[0][1]) < 30 || Math.hypot(i.x - path[path.length - 1][0], i.z - path[path.length - 1][1]) < 30)) : [];
+    for (const i of hidden) i.obj.visible = false;
+    this.ride = { kind, tr, obj, s: 0, v: kind === 'boat' ? 16 : 30, dest, onEnd, hidden };
     this.g.ui.rideBar?.(kind, dest);
   }
   skip() { if (this.ride) this.ride.s = this.ride.tr.len; }
-  end() { const r = this.ride; this.ride = null; this.g.scene.remove(r.obj); this.g.ui.rideBar?.(null); r.onEnd && r.onEnd(); }
+  end() { const r = this.ride; this.ride = null; this.g.scene.remove(r.obj); for (const i of r.hidden || []) i.obj.visible = true; this.g.ui.rideBar?.(null); r.onEnd && r.onEnd(); }
 }

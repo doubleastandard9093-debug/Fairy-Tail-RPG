@@ -117,9 +117,9 @@ export class MagicFX {
   }
   pillar(p, r, colors, h = 14, life = 1.4) {
     const g = new THREE.Group(); g.position.set(p.x, this.gy(p), p.z);
-    colors.forEach((c, i) => { const cyl = new THREE.Mesh(new THREE.CylinderGeometry(r * (0.55 - i * 0.15), r * (0.8 - i * 0.2), h, 24, 1, true), this.mat(c, 0.4)); cyl.position.y = h / 2; g.add(cyl); });
-    const core = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.12, r * 0.2, h, 10), this.mat('#ffffff', 0.3)); core.position.y = h / 2; g.add(core);
-    return this.add(g, life, (k) => { g.rotation.y += 0.08; g.scale.set(0.3 + Math.min(1, k * 4) * 0.9, Math.min(1, k * 3), 0.3 + Math.min(1, k * 4) * 0.9); this.fadeAll(g, Math.max(0, (k - 0.5) / 0.5), 0.45); });
+    colors.forEach((c, i) => { const cyl = new THREE.Mesh(new THREE.CylinderGeometry(r * (0.55 - i * 0.15), r * (0.8 - i * 0.2), h, 24, 1, true), this.mat(c, 0.18 - i * 0.05)); cyl.position.y = h / 2; g.add(cyl); });
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.12, r * 0.2, h, 10), this.mat('#ffffff', 0.14)); core.position.y = h / 2; g.add(core);
+    return this.add(g, life, (k) => { g.rotation.y += 0.08; g.scale.set(0.3 + Math.min(1, k * 4) * 0.9, Math.min(1, k * 3), 0.3 + Math.min(1, k * 4) * 0.9); this.fadeAll(g, Math.max(0, (k - 0.5) / 0.5), 0.2); });
   }
   swirl(p, r, colors) {
     const g = new THREE.Group(); g.position.set(p.x, this.gy(p) + 0.3, p.z); const arms = [];
@@ -206,9 +206,24 @@ export class MagicFX {
     }, 650);
     g.G.unisons = (g.G.unisons || 0) + 1; setTimeout(() => g.emote?.('cheer', 1.6), 1500);
   }
+  // In-world cue when a Unison Raid is ready: pulsing rings under you and your partner, joined by a light tether
+  unisonCue(pt, dt) {
+    const g = this.g; const on = !!pt && !pt.downed && this.unison >= 100 && !g.player.dead;
+    if (!this.cue) { const mk = (c) => { const m = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.15, 40), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.renderOrder = 5; return m; };
+      const tether = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 6, 1, true), new THREE.MeshBasicMaterial({ color: '#ffe08a', transparent: true, opacity: 0.55, depthWrite: false }));
+      const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const x = cv.getContext('2d'); x.font = 'bold 40px Georgia, serif'; x.textAlign = 'center'; x.lineWidth = 6; x.strokeStyle = '#3a1a00'; x.strokeText('UNISON!', 128, 46); x.fillStyle = '#ffd84a'; x.fillText('UNISON!', 128, 46);
+      const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthTest: false })); label.scale.set(2.4, 0.6, 1);
+      this.cue = { a: mk('#ffd84a'), b: mk('#7ad0ff'), tether, label }; for (const o of Object.values(this.cue)) { o.visible = false; g.scene.add(o); } }
+    const c = this.cue; for (const o of Object.values(c)) o.visible = on; if (!on) return;
+    const k = 1 + Math.sin(g.t * 6) * 0.12; const P = g.player.pos, Q = pt.pos;
+    c.a.position.set(P.x, P.y + 0.06, P.z); c.a.scale.setScalar(k); c.b.position.set(Q.x, Q.y + 0.06, Q.z); c.b.scale.setScalar(k);
+    const mid = new THREE.Vector3((P.x + Q.x) / 2, (P.y + Q.y) / 2 + 1, (P.z + Q.z) / 2); const L = Math.hypot(P.x - Q.x, P.y - Q.y, P.z - Q.z);
+    c.tether.position.copy(mid); c.tether.scale.set(1, Math.max(0.01, L), 1); c.tether.lookAt(Q.x, Q.y + 1, Q.z); c.tether.rotateX(Math.PI / 2); c.tether.material.opacity = 0.35 + Math.sin(g.t * 8) * 0.2;
+    c.label.position.set(Q.x, Q.y + 2.9 + Math.sin(g.t * 3) * 0.1, Q.z);
+  }
   update(dt) {
     const g = this.g, G = g.G; if (!G.party || !PARTY[G.party]) return;
-    const pt = this.partner();
+    const pt = this.partner(); this.unisonCue(pt, dt);
     if (!pt) { this.partyT -= dt; if (this.partyT <= 0 && !g.transit?.ride) { this.partyT = 15; g.summon(PARTY[G.party].ally, 0, 1 + derived(G).level * 0.06, { party: true }); } return; }
     if (pt.pos.distanceTo(g.player.pos) > 40 && !g.transit?.ride) { pt.pos.copy(g.player.pos).add(new THREE.Vector3(1.5, 0, 1.5)); pt.pos.y = groundAt(pt.pos.x, pt.pos.z); }
   }
