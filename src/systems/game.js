@@ -8,6 +8,7 @@ import { NODE_TYPES, NODE_TIERS, NODE_RESPAWN } from '../data/nodes.js';
 import { POIS } from '../data/npcs.js';
 import { derived, countItem, addItem, skillLevel, classRank, canAdd, saveGame } from '../core/state.js';
 import { buildCharacter, buildMob, animateCharacter, animateMob, equipVisual } from '../world/models.js';
+import { animateMobState } from '../world/detail.js';
 import { buildWorld, groundAt, HALL, zoneAt, placeAt, blockedAt, rng } from '../world/world.js';
 import { PLACE, trainCost, FERRY_COST } from '../world/fiore.js';
 import { Transit, railPath, seaPath as seaPathFor } from './transit.js';
@@ -235,7 +236,7 @@ export class Game {
     const d = derived(this.G); const crit = from === 'player' && this.rand() < d.crit; const pf = passiveFx(this.G);
     if ((from === 'player' || from === 'proc') && pf.execute && m.hp / m.maxHp < 0.3) amt *= 1 + pf.execute;
     let dmg = Math.max(1, Math.round(amt * (0.9 + this.rand() * 0.2) * (crit ? 1.6 + (pf.critDmg || 0) : 1)));
-    m.hp -= dmg; m.aggro = true; if (from === 'player' || from === 'ally') this.magic.fill(from); if (from !== 'dot') this.ui.sfx('hit'); if (from === 'player') this.player.combatT = 6;
+    m.hp -= dmg; m.aggro = true; m.hitT = this.t; if (from === 'player' || from === 'ally') this.magic.fill(from); if (from !== 'dot') this.ui.sfx('hit'); if (from === 'player') this.player.combatT = 6;
     this.ui.floatText(m.pos, m.tpl.boss ? 9 : 1.8, (crit ? '✦' : '') + dmg, crit ? 'crit' : from === 'ally' ? 'ally' : 'dmg');
     const ef = ab && ab.effect;
     if (ef) {
@@ -263,7 +264,7 @@ export class Game {
   clearSummons() { for (const e of [...this.entities]) if (e.temp) this.removeEntity(e); }
   resetBoss(m) { if (m.tpl.model === 'lullaby') m.form = 'flute'; m.phase = 1; m.transition = 0; m.shieldMobs = null; m.bossCharge = null; m.hp = m.maxHp; if (m.tpl.model !== 'lullaby') this.ui.bossPhase?.(m); m.transform = 0; m.transforming = 0; m.slam = -1; m.singing = 0; m.castLock = 0; this.clearSummons(); }
   killMob(m) {
-    const G = this.G; m.dead = true; m.hp = 0; m.respawn = m.tpl.boss ? 120 : 22; m.obj.visible = false; m.charge = null; m.castLock = 0;
+    const G = this.G; m.dead = true; m.hp = 0; m.respawn = m.tpl.boss ? 120 : 22; m.dying = { k: 0, side: this.rand() < 0.5 ? -1 : 1 }; m.charge = null; m.castLock = 0;
     this.teles = this.teles.filter((t) => { if (t.owner === m) { this.scene.remove(t.group); return false; } return true; });
     this.fxBurst(m.pos, m.tpl.boss ? '#ffb060' : '#ffffff', m.tpl.boss ? 40 : 14);
     const wItem = G.equip.weapon ? ITEMS[G.equip.weapon] : null; const lac = G.equip.lacrima ? ITEMS[G.equip.lacrima] : null;
@@ -282,7 +283,7 @@ export class Game {
     this.ui.refresh();
   }
   respawnMob(m) {
-    m.dead = false; m.hp = m.maxHp; m.pos.copy(m.home); m.pos.y = groundAt(m.home.x, m.home.z); m.obj.visible = true; m.aggro = false; m.burn = null; m.stun = 0; m.teleCds = {}; if (m.tpl.boss) this.resetBoss(m);
+    m.dead = false; m.hp = m.maxHp; m.pos.copy(m.home); m.pos.y = groundAt(m.home.x, m.home.z); m.obj.visible = true; m.dying = null; m.obj.rotation.set(0, 0, 0); m.obj.scale.setScalar(1); m.aggro = false; m.burn = null; m.stun = 0; m.teleCds = {}; if (m.tpl.boss) this.resetBoss(m);
   }
 
   // ------------------------------------------------------------------ allies & escort
@@ -422,7 +423,7 @@ export class Game {
       dmg = Math.round(dmg); pl.combatT = 6;
       if (dmg <= 0) { this.ui.floatText(pl.pos, 2.2, 'Blocked', 'heal'); return; }
       if (pfx.thorns && src && src.kind === 'mob' && !src.dead) { const th = Math.max(1, Math.round(dmg * pfx.thorns)); src.hp -= th; this.ui.floatText(src.pos, 2, '↩' + th, 'dmg'); if (src.hp <= 0) this.killMob(src); }
-      G.hp -= dmg; this.ui.sfx('hurt'); this.ui.floatText(pl.pos, 2.2, '-' + dmg, 'hurt'); this.ui.hurtFlash();
+      G.hp -= dmg; pl.hitT = this.t; this.ui.sfx('hurt'); this.ui.floatText(pl.pos, 2.2, '-' + dmg, 'hurt'); this.ui.hurtFlash();
       G.adr = Math.min(100, G.adr + 2);
       if (G.hp <= 0) this.playerDie(srcName);
     } else {
@@ -591,7 +592,7 @@ export class Game {
     const g = pl.char.group; g.position.copy(pl.pos); g.rotation.y = pl.rot;
     if (pl.emote && pl.emote.face && this.t < pl.emote.until && mv < 0.1) pl.rot += ang(this.cam.yaw + Math.PI - pl.rot) * Math.min(1, dt * 10);
     { const L = G.equip.lacrima ? ITEMS[G.equip.lacrima] : null; pl.char.parts.pose = (L && SCHOOL_POSE[L.school]) || 'hero'; }
-    animateCharacter(pl.char, { t: this.t, move: mv, atk: pl.atk, kind: pl.atkKind, cast: pl.cast > 0 ? Math.min(1, pl.cast * 3) : 0, dead: !!pl.dead, emote: pl.emote && this.t < pl.emote.until && mv < 0.1 ? pl.emote.kind : null });
+    animateCharacter(pl.char, { t: this.t, move: mv, atk: pl.atk, kind: pl.atkKind, cast: pl.cast > 0 ? Math.min(1, pl.cast * 3) : 0, dead: !!pl.dead, deadT: pl.dead ? this.t - (pl.deadAt || (pl.deadAt = this.t)) : (pl.deadAt = null), hit: pl.hitT != null && this.t - pl.hitT < 0.3 ? (this.t - pl.hitT) / 0.3 : 0, emote: pl.emote && this.t < pl.emote.until && mv < 0.1 ? pl.emote.kind : null });
     if (pl.iframes > 0 && pl.dash) g.rotation.x = 0; // roll is implied by the dash burst
     // world systems
     this.updateEntities(dt); this.updateProjectiles(dt); this.updateTeles(dt); this.updateTraps(dt); this.updateFx(dt); this.magic.update(dt); P.tickRivals(this.G, dt); this.fameT = (this.fameT || 0) - dt; if (this.fameT <= 0 && this.world.setFame) { this.fameT = 3; const rows = P.guildStandings(G); const key = rows.map((r) => r.id + Math.round(r.fame)).join(); if (key !== this.fameKey) { this.fameKey = key; this.world.setFame(rows); } }
@@ -665,6 +666,7 @@ export class Game {
         if (far) { e.obj.visible = false; if (e.dead) this.updateMob(e, dt); continue; }
         if (!e.dead) e.obj.visible = true;
         this.updateMob(e, dt);
+        if (e.dead && e.dying && this.entities.includes(e)) { e.dying.k += dt / 0.85; e.obj.position.set(e.pos.x, e.pos.y + (e.tpl.float || 0), e.pos.z); if (e.model.char) animateCharacter(e.model.char, { t: this.t, dead: true, deadT: e.dying.k * 0.7, move: 0, atk: -1 }); animateMobState(e, this.t, dt); if (e.dying.k >= 1) { e.dying = null; e.obj.visible = false; } }
       }
       else if (e.kind === 'ally') this.updateAlly(e, dt);
       else if (e.kind === 'escort') this.updateEscort(e, dt);
@@ -674,6 +676,7 @@ export class Game {
         if (e.atk >= 0) { e.atk += dt * 2.5; if (e.atk >= 1) e.atk = -1; }
         if (e.model.char) animateCharacter(e.model.char, { dead: !!e.downed, t: this.t + e.pos.x, move: e.moving || 0, atk: e.atk, kind: e.tpl.role === 'healer' ? 'slash' : 'punch', cast: e.tpl.role === 'healer' && e.atk >= 0 ? 1 : 0 });
         else animateMob(e.model, e.tpl ? e.tpl.model : (e.modelName || 'cat'), this.t + e.pos.x, e.moving || 0, e.atk);
+        if (e.kind === 'mob') animateMobState(e, this.t, dt);
       }
     }
   }

@@ -1,6 +1,8 @@
 import { guildMarkTexture, MARK_SIZES } from './mark.js';
 import * as THREE from 'three';
 import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
+import { refineCharacter, animateDetail, refineMob, FRAMES, ACCESSORIES, EXTRA_OUTFITS } from './detail.js';
+export { FRAMES, ACCESSORIES };
 
 const G = {
   sph: (r = 1, w = 16, h = 12) => new THREE.SphereGeometry(r, w, h),
@@ -12,7 +14,7 @@ const G = {
 const shade = (hex, k) => { const c = new THREE.Color(hex); c.multiplyScalar(k); return '#' + c.getHexString(); };
 
 export const HAIR_STYLES = ['spiky', 'long', 'ponytail', 'sideponytail', 'bob', 'short', 'twintails'];
-export const OUTFITS = ['mage', 'adventurer', 'brawler'];
+export const OUTFITS = ['mage', 'adventurer', 'brawler', ...EXTRA_OUTFITS];
 export const HAIR_COLORS = ['#ff5a2a', '#ffd23f', '#3a2a22', '#f2f2f8', '#6a8cff', '#ff7ac0', '#38c08a', '#9a50ff', '#202028'];
 export const SKIN_TONES = ['#f8dcc4', '#efc39e', '#d9a275', '#b07a52', '#7a4e32'];
 export const OUTFIT_COLORS = ['#3a4aa0', '#b0302a', '#2a7a4a', '#f0f0f6', '#2a2a34', '#d09020', '#8a3ab0', '#2a9ab0'];
@@ -119,7 +121,8 @@ export function buildCharacter(look = {}) {
 
   const parts = { body, head, torso, armL, armR, legL, legR, gem, weapon: null, bowHand: null, eyes, mouth, grin, mark: markMesh, markYaw, pose: L.preset || null, seed: Math.random() * 10 };
   if (L.preset || L.build) dressPreset(L, parts, { skin, cloth, cloth2, hair: hairM });
-  root.scale.setScalar(L.scale);
+  if (!L.lowDetail) refineCharacter(parts, L, { skin, cloth, cloth2, hair: hairM });
+  root.scale.setScalar(L.scale * (L.height || 1));
   addOutlines(root); shadowAll(root, true, false);
   return { group: root, parts };
 }
@@ -253,6 +256,7 @@ export function animateCharacter(char, st) {
   p.head.rotation.y = st.look != null ? st.look : Math.sin(t * 0.7) * 0.08;
   p.head.rotation.x = st.emote === 'salute' ? -0.15 : 0;
   if (st.dead) { p.body.rotation.x = -1.4; p.body.position.y = 0.2; } else p.body.rotation.x = mv * (0.08 + run * 0.12) + (st.cast > 0 ? -0.05 : 0);
+  if (p.spring) animateDetail(p, st, mv, sw);
 }
 
 // ------------------------------- Mobs -----------------------------------
@@ -498,6 +502,7 @@ export function buildMob(model, opt = {}) {
     const blade = mesh(G.cone(0.1, 0.7, 4), toon('#b0b4c0'), 0.25, 1.1, 0); blade.rotation.z = -1.9; st.add(blade);
     const mark = mesh(G.sph(0.05, 6, 4), glow('#9a3aff'), 0.12, 1.25, 0.2); c.group.add(mark);
   }
+  refineMob(model, g, parts);
   addOutlines(g); shadowAll(g, true, false);
   return { group: g, parts };
 }
@@ -686,6 +691,29 @@ function dressPreset(L, P, M) {
     const dress = add(body, G.cyl(0.25, 0.36, 0.4, 14, 1, true), toon('#e8e8ff', { side: THREE.DoubleSide }), 0, 0.78, 0); dress.scale.z = 0.86;
     const trim = add(body, G.cyl(0.365, 0.365, 0.04, 14), toon('#3a8ad0'), 0, 0.59, 0); trim.scale.z = 0.86;
     bare(legL, legR, M.skin);
+  } else if (pr === 'elfman') {
+    // "A real MAN!": massive frame, dark suit jacket over open shirt, scar over the right eye
+    const suit = toon('#2a3050'); torso.material = suit;
+    for (const s of [-1, 1]) { const lap = add(body, G.box(0.14, 0.4, 0.03), toon('#1e2238'), s * 0.13, 1.2, 0.2); lap.rotation.z = -s * 0.15; }
+    add(body, G.box(0.14, 0.3, 0.02), toon('#e8e8f0'), 0, 1.2, 0.205);
+    for (const a of [armL, armR]) { a.children[0].material = suit; a.userData.fore.children[0].material = M.skin; }
+    const scar = add(head, G.box(0.016, 0.16, 0.01), toon('#a05050'), 0.12, 0.02, 0.29); scar.rotation.z = 0.3; scar.userData.noOutline = true;
+    for (const l of [legL, legR]) l.children[0].material = toon('#2a2a3a');
+  } else if (pr === 'cana') {
+    // card mage: bandeau top, capri trousers, a belt of cards and her ever-present barrel
+    torso.material = M.skin; add(body, G.box(0.42, 0.12, 0.3), toon('#3a68c8'), 0, 1.26, 0.02);
+    for (const l of [legL, legR]) l.children[0].material = toon('#6a4a30');
+    for (let i = 0; i < 5; i++) { const c = add(body, G.box(0.06, 0.09, 0.005), toon(i % 2 ? '#f4f0e0' : '#c83040'), -0.12 + i * 0.06, 0.95, 0.205); c.rotation.z = (i - 2) * 0.1; }
+    const barrel = add(body, G.cyl(0.16, 0.16, 0.36, 12), toon('#8a5a2a'), 0.42, 0.75, 0.05); for (const y of [0.62, 0.88]) add(body, G.cyl(0.165, 0.165, 0.03, 12), toon('#4a4a4a'), 0.42, y, 0.05); void barrel;
+    for (const a of [armL, armR]) a.children[0].material = M.skin;
+  } else if (pr === 'juvia') {
+    // rain woman: long blue coat, fur-trimmed Cossack hat, teru teru bozu charm
+    const coat = add(body, G.cyl(0.26, 0.42, 0.85, 16, 1, true), toon('#2a3a7a', { side: THREE.DoubleSide }), 0, 0.55, 0); coat.scale.z = 0.86;
+    add(body, G.cyl(0.43, 0.43, 0.04, 16), toon('#e8c060'), 0, 0.13, 0).scale.z = 0.86;
+    const hat = add(head, G.cyl(0.27, 0.3, 0.2, 16), toon('#2a3a7a'), 0, 0.3, -0.02); hat.rotation.x = -0.15;
+    add(head, new THREE.TorusGeometry(0.29, 0.05, 6, 18), toon('#f0f0f6'), 0, 0.22, -0.01).rotation.x = Math.PI / 2 - 0.15;
+    const doll = add(body, G.sph(0.06, 8, 6), toon('#f4f4fa'), -0.22, 0.92, 0.12); add(body, G.cone(0.07, 0.1, 8), toon('#f4f4fa'), -0.22, 0.85, 0.12); void doll;
+    for (const a of [armL, armR]) a.children[0].material = toon('#2a3a7a');
   }
   // body variation (width, leg length, head size)
   const B = L.build; if (B) {

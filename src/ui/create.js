@@ -1,12 +1,14 @@
 import * as THREE from 'three';
-import { buildCharacter, animateCharacter, equipVisual, HAIR_STYLES, HAIR_COLORS, SKIN_TONES, OUTFITS, OUTFIT_COLORS } from '../world/models.js';
+import { buildCharacter, animateCharacter, equipVisual, HAIR_STYLES, HAIR_COLORS, SKIN_TONES, OUTFITS, OUTFIT_COLORS, FRAMES, ACCESSORIES } from '../world/models.js';
+const EYE_COLORS = ['#3a2a1a', '#2a6ad0', '#2a9a5a', '#c03030', '#9a50ff', '#d0a020', '#606070'];
+const HEIGHTS = ['short', 'average', 'tall']; const HMAP = { short: 0.94, average: 1, tall: 1.06 };
 import { SCHOOLS } from '../data/schools.js';
 import { MARK_PLACES, MARK_COLORS, MARK_HINTS, MARK_SIZES, guildMarkDataURL } from '../world/mark.js';
 
 /** Character creation screen. Resolves with { name, look, school }. */
 export function characterCreation() {
   return new Promise((resolve) => {
-    const L = { hair: 'spiky', hairColor: HAIR_COLORS[0], skin: SKIN_TONES[1], outfit: 'adventurer', outfitColor: OUTFIT_COLORS[0], mark: { place: 'right arm', color: MARK_COLORS[0], size: 'medium' } };
+    const L = { hair: 'spiky', hairColor: HAIR_COLORS[0], skin: SKIN_TONES[1], outfit: 'adventurer', outfitColor: OUTFIT_COLORS[0], frame: 'average', acc: 'none', eyeColor: EYE_COLORS[0], heightName: 'average', height: 1, mark: { place: 'right arm', color: MARK_COLORS[0], size: 'medium' } };
     let school = 'flame';
     const root = document.createElement('div'); root.id = 'create';
     root.innerHTML = `<div class="wrap"><div class="pv frame"><canvas></canvas><div class="pvbar" id="cc-pose"></div><div class="stamp" id="cc-stamp"></div><div class="logo"><img alt="" src="${guildMarkDataURL('#e0303a', 128)}">FAIRY TAIL<small>NEW MEMBER</small></div></div>
@@ -17,6 +19,10 @@ export function characterCreation() {
       <label>Skin tone</label><div class="chips" id="cc-skin"></div>
       <label>Outfit</label><div class="chips" id="cc-outfit"></div>
       <label>Outfit colour</label><div class="chips" id="cc-outc"></div>
+      <label>Eye colour</label><div class="chips" id="cc-eye"></div>
+      <label>Build</label><div class="chips" id="cc-frame"></div>
+      <label>Height</label><div class="chips" id="cc-height"></div>
+      <label>Accessory</label><div class="chips" id="cc-acc"></div>
       <label>Guild mark: placement</label><div class="chips" id="cc-mark"></div>
       <div class="muted" id="cc-markhint"></div>
       <label>Guild mark: size</label><div class="chips" id="cc-marks"></div>
@@ -43,11 +49,11 @@ export function characterCreation() {
       for (const v of list) {
         const b = document.createElement('button'); b.className = swatch ? 'sw' : 'chip'; if (swatch) b.style.background = v; else b.textContent = v;
         if (L[key] === v) b.classList.add('on');
-        b.onclick = () => { L[key] = v; el.querySelectorAll('button').forEach((x) => x.classList.remove('on')); b.classList.add('on'); rebuild(); };
+        b.onclick = () => { L[key] = v; if (key === 'heightName') L.height = HMAP[v]; el.querySelectorAll('button').forEach((x) => x.classList.remove('on')); b.classList.add('on'); rebuild(); };
         el.appendChild(b);
       }
     };
-    chips('#cc-hair', HAIR_STYLES, 'hair'); chips('#cc-hairc', HAIR_COLORS, 'hairColor', true); chips('#cc-skin', SKIN_TONES, 'skin', true); chips('#cc-outfit', OUTFITS, 'outfit'); chips('#cc-outc', OUTFIT_COLORS, 'outfitColor', true);
+    chips('#cc-hair', HAIR_STYLES, 'hair'); chips('#cc-hairc', HAIR_COLORS, 'hairColor', true); chips('#cc-skin', SKIN_TONES, 'skin', true); chips('#cc-outfit', OUTFITS, 'outfit'); chips('#cc-outc', OUTFIT_COLORS, 'outfitColor', true); chips('#cc-eye', EYE_COLORS, 'eyeColor', true); chips('#cc-frame', FRAMES, 'frame'); chips('#cc-acc', ACCESSORIES, 'acc'); chips('#cc-height', HEIGHTS, 'heightName');
     const markChips = (id, list, key, swatch) => {
       const el = root.querySelector(id); el.innerHTML = '';
       for (const v of list) {
