@@ -91,7 +91,7 @@ function stripOpts(o) { const r = { ...o }; delete r.soft; delete r.pat; delete 
 function realMat(color, opts) {
   const c = new THREE.Color(color); const hsl = {}; c.getHSL(hsl);
   const metal = opts.metal ?? (hsl.s < 0.12 && hsl.l > 0.45 && hsl.l < 0.75 ? 0.35 : 0);
-  const m = new THREE.MeshStandardMaterial({ color, roughness: opts.rough ?? (metal ? 0.45 : 0.78), metalness: metal, envMapIntensity: 0.9, ...stripOpts(opts) });
+  const m = new THREE.MeshStandardMaterial({ color, roughness: opts.rough ?? (metal ? 0.45 : 0.82), metalness: metal, envMapIntensity: 0.9, ...stripOpts(opts) });
   return addDetail(m, { scale: 2.2, amt: 0.16, rim: 0.22, pat: opts.pat || null });
 }
 export function glow(color, opacity = 1) {

@@ -178,7 +178,7 @@ export function buildWorld(scene) {
   const skyGeo = new THREE.SphereGeometry(600, 24, 12);
   const sky = new THREE.Mesh(skyGeo, new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { top: { value: new THREE.Color('#5a8ae8') }, mid: { value: new THREE.Color('#bfe0ff') }, bot: { value: new THREE.Color('#ffe8d0') } },
+    uniforms: { top: { value: new THREE.Color(GFX.real ? '#7a98b8' : '#5a8ae8') }, mid: { value: new THREE.Color(GFX.real ? '#c4d0d8' : '#bfe0ff') }, bot: { value: new THREE.Color(GFX.real ? '#e6dccb' : '#ffe8d0') } },
     vertexShader: 'varying vec3 vp; void main(){ vp = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
     fragmentShader: 'uniform vec3 top, mid, bot; varying vec3 vp; void main(){ float h = normalize(vp).y; vec3 c = h > 0.0 ? mix(mid, top, pow(h, 0.6)) : mix(mid, bot, min(1.0, -h * 4.0)); gl_FragColor = vec4(c, 1.0); }',
   }));
@@ -189,9 +189,9 @@ export function buildWorld(scene) {
     W.sunDir = new THREE.Vector3(30, 60, 20).normalize(); u.sunPosition.value.copy(W.sunDir); rs.material.fog = false;
     rs.material.fragmentShader = rs.material.fragmentShader.replace('gl_FragColor = vec4( texColor, 1.0 );', 'gl_FragColor = vec4( texColor * 0.3, 1.0 );'); scene.add(rs); W.realSky = rs;
   }
-  const FOGC = GFX.real ? '#b4c8dc' : '#cfe4f4'; scene.fog = new THREE.Fog(FOGC, GFX.real ? 110 : GFX.high ? 110 : 70, GFX.real ? 620 : GFX.high ? 330 : 205);
+  const FOGC = GFX.real ? '#c4d0d8' : '#cfe4f4'; scene.fog = new THREE.Fog(FOGC, GFX.real ? 80 : GFX.high ? 110 : 70, GFX.real ? 520 : GFX.high ? 330 : 205);
   W.fogBase = { near: scene.fog.near, far: scene.fog.far, color: new THREE.Color(FOGC), snow: new THREE.Color('#e4ecf4') };
-  const hemi = new THREE.HemisphereLight('#dff0ff', '#6a8a4a', GFX.real ? 0.45 : 1.3); scene.add(hemi);
+  const hemi = (GFX.real ? new THREE.HemisphereLight('#d6e2ea', '#4a5a3a', 0.7) : new THREE.HemisphereLight('#dff0ff', '#6a8a4a', 1.3)); scene.add(hemi);
   const sun = new THREE.DirectionalLight('#fff2dc', GFX.real ? 3.0 : 2.2); sun.position.set(30, 60, 20); scene.add(sun); scene.add(sun.target);
   if (GFX.shadows) {
     sun.castShadow = true; sun.shadow.mapSize.set(GFX.real ? 4096 : 2048, GFX.real ? 4096 : 2048);
@@ -237,7 +237,7 @@ export function buildWorld(scene) {
     W.anim.push((t) => { WIND.value = t; });
   }
   // ---------------- Town ----------------
-  const wood = toon('#8a5a34'), woodD = toon('#5a3a22'), plaster = toon('#f2e6cc'), stoneM = toon('#a8a098'), roofR = toon('#c0503a'), roofB = toon('#3a5aa0'), roofG = toon('#4a8a5a'), roofP = toon('#8a4aa0');
+  const wood = toon('#8a5a34'), woodD = toon('#5a3a22'), plaster = toon(GFX.real ? '#e4d8be' : '#f2e6cc'), stoneM = toon('#a8a098'), roofR = toon(GFX.real ? '#9e3a2c' : '#c0503a'), roofB = toon('#3a5aa0'), roofG = toon('#4a8a5a'), roofP = toon('#8a4aa0');
   const building = ({ x, z, w, d, h, roof, door, sign, wall = plaster, parent = scene, y = 0 }) => {
     const g = new THREE.Group(); g.position.set(x, y, z);
     g.add(mesh(new THREE.BoxGeometry(w, h, d), wall, 0, h / 2, 0));

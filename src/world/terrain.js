@@ -28,6 +28,13 @@ const COL = {
   rock: new THREE.Color('#8a8078'), rockD: new THREE.Color('#6a625c'), snow: new THREE.Color('#f4f8ff'), sand: new THREE.Color('#e8d49a'),
   seabed: new THREE.Color('#5a8a8a'), mud: new THREE.Color('#5e4a34'), litter: new THREE.Color('#6a5a36'), moss: new THREE.Color('#4f7a2e'), wear: new THREE.Color('#a88a5a'), foreign: new THREE.Color('#7a7068'), stone: new THREE.Color('#b8b0a4'), gravel: new THREE.Color('#9a9088'),
 };
+// Realistic tier palette ('Magnolia, Rain-Shadow' style guide items 1 and 5); Low/High keep the stylised colours above
+let realPal = false;
+function applyRealPalette() {
+  if (realPal || !GFX.real) return; realPal = true;
+  COL.grassA.set('#7e9a4c'); COL.grassB.set('#5e7f3e'); COL.forest.set('#2f4a2c');
+  COL.dirt.set('#a8865a'); COL.sand.set('#c8b88a'); COL.rock.set('#5a5650');
+}
 
 function fernGeo() {
   // a fan of 7 arching fronds, each a tapered strip with leaflet notches
@@ -50,6 +57,7 @@ function shroomGeo() {
 export class Terrain {
   /** opts: height(x,z), keepOut(x,z,pad) -> true where props must not spawn, paint(x,z,c) optional colour override */
   constructor(scene, opts) {
+    applyRealPalette();
     this.scene = scene; this.o = opts; this.chunks = new Map(); this.queue = [];
     this.radius = GFX.high ? 5 : 3; this.nearR = 1; this.propR = GFX.high ? 2 : 1;
     this.mat = groundMaterial();
@@ -175,9 +183,9 @@ export class Terrain {
     inst(this.geo.pine, this.mats.leaf, pines, (t, k, im) => { place(t, 0.8 + t[4] * 0.7, 1.1); im.setMatrixAt(k, m); const snowy = t[1] > 16; im.setColorAt(k, snowy ? col.set('#dfe8e4') : col.setHSL(0.36 + t[3] * 0.05, 0.42, 0.24 + t[4] * 0.08)); });
     inst(this.geo.rock, this.mats.rock, rocks, (t, k, im) => { place(t, 0.6 + t[4] * 1.4, 0.7); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.08, 0.06, 0.45 + t[3] * 0.15)); });
     // ground cover (flowers always; grass on High)
-    const nf = GFX.real ? 420 : GFX.high ? 260 : 70; const fl = []; const fc = ['#ff7ab0', '#ffe060', '#ffffff', '#8ab0ff', '#ff8a5a'];
+    const nf = GFX.real ? 420 : GFX.high ? 260 : 70; const fl = []; const fc = GFX.real ? ['#8a7ab8', '#8a7ab8', '#e8d27a', '#f0ece0', '#7a8ab8', '#c86a4a'] : ['#ff7ab0', '#ffe060', '#ffffff', '#8ab0ff', '#ff8a5a'];
     for (let k = 0; k < nf; k++) { const x = x0 + hash(i, j, 100 + k) * CH, z = z0 + hash(j, i, 200 + k) * CH; const y = H(x, z); if (y < WATER_Y + 0.5 || y > 14 || this.o.keepOut(x, z, 0.6)) continue; if (roads.length && segDist(roads, x, z) < 2.5) continue; fl.push([x, y, z, hash(i, j, 300 + k), k]); }
-    inst(this.geo.flower, this.mats.grass, fl, (t, k, im) => { p.set(t[0], t[1], t[2]); q.identity(); s.setScalar(0.6 + t[3]); m.compose(p, q, s); im.setMatrixAt(k, m); im.setColorAt(k, col.set(fc[t[4] % 5])); });
+    inst(this.geo.flower, this.mats.grass, fl, (t, k, im) => { p.set(t[0], t[1], t[2]); q.identity(); s.setScalar(0.6 + t[3]); m.compose(p, q, s); im.setMatrixAt(k, m); im.setColorAt(k, col.set(fc[t[4] % fc.length])); });
     if (GFX.high) {
       const gl = [];
       for (let k = 0, NG = GFX.real ? 3200 : 1400; k < NG; k++) { const x = x0 + hash(i, j, 1000 + k) * CH, z = z0 + hash(j, i, 3000 + k) * CH; const y = H(x, z); if (y < WATER_Y + 0.5 || y > 16 || this.o.keepOut(x, z, 0.3)) continue; if (roads.length && segDist(roads, x, z) < 2) continue; gl.push([x, y, z, hash(i, j, 5000 + k), hash(j, i, 7000 + k)]); }
