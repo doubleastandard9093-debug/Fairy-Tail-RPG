@@ -116,7 +116,7 @@ function defines(pool) {
   return d;
 }
 function baseUniforms(sunDir) {
-  return { uT: { value: 0 }, uSun: { value: sunDir.clone() }, uSunCol: { value: new THREE.Color('#fff2d8') }, uDeep: { value: new THREE.Color(GFX.real ? '#0f2e3c' : GFX.high ? '#0b3a58' : '#0d3f6e') }, uShallow: { value: new THREE.Color(GFX.high ? '#3fa6b8' : '#2b93b4') },
+  return { uT: { value: 0 }, uSun: { value: sunDir.clone() }, uSunCol: { value: new THREE.Color('#fff2d8') }, uDeep: { value: new THREE.Color(GFX.real ? '#0f2e3c' : GFX.high ? '#0b3a58' : '#0d3f6e') }, uShallow: { value: new THREE.Color(GFX.real ? '#2e6470' : GFX.high ? '#3fa6b8' : '#2b93b4') },
     uSkyH: { value: new THREE.Color('#b8d8f0') }, uSkyZ: { value: new THREE.Color(GFX.real ? '#6a8aa8' : '#4a86c8') }, uDepth: { value: null }, uO: { value: new THREE.Vector4(0, 0, 1, 1) }, uSwell: { value: 1 },
     tDiffuse: { value: null }, color: { value: new THREE.Color('#ffffff') }, textureMatrix: { value: new THREE.Matrix4() }, uPoolD: { value: 0.5 }, uPool: { value: new THREE.Vector4() }, uRip: { value: new THREE.Vector4() }, uAlpha: { value: 1 }, uFresMax: { value: GFX.real ? 1.0 : GFX.high ? 0.8 : 0.5 } };
 }
@@ -167,7 +167,7 @@ function lathe(pts, mat, seg = 40) { const m = new THREE.Mesh(new THREE.LatheGeo
 function poolSurface(parent, { r, y, depth, rip, ripR, sunDir, anim, world }) {
   const sh = shader(true, sunDir); const mat = finish(new THREE.ShaderMaterial(sh), true);
   const m = new THREE.Mesh(new THREE.CircleGeometry(r, 48), mat); m.rotation.x = -Math.PI / 2; m.position.y = y; m.userData.noOutline = true; m.userData.dyn = true; m.renderOrder = 2; parent.add(m);
-  const u = mat.uniforms; u.uPoolD.value = depth; u.uShallow.value.set('#2a88a8'); u.uDeep.value.set('#124a66');
+  const u = mat.uniforms; u.uPoolD.value = depth; u.uShallow.value.set(GFX.real ? '#2e6470' : '#2a88a8'); u.uDeep.value.set(GFX.real ? '#0f2e3c' : '#124a66');
   anim.push((t) => { u.uT.value = t; if (!u._set) { const p = new THREE.Vector3(), sc = new THREE.Vector3(); m.getWorldPosition(p); m.getWorldScale(sc); u.uPool.value.set(p.x, p.z, r * sc.x, 0); u.uRip.value.set(0, 0, ripR * sc.x, rip); u._set = true; } });
   void world; return m;
 }
@@ -338,7 +338,7 @@ export function riverMesh(R, { W, sunDir }) {
   for (let k = 0; k < P.length - 1; k++) for (let a = 0; a < A - 1; a++) { const i0 = k * A + a, i1 = i0 + 1, i2 = i0 + A, i3 = i2 + 1; idx.push(i0, i2, i1, i1, i2, i3); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aFlow', new THREE.Float32BufferAttribute(flow, 4)); g.setAttribute('aR', new THREE.Float32BufferAttribute(rr, 3)); g.setIndex(idx); g.computeBoundingSphere();
   const u = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, baseUniforms(sunDir || W.sunDir || new THREE.Vector3(30, 60, 20).normalize()), { uFresMax: { value: fresMax() } }]);
-  u.uShallow.value.set('#3a9aa8'); u.uDeep.value.set('#1d5a6a');
+  u.uShallow.value.set(GFX.real ? '#2e6470' : '#3a9aa8'); u.uDeep.value.set(GFX.real ? '#0f2e3c' : '#1d5a6a');
   const mat = new THREE.ShaderMaterial({ uniforms: u, vertexShader: RIVER_VERT, fragmentShader: RIVER_FRAG.replace('%COMMON%', COMMON), defines: { NW: 4, ...(GFX.high ? { CAUSTICS: 1 } : {}) }, transparent: true, depthWrite: false, fog: true, side: THREE.DoubleSide });
   const m = new THREE.Mesh(g, mat); m.userData.noOutline = true; m.renderOrder = 2;
   W.anim.push((t) => { u.uT.value = t; });
