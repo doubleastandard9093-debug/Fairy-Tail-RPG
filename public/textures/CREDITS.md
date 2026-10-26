@@ -10,3 +10,6 @@ All photo textures here are CC0 1.0 (public domain) from ambientCG (https://ambi
 | detail_ground.webp | A | [Rock035](https://ambientcg.com/view?id=Rock035) (rock, triplanar) |
 
 Colour maps reduced to zero-mean luminance at 1024x1024; the palette colour comes from the shader. Realistic graphics only.
+
+`detail_ground_n0/n1.webp` hold the NormalGL maps of the same four sets (RG per set: n0 = grass, gravel; n1 = cobbles, rock).
+`detail_ground_r.webp` holds their Roughness maps, mean-normalised (128 = the shader's roughness), one set per channel.

@@ -65,7 +65,8 @@ const BLEND = /* glsl */`
 // Realistic only: Moss002 / Gravel022 / PavingStones070 / Rock035 luminance packed into one 1k RGBA WebP (1.4 MB).
 let _detail = null;
 function detailTex() {
-  if (!_detail) { _detail = new THREE.TextureLoader().load(import.meta.env.BASE_URL + 'textures/detail_ground.webp'); _detail.wrapS = _detail.wrapT = THREE.RepeatWrapping; _detail.anisotropy = 4; }
+  if (!_detail) { const ld = f => { const t = new THREE.TextureLoader().load(import.meta.env.BASE_URL + 'textures/' + f); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t; };
+    _detail = { c: ld('detail_ground.webp'), n0: ld('detail_ground_n0.webp'), n1: ld('detail_ground_n1.webp'), r: ld('detail_ground_r.webp') }; }   // M2: + normal (RG per set) and roughness
   return _detail;
 }
 export function groundMaterial() {
@@ -73,20 +74,29 @@ export function groundMaterial() {
   const mat = GFX.real ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, envMapIntensity: 0.6 })
     : new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toon('#fff').gradientMap });
   mat.onBeforeCompile = (sh) => {
-    if (GFX.real) sh.uniforms.tDetail = { value: detailTex() };
+    if (GFX.real) { const d = detailTex(); sh.uniforms.tDetail = { value: d.c }; sh.uniforms.tDN0 = { value: d.n0 }; sh.uniforms.tDN1 = { value: d.n1 }; sh.uniforms.tDR = { value: d.r }; }
     sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\nattribute vec4 aS0; attribute vec4 aS1; varying vec3 vGP; varying vec4 vS0; varying vec4 vS1; varying vec3 vGN;`)
       .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>\n vGP = (modelMatrix * vec4(transformed, 1.0)).xyz; vS0 = aS0; vS1 = aS1; vGN = normalize(mat3(modelMatrix) * objectNormal);`);
-    let f = sh.fragmentShader.replace('#include <common>', `#include <common>\n${GFX.real ? 'uniform sampler2D tDetail;' : ''}\n${GLSL}`)
+    let f = sh.fragmentShader.replace('#include <common>', `#include <common>\n${GFX.real ? 'uniform sampler2D tDetail, tDN0, tDN1, tDR;' : ''}\n${GLSL}`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${BLEND}\n diffuseColor.rgb *= gAlb; diffuseColor.rgb *= mix(1.0, 0.55, gWet);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
   { // bump from the blended height field (screen-space derivatives)
     vec3 vp = -vViewPosition; vec3 dpx = dFdx(vp), dpy = dFdy(vp); float H = gH * gBump * 0.35; float hx = dFdx(H), hy = dFdy(H);
     vec3 r1 = cross(dpy, normal), r2 = cross(normal, dpx); float det = dot(dpx, r1); vec3 grad = sign(det) * (hx * r1 + hy * r2);
-    normal = normalize(abs(det) * normal - grad * (1.0 - gWet * 0.6)); }`)
+    normal = normalize(abs(det) * normal - grad * (1.0 - gWet * 0.6));
+    #ifdef GTEX
+    { float dk = 1.0 - smoothstep(45.0, 90.0, length(cameraPosition - vGP)); vec2 q = gp.xz;
+      vec2 pn = ((texture2D(tDN0, q * 0.22).rg - 0.5) * mG * 0.8 + (texture2D(tDN0, q * 0.4 + 0.31).ba - 0.5) * mD + (texture2D(tDN1, q * 0.3).rg - 0.5) * mC * 1.3
+        + (texture2D(tDN1, q * 0.18).ba - 0.5) * mR * smoothstep(0.6, 0.9, gn.y)) / tot * 2.0 * dk * (1.0 - gWet * 0.5);
+      normal = normalize(normal + (viewMatrix * vec4(pn.x, 0.0, pn.y, 0.0)).xyz); }
+    #endif
+  }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
   if (gSnowK > 0.05) { vec3 V = normalize(cameraPosition - vGP); vec3 cellp = floor(vGP * 26.0); float r = rh(cellp + floor(V * 7.0));
     float sp = step(0.985, r) * smoothstep(0.5, 1.0, dot(normalize(V + vec3(0.42, 0.84, 0.28)), gn)); totalEmissiveRadiance += vec3(1.0, 0.98, 0.92) * sp * gSnowK * 1.6; }`);
-    if (GFX.real) f = f.replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n roughnessFactor = gRough;`);
+    if (GFX.real) f = f.replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n roughnessFactor = gRough;
+  { vec2 q = gp.xz; float rm = (texture2D(tDR, q * 0.22).r * mG + texture2D(tDR, q * 0.4 + 0.31).g * mD + texture2D(tDR, q * 0.3).b * mC + texture2D(tDR, q * 0.18).a * mR) / tot * 2.0 + (mS + mN) / tot;
+    roughnessFactor = clamp(gRough * mix(1.0, rm, 0.6 * (1.0 - smoothstep(45.0, 90.0, length(cameraPosition - vGP)))), 0.3, 1.0); }`);
     sh.fragmentShader = f;
   };
   if (GFX.real) mat.defines = { GPARALLAX: 1, GTEX: 1 };
