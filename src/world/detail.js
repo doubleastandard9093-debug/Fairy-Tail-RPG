@@ -2,7 +2,8 @@
 // animation on top of the base builders in models.js, so every humanoid (player, NPCs, party, mage mobs, bosses) benefits.
 import * as THREE from 'three';
 import { hitBurst, stepBurst, animateElite } from './creatures.js';
-import { toon, glow, mesh } from './toon.js';
+import { toon, glow, mesh, GFX } from './toon.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const GC = new Map(); // shared geometry cache (keeps draw-call memory down across dozens of NPCs)
 const geo = (k, f) => { if (!GC.has(k)) GC.set(k, f()); return GC.get(k); };
@@ -132,7 +133,44 @@ export function refineCharacter(P, L, M) {
   else if (A === 'headband') { add(head, tor(0.315, 0.03, 5, 22), accM, 0, 0.1, 0).rotation.x = Math.PI / 2 - 0.1; const kn = add(head, box(0.05, 0.22, 0.02), accM, 0.05, -0.02, -0.32); kn.rotation.z = 0.3; }
   else if (A === 'pauldron') { const p = add(armL, new THREE.SphereGeometry(0.17, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), metal, 0, 0.03, 0); p.scale.set(1.25, 0.9, 1.15); for (let i = 0; i < 3; i++) add(armL, sph(0.02, 5, 4), gold, -0.08 + i * 0.08, 0.1, 0.1); add(body, box(0.05, 0.62, 0.02), leather, 0, 1.15, 0.19).rotation.z = -0.65; }
   else if (A === 'goggles') { const band = add(head, tor(0.31, 0.02, 4, 22), leather2, 0, 0.2, 0); band.rotation.x = Math.PI / 2 - 0.4; for (const s of [-1, 1]) { const l = add(head, cyl(0.06, 0.06, 0.05, 12), metal, s * 0.1, 0.27, 0.22); l.rotation.x = Math.PI / 2 - 0.55; add(head, cyl(0.045, 0.045, 0.052, 12), glow('#8ad8ff', 0.7), s * 0.1, 0.27, 0.225).rotation.x = Math.PI / 2 - 0.55; } }
+  if (GFX.real && M.hair && L.hair !== 'beard') realHairFace(P, L, M);   // item 6: Realistic only, never built on Low/High
   P.frame = frame; P.spring = { cape: 0, tails: 0 };
+}
+
+// Realistic hair clumps + face detail. Clumps are merged into ONE cached geometry per style (one extra draw call per head).
+const CLUMPS = new Map();
+function clumpGeo(style) {
+  if (CLUMPS.has(style)) return CLUMPS.get(style);
+  const parts = []; let seed = 7; const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const long = style === 'long' || style === 'bob' || style === 'sideponytail' || style === 'twintails';
+  const n = style === 'short' ? 26 : 40;
+  for (let i = 0; i < n; i++) {
+    const az = r() * Math.PI * 2, el = 0.15 + r() * (Math.PI * 0.42);    // around the crown, upper hemisphere
+    if (Math.cos(az) > 0.55 && el > 0.95) continue;                        // keep the face clear
+    const dir = new THREE.Vector3(Math.sin(az) * Math.sin(el), Math.cos(el), Math.cos(az) * Math.sin(el));
+    const len = (style === 'spiky' ? 0.1 : 0.14) + r() * 0.1 + (long && dir.z < 0 ? 0.12 : 0);
+    const g = new THREE.ConeGeometry(0.035 + r() * 0.02, len, 5, 1); g.translate(0, len / 2, 0);
+    // flatten into a strand card-ish ribbon, then comb it down/back along the scalp
+    g.scale(1, 1, 0.45);
+    const tilt = new THREE.Vector3(dir.x, style === 'spiky' ? dir.y - 0.35 : dir.y - 0.9, dir.z - 0.25).normalize();
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), tilt));
+    g.translate(dir.x * 0.32, 0.03 + dir.y * 0.33, -0.015 + dir.z * 0.32);
+    parts.push(g.toNonIndexed());
+  }
+  const m = mergeGeometries(parts); parts.forEach((g) => g.dispose()); CLUMPS.set(style, m); return m;
+}
+function realHairFace(P, L, M) {
+  const { head } = P;
+  const cl = add(head, clumpGeo(L.hair || 'short'), M.hair); cl.userData.noOutline = true; cl.castShadow = true;
+  const sk = L.skin || '#f2d0b0';
+  // catchlights + iris ring, upper-lid crease, lower lip, nasolabial/philtrum shading, brow ridge
+  if (P.eyes) for (const eg of P.eyes) {
+    const iris = eg.children[1]; if (!iris) continue; const x = iris.position.x;
+    const hl = add(eg, sph(0.009, 6, 4), glow('#ffffff'), x + 0.012, 0.006, 0.292); hl.userData.noOutline = true;
+    const cr = add(eg, tor(0.05, 0.004, 3, 12, Math.PI * 0.8), toon(shade(sk, 0.78)), x, 0.035, 0.262); cr.rotation.z = Math.PI * 0.1; cr.userData.noOutline = true;
+  }
+  const ll = add(head, sph(0.03, 8, 6), toon('#b86068'), 0, -0.2, 0.226); ll.scale.set(1.0, 0.32, 0.35); ll.userData.noOutline = true;
+  const ridge = add(head, cap(0.022, 0.2, 5), toon(shade(sk, 1.03)), 0, 0.075, 0.25); ridge.rotation.z = Math.PI / 2; ridge.userData.noOutline = true;
 }
 
 /** Secondary animation layered after animateCharacter: torso counter-twist, hip sway, cape/coat-tail spring, fingers, hit flinch, death fall. */
