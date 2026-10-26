@@ -186,8 +186,19 @@ export function buildWorld(scene) {
   if (GFX.real) { // physically based sky (Rayleigh/Mie) instead of the gradient dome; also drives the image-based lighting
     sky.visible = false; const rs = new Sky(); rs.scale.setScalar(850); const u = rs.material.uniforms;
     u.turbidity.value = 10; u.rayleigh.value = 0.8; u.mieCoefficient.value = 0.008;   // overcast PNW sky (Tier S) u.mieDirectionalG.value = 0.82;
-    W.sunDir = new THREE.Vector3(30, 60, 20).normalize(); u.sunPosition.value.copy(W.sunDir); rs.material.fog = false;
-    rs.material.fragmentShader = rs.material.fragmentShader.replace('gl_FragColor = vec4( texColor, 1.0 );', 'gl_FragColor = vec4( texColor * 0.22, 1.0 );'); scene.add(rs); W.realSky = rs;
+    W.sunDir = new THREE.Vector3(30, 60, 20).normalize(); u.sunPosition.value.copy(W.sunDir); rs.material.fog = false; rs.material.uniforms.uCloudT = { value: 0 }; rs.material.fragmentShader = 'uniform float uCloudT;\n' + rs.material.fragmentShader;
+    rs.material.fragmentShader = rs.material.fragmentShader.replace('gl_FragColor = vec4( texColor, 1.0 );', `
+      // Tier M #1: marine-layer cloud deck (cheap 2D fbm projected on a slab, 5 octaves; Realistic only)
+      { vec3 cd = normalize(vWorldPosition - cameraPosition); if (cd.y > 0.0) {
+        vec2 cp = cd.xz / (cd.y + 0.12) * 1.6 + uCloudT * vec2(0.004, 0.0015);
+        float f = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { vec2 ip = floor(cp), fp = fract(cp); fp = fp * fp * (3.0 - 2.0 * fp);
+          float h00 = fract(sin(dot(ip, vec2(127.1, 311.7))) * 43758.5453), h10 = fract(sin(dot(ip + vec2(1, 0), vec2(127.1, 311.7))) * 43758.5453);
+          float h01 = fract(sin(dot(ip + vec2(0, 1), vec2(127.1, 311.7))) * 43758.5453), h11 = fract(sin(dot(ip + vec2(1, 1), vec2(127.1, 311.7))) * 43758.5453);
+          f += a * mix(mix(h00, h10, fp.x), mix(h01, h11, fp.x), fp.y); cp = cp * 2.03 + 17.0; a *= 0.5; }
+        float cov = smoothstep(0.42, 0.72, f) * smoothstep(0.0, 0.18, cd.y);
+        vec3 cc = mix(vec3(0.56, 0.60, 0.64), vec3(0.86, 0.89, 0.91), smoothstep(0.45, 0.85, f));   // grey bellies to #DCE3E8 tops
+        texColor = mix(texColor, cc / 0.22, cov * 0.85); } }
+      gl_FragColor = vec4( texColor * 0.22, 1.0 );`); scene.add(rs); W.realSky = rs;
   }
   const FOGC = GFX.real ? '#c4d0d8' : '#cfe4f4'; scene.fog = new THREE.Fog(FOGC, GFX.real ? 80 : GFX.high ? 110 : 70, GFX.real ? 520 : GFX.high ? 330 : 205);
   W.fogBase = { near: scene.fog.near, far: scene.fog.far, color: new THREE.Color(FOGC), snow: new THREE.Color('#e4ecf4') };
@@ -789,7 +800,7 @@ export function buildWorld(scene) {
     W.water.position.set(Math.round(playerPos.x / 50) * 50, WATER_Y, Math.round(playerPos.z / 50) * 50);
     for (const id in W.npcs) { const it = W.npcs[id]; const d = Math.hypot(playerPos.x - it.x, playerPos.z - it.z); if (d > 120) continue; if (it.char.parts.wing1) { const b = it.char.parts.body; b.position.y = Math.sin(t * 3) * 0.12; it.char.parts.wing1.rotation.z = 0.5 + Math.sin(t * 18) * 0.5; it.char.parts['wing-1'].rotation.z = -0.5 - Math.sin(t * 18) * 0.5; } else if (it.npc === 'plue') { const b = it.char.parts.body; b.position.x = Math.sin(t * 40) * 0.012; b.rotation.z = Math.sin(t * 33) * 0.04; } else if (it.char.parts.armL && d < 60) animateCharacter(it.char, { t: t + it.x, move: 0, atk: -1, cast: 0, look: d < 6 ? Math.max(-0.6, Math.min(0.6, Math.sin(t * 0.7 + it.x) * 0.3)) : 0 }); else it.char.parts.head.rotation.y = 0; }
     if (GFX.shadows) { W.sun.position.set(playerPos.x + 30, playerPos.y + 60, playerPos.z + 20); W.sun.target.position.set(playerPos.x, playerPos.y, playerPos.z); }
-    W.sky.position.set(playerPos.x, playerPos.y, playerPos.z); if (W.realSky) W.realSky.position.set(playerPos.x, 0, playerPos.z); if (W.foam) W.foam.position.set(Math.round(playerPos.x / 50) * 50, WATER_Y + 0.03, Math.round(playerPos.z / 50) * 50);
+    W.sky.position.set(playerPos.x, playerPos.y, playerPos.z); if (W.realSky) { W.realSky.position.set(playerPos.x, 0, playerPos.z); W.realSky.material.uniforms.uCloudT.value = performance.now() / 1000; } if (W.foam) W.foam.position.set(Math.round(playerPos.x / 50) * 50, WATER_Y + 0.03, Math.round(playerPos.z / 50) * 50);
     // snowfall + whiter fog in the snowfield
     const snowy = playerPos.z < -400 && biomeAt(playerPos.x, playerPos.z) !== 0 && (height(playerPos.x, playerPos.z) > 14 || Math.hypot(playerPos.x - PLACE.hakobe.pos[0], playerPos.z - PLACE.hakobe.pos[1]) < 140);
     W.snow.visible = snowy;
