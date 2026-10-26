@@ -86,11 +86,15 @@ export function toon(color, opts = {}) {
   cache.set(key, m);
   return m;
 }
-function stripOpts(o) { const r = { ...o }; delete r.soft; delete r.pat; delete r.rough; delete r.metal; return r; }
+function stripOpts(o) { const r = { ...o }; delete r.soft; delete r.pat; delete r.rough; delete r.metal; delete r.kind; return r; }
 /** PBR stand-in for toon(): roughness guessed from colour (dark metals/stone glossier), detail noise on top. */
 function realMat(color, opts) {
   const c = new THREE.Color(color); const hsl = {}; c.getHSL(hsl);
   const metal = opts.metal ?? (hsl.s < 0.12 && hsl.l > 0.45 && hsl.l < 0.75 ? 0.35 : 0);
+  // M2: character materials (Realistic). Skin: soft warm sheen as a cheap subsurface stand-in; cloth: fabric sheen; hair: glossier anisotropic strands
+  if (opts.kind === 'skin') return addDetail(new THREE.MeshPhysicalMaterial({ color, roughness: 0.58, metalness: 0, sheen: 0.6, sheenRoughness: 0.5, sheenColor: new THREE.Color('#ff9a7a'), envMapIntensity: 0.7 }), { scale: 2.2, amt: 0.05, rim: 0.18 });
+  if (opts.kind === 'cloth') return addDetail(new THREE.MeshPhysicalMaterial({ color, roughness: 0.9, metalness: 0, sheen: 0.8, sheenRoughness: 0.7, sheenColor: c.clone().lerp(new THREE.Color('#ffffff'), 0.35), envMapIntensity: 0.8 }), { scale: 3.2, amt: 0.2, rim: 0.2 });
+  if (opts.kind === 'hair') return addDetail(new THREE.MeshPhysicalMaterial({ color, roughness: 0.42, metalness: 0, anisotropy: 0.7, sheen: 0.3, sheenRoughness: 0.35, sheenColor: c.clone().offsetHSL(0, 0, 0.25), envMapIntensity: 0.9 }), { scale: 4.0, amt: 0.12, rim: 0.2 });
   const m = new THREE.MeshStandardMaterial({ color, roughness: opts.rough ?? (metal ? 0.45 : 0.82), metalness: metal, envMapIntensity: 0.9, ...stripOpts(opts) });
   return addDetail(m, { scale: 2.2, amt: 0.16, rim: 0.22, pat: opts.pat || null });
 }

@@ -26,7 +26,7 @@ export function buildCharacter(look = {}) {
   const L = { hair: 'spiky', hairColor: '#ff5a2a', skin: '#f2d0b0', outfit: 'adventurer', outfitColor: '#3a4aa0', scale: 1, ...look };
   const root = new THREE.Group();
   const body = new THREE.Group(); root.add(body);
-  const skin = toon(L.skin), cloth = toon(L.outfitColor), cloth2 = toon(shade(L.outfitColor, 0.55)), hairM = toon(L.hairColor);
+  const skin = toon(L.skin, { kind: 'skin' }), cloth = toon(L.outfitColor, { kind: 'cloth' }), cloth2 = toon(shade(L.outfitColor, 0.55), { kind: 'cloth' }), hairM = toon(L.hairColor, { kind: 'hair' });
   const dark = toon('#2a2230'), white = glow('#ffffff');
   const pants = toon(L.outfit === 'mage' ? shade(L.outfitColor, 0.4) : '#3a3448');
 
