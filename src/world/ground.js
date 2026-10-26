@@ -39,6 +39,15 @@ const BLEND = /* glsl */`
   #endif
   float wR = vS0.x, wD = vS0.y, wS = vS0.z, wN = vS0.w, wC = vS1.y; float wG = clamp(1.0 - wR - wD - wS - wN - wC, 0.0, 1.0);
   vec4 G = gGrass(gp), D = gDirt(gp), R = gRock(gp, gn), S = gSand(gp), N = gSnow(gp), C = gCobble(gp);
+  #ifdef GTEX
+  { // CC0 photo detail (textures/CREDITS.md), zero-mean luminance only, so the palette still sets the colour
+    float dk = 1.0 - smoothstep(45.0, 90.0, length(cameraPosition - vGP)) * 0.7;
+    vec3 tw = pow(abs(gn), vec3(4.0)); tw /= tw.x + tw.y + tw.z + 1e-4;
+    float dG = texture2D(tDetail, gp.xz * 0.22).r - 0.5, dD = texture2D(tDetail, gp.xz * 0.4 + 0.31).g - 0.5, dC = texture2D(tDetail, gp.xz * 0.3).b - 0.5;
+    float dR = texture2D(tDetail, gp.zy * 0.18).a * tw.x + texture2D(tDetail, gp.xz * 0.18).a * tw.y + texture2D(tDetail, gp.xy * 0.18).a * tw.z - 0.5;
+    G.rgb *= 1.0 + dG * 0.8 * dk; D.rgb *= 1.0 + dD * 0.9 * dk; C.rgb *= 1.0 + dC * 0.7 * dk; R.rgb *= 1.0 + dR * 0.9 * dk;
+    G.a += dG * 0.4 * dk; D.a += dD * 0.5 * dk; R.a += dR * 0.5 * dk; }
+  #endif
   float hb = 0.25; float mG = wG + G.a * hb, mD = wD + D.a * hb, mR = wR + R.a * hb, mS = wS + S.a * hb, mN = wN + N.a * hb, mC = wC + C.a * hb;
   float mx = max(max(max(mG, mD), max(mR, mS)), max(mN, mC)) - 0.18;
   mG = max(mG - mx, 0.0) * step(0.001, wG); mD = max(mD - mx, 0.0) * step(0.001, wD); mR = max(mR - mx, 0.0) * step(0.001, wR); mS = max(mS - mx, 0.0) * step(0.001, wS); mN = max(mN - mx, 0.0) * step(0.001, wN); mC = max(mC - mx, 0.0) * step(0.001, wC);
@@ -53,14 +62,21 @@ const BLEND = /* glsl */`
   float gRough = mix(0.95, 0.55, gWet) - mC / tot * 0.1 - gSnowK * 0.25;
 `;
 
+// Realistic only: Moss002 / Gravel022 / PavingStones070 / Rock035 luminance packed into one 1k RGBA WebP (1.4 MB).
+let _detail = null;
+function detailTex() {
+  if (!_detail) { _detail = new THREE.TextureLoader().load(import.meta.env.BASE_URL + 'textures/detail_ground.webp'); _detail.wrapS = _detail.wrapT = THREE.RepeatWrapping; _detail.anisotropy = 4; }
+  return _detail;
+}
 export function groundMaterial() {
   if (!GFX.high) return new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toon('#fff').gradientMap });
   const mat = GFX.real ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, envMapIntensity: 0.6 })
     : new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toon('#fff').gradientMap });
   mat.onBeforeCompile = (sh) => {
+    if (GFX.real) sh.uniforms.tDetail = { value: detailTex() };
     sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\nattribute vec4 aS0; attribute vec4 aS1; varying vec3 vGP; varying vec4 vS0; varying vec4 vS1; varying vec3 vGN;`)
       .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>\n vGP = (modelMatrix * vec4(transformed, 1.0)).xyz; vS0 = aS0; vS1 = aS1; vGN = normalize(mat3(modelMatrix) * objectNormal);`);
-    let f = sh.fragmentShader.replace('#include <common>', `#include <common>\n${GLSL}`)
+    let f = sh.fragmentShader.replace('#include <common>', `#include <common>\n${GFX.real ? 'uniform sampler2D tDetail;' : ''}\n${GLSL}`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${BLEND}\n diffuseColor.rgb *= gAlb; diffuseColor.rgb *= mix(1.0, 0.55, gWet);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
   { // bump from the blended height field (screen-space derivatives)
@@ -73,7 +89,7 @@ export function groundMaterial() {
     if (GFX.real) f = f.replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n roughnessFactor = gRough;`);
     sh.fragmentShader = f;
   };
-  if (GFX.real) mat.defines = { GPARALLAX: 1 };
+  if (GFX.real) mat.defines = { GPARALLAX: 1, GTEX: 1 };
   mat.customProgramCacheKey = () => 'ground' + (GFX.real ? 'R' : 'H');
   return mat;
 }
