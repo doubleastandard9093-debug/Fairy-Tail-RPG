@@ -116,6 +116,7 @@ export class Terrain {
     if (old && old.lod === lod && old.ground) { c.ground = old.ground; c.objs.push(old.ground); for (const m of old.objs) if (m !== old.ground) { this.scene.remove(m); if (m.isInstancedMesh) m.dispose(); } }
     else { if (old) this.dispose(old); c.ground = this.ground(i, j, lod); c.objs.push(c.ground); this.scene.add(c.ground); }
     if (props) for (const m of this.props(i, j)) { c.objs.push(m); this.scene.add(m); }
+    else if (GFX.real) { const fm = this.farTrees(i, j); if (fm) { c.objs.push(fm); this.scene.add(fm); } }   // M2: far-tree cards beyond the prop ring
     this.chunks.set(k, c);
   }
   ground(i, j, lod) {
@@ -165,10 +166,9 @@ export class Terrain {
     if (rails.length) { const d = segDist(rails, x, z); if (d < 2.6) { const k = smooth(2.6, 1.4, d); c.lerp(COL.gravel, k); w[1] = Math.max(w[1], k); w[3] *= 1 - k; } }
     if (this.o.paint) this.o.paint(x, z, c, n, w);
   }
-  props(i, j) {
-    const H = this.o.height; const x0 = i * CH, z0 = j * CH; const out = [];
-    const roads = segsNear(ROADS_W, x0, x0 + CH, z0, z0 + CH, 6), rails = segsNear(RAILS_W, x0, x0 + CH, z0, z0 + CH, 6);
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+  /** Tree/rock placement for one chunk (shared by the full props and the far-tree cards, so cards sit exactly where trees will appear). */
+  treeSpots(i, j, roads, rails) {
+    const H = this.o.height; const x0 = i * CH, z0 = j * CH;
     const trees = [], pines = [], rocks = [];
     const step = GFX.real ? 4.3 : 5.2;
     for (let b = 0; b < CH / step; b++) for (let a = 0; a < CH / step; a++) {
@@ -184,6 +184,32 @@ export class Terrain {
         if (conifer) pines.push([x, y, z, r0, r1]); else if (!(f > 0.12 && hash(i * 64 + a, j * 64 + b, 5) < 0.6)) trees.push([x, y, z, r0, r1]); }   // thin round broadleaf crowns at forest edges
       else if (r2 > 0.965 || (y > 10 && r2 > 0.85)) rocks.push([x, y, z, r0, r1]);
     }
+    return { trees, pines, rocks };
+  }
+  /** Realistic only: one InstancedMesh of crossed conifer/broadleaf cards per far chunk (4 tris each, no shadows). */
+  farTrees(i, j) {
+    const x0 = i * CH, z0 = j * CH;
+    const { trees, pines } = this.treeSpots(i, j, segsNear(ROADS_W, x0, x0 + CH, z0, z0 + CH, 6), segsNear(RAILS_W, x0, x0 + CH, z0, z0 + CH, 6));
+    const all = [...pines.map((t) => [t, 1]), ...trees.map((t) => [t, 0])]; if (!all.length) return null;
+    if (!this.farGeo) {
+      const P = [], C = [], tr = (a, b, c2, ca, cb, cc) => { P.push(...a, ...b, ...c2); C.push(...ca, ...cb, ...cc); };
+      const dk = [0.55, 0.55, 0.55], lt = [1, 1, 1], tk = [0.42, 0.22, 0.14];
+      for (const [dx, dz] of [[1, 0], [0, 1]]) { const w = 1.7; tr([-w * dx, 1.2, -w * dz], [w * dx, 1.2, w * dz], [0, 8.0, 0], dk, dk, lt); tr([w * dx, 1.2, w * dz], [-w * dx, 1.2, -w * dz], [0, 8.0, 0], dk, dk, lt);
+        tr([-0.25 * dx, 0, -0.25 * dz], [0.25 * dx, 0, 0.25 * dz], [0, 1.6, 0], tk, tk, tk); tr([0.25 * dx, 0, 0.25 * dz], [-0.25 * dx, 0, -0.25 * dz], [0, 1.6, 0], tk, tk, tk); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.computeVertexNormals();
+      const nr = g.attributes.normal; for (let k = 0; k < nr.count; k++) nr.setXYZ(k, 0, 1, 0);   // lit like the canopy from above, no dark back faces
+      this.farGeo = g; this.farMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    }
+    const im = new THREE.InstancedMesh(this.farGeo, this.farMat, all.length); const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+    all.forEach(([t, con], k) => { const sc = con ? 0.8 + t[4] * 0.7 : 0.7 + t[4] * 0.5; p.set(t[0], t[1] - 0.15, t[2]); q.setFromAxisAngle(up, t[3] * 6.28); s.set(sc, sc * (con ? 1.1 : 0.7), sc); m.compose(p, q, s); im.setMatrixAt(k, m);
+      im.setColorAt(k, con ? (t[1] > 16 ? col.set('#dfe8e4') : col.setHSL(0.33 + t[3] * 0.02, 0.30, 0.17 + t[4] * 0.06)) : col.setHSL(0.25 + t[3] * 0.08, 0.5, 0.33 + t[4] * 0.12)); });
+    im.castShadow = false; im.receiveShadow = false; im.userData.noOutline = true; im.computeBoundingSphere(); return im;
+  }
+  props(i, j) {
+    const H = this.o.height; const x0 = i * CH, z0 = j * CH; const out = [];
+    const roads = segsNear(ROADS_W, x0, x0 + CH, z0, z0 + CH, 6), rails = segsNear(RAILS_W, x0, x0 + CH, z0, z0 + CH, 6);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+    const { trees, pines, rocks } = this.treeSpots(i, j, roads, rails);
     const inst = (geo, mat, list, fn) => { if (!list.length) return null; const im = new THREE.InstancedMesh(geo, mat, list.length); list.forEach((t, k) => { fn(t, k, im); }); im.castShadow = GFX.shadows; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.computeBoundingSphere(); out.push(im); return im; };
     const place = (t, sc, sy) => { p.set(t[0], t[1] - 0.15, t[2]); q.setFromAxisAngle(up, t[3] * 6.28); s.set(sc, sc * sy, sc); m.compose(p, q, s); };
     inst(this.geo.trunk, this.mats.trunk, [...trees, ...pines], (t, k, im) => { place(t, 0.8 + t[4] * 0.7, 1); im.setMatrixAt(k, m); });
