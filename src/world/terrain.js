@@ -33,7 +33,7 @@ const COL = {
 let realPal = false;
 function applyRealPalette() {
   if (realPal || !GFX.real) return; realPal = true;
-  COL.grassA.set('#7e9a4c'); COL.grassB.set('#5e7f3e'); COL.forest.set('#2f4a2c');
+  COL.grassA.set('#74904a'); COL.grassB.set('#5e7f3e'); COL.forest.set('#2f4a2c');
   COL.dirt.set('#a8865a'); COL.sand.set('#c8b88a'); COL.rock.set('#5a5650');
 }
 
