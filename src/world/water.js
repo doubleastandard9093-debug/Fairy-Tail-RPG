@@ -47,6 +47,9 @@ void main(){
 const FRAG = /* glsl */`
 ${'%COMMON%'}
 uniform sampler2D uDepth; uniform vec4 uO; uniform sampler2D tDiffuse; uniform vec3 color; uniform float uPoolD; uniform vec4 uPool; uniform vec4 uRip; uniform float uAlpha; uniform float uFresMax;
+#ifdef REFRACT
+uniform sampler2D tRefr; uniform vec2 uRes;
+#endif
 varying vec3 vW; varying vec4 vR; varying float vCrest;
 #include <fog_pars_fragment>
 void main(){
@@ -80,6 +83,16 @@ void main(){
   #ifdef CAUSTICS
     body += vec3(0.75, 0.9, 0.85) * caust(vW.xz * 0.55 + g * 0.6, uT * 0.55) * exp(-dc * 1.1) * 0.55 * max(L.y, 0.0);
   #endif
+  #ifdef REFRACT
+  // Realistic: screen-space refraction of the opaque scene (rendered without water first), bent by the wave normal and
+  // absorbed with depth; replaces the alpha see-through in the shallows
+  float refrK = 0.0;
+  { vec2 suv = gl_FragCoord.xy / uRes + N.xz * 0.022 * clamp(dc, 0.0, 1.5) * exp(-dist / 90.0);
+    vec3 under = texture2D(tRefr, suv).rgb;
+    vec3 trans = exp(-dc * vec3(0.55, 0.22, 0.17));   // red goes first
+    refrK = exp(-dc * 0.45);
+    body = mix(body, under * trans + body * (1.0 - trans) * 0.35, refrK); }
+  #endif
   vec3 col = mix(body, refl, fres);
   // sun glints: a tight mirror hotspot + a broad sheen
   vec3 H = normalize(L + V); float sp = pow(max(dot(N, H), 0.0), 700.0) * 7.0 + pow(max(dot(N, H), 0.0), 70.0) * 0.25;
@@ -100,6 +113,9 @@ void main(){
   #ifndef POOL
     a *= smoothstep(-0.02, 0.28, d);
   #endif
+  #ifdef REFRACT
+  a = max(a, refrK * smoothstep(-0.02, 0.28, d));
+  #endif
   a = clamp(max(a, foam) * uAlpha, 0.0, 1.0); if (a < 0.004) discard;
   gl_FragColor = vec4(col, a);
   #include <tonemapping_fragment>
@@ -107,11 +123,13 @@ void main(){
   #include <fog_fragment>
 }`;
 
+export const REFR = { get on() { return GFX.real && !(new URLSearchParams(location.search).get('rx') || '').includes('r'); }, tex: { value: null }, res: { value: new THREE.Vector2(1, 1) } };   // set by realism.js before the sea is built
 function defines(pool) {
   const d = { NW: GFX.high ? 8 : 4 };
   if (GFX.high) { d.DETAILN = 1; d.CAUSTICS = 1; }
   if (!pool && GFX.high) d.GERSTNER = 1;
   if (!pool && GFX.real) d.REFLECT = 1;
+  if (!pool && GFX.real && REFR.on) d.REFRACT = 1;
   if (pool) { d.POOL = 1; d.CAUSTICS = 1; }
   return d;
 }
@@ -155,6 +173,7 @@ export function createSea({ scene, W, height, WORLD, WATER_Y }) {
     water = new THREE.Mesh(geo, mat);
   }
   const u = water.material.uniforms; u.uDepth.value = dep.tex; u.uO.value.copy(dep.o);
+  if (water.material.defines.REFRACT) { u.tRefr = REFR.tex; u.uRes = REFR.res; water.layers.set(5); W.refrWater = water; }
   water.rotation.x = -Math.PI / 2; water.position.y = WATER_Y; water.userData.noOutline = true; water.renderOrder = 1; water.frustumCulled = false;
   scene.add(water);
   W.anim.push((t) => { u.uT.value = t; });

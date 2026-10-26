@@ -5,6 +5,32 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { Pass, FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
+import { CopyShader } from 'three/examples/jsm/shaders/CopyShader.js';
+import { REFR } from '../world/water.js';
+
+// Scene pass with water refraction: draw everything but the sea (layer 5), copy that to a half-res texture the sea
+// samples, then draw the sea on top into the same buffer (depth kept, shadows not re-rendered).
+class RefractRenderPass extends Pass {
+  constructor(scene, camera, water) {
+    super(); this.scene = scene; this.camera = camera; this.water = water; this.needsSwap = false;
+    this.rt = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, depthBuffer: false });
+    REFR.tex.value = this.rt.texture;
+    this.copy = new FullScreenQuad(new THREE.ShaderMaterial({ uniforms: THREE.UniformsUtils.clone(CopyShader.uniforms), vertexShader: CopyShader.vertexShader, fragmentShader: CopyShader.fragmentShader, depthTest: false, depthWrite: false }));
+  }
+  setSize(w, h) { this.rt.setSize(Math.max(2, w >> 1), Math.max(2, h >> 1)); REFR.res.value.set(w, h); }
+  render(renderer, writeBuffer, readBuffer) {
+    const ac = renderer.autoClear, cam = this.camera, mask = cam.layers.mask;
+    renderer.setRenderTarget(this.renderToScreen ? null : readBuffer); renderer.autoClear = false; renderer.clear();
+    cam.layers.disable(5); renderer.render(this.scene, cam);
+    this.copy.material.uniforms.tDiffuse.value = readBuffer.texture;
+    renderer.setRenderTarget(this.rt); this.copy.render(renderer);
+    renderer.setRenderTarget(this.renderToScreen ? null : readBuffer);
+    const su = renderer.shadowMap.autoUpdate, bg = this.scene.background; renderer.shadowMap.autoUpdate = false; this.scene.background = null;
+    cam.layers.set(5); renderer.render(this.scene, cam);
+    cam.layers.mask = mask; renderer.shadowMap.autoUpdate = su; this.scene.background = bg; renderer.autoClear = ac;
+  }
+}
 
 /** Realistic graphics: sky image-based lighting, ground-truth AO, tuned bloom and tone mapping via a composer. */
 export function setupRealism(renderer, scene, camera, world) {
@@ -17,7 +43,7 @@ export function setupRealism(renderer, scene, camera, world) {
   }
   const size = renderer.getDrawingBufferSize(new THREE.Vector2());
   const comp = new EffectComposer(renderer, new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 }));
-  comp.addPass(new RenderPass(scene, camera));
+  if (world.refrWater) { const rp = new RefractRenderPass(scene, camera, world.refrWater); rp.setSize(size.x, size.y); comp.addPass(rp); } else comp.addPass(new RenderPass(scene, camera));
   const ao = new GTAOPass(scene, camera, size.x, size.y); ao.output = GTAOPass.OUTPUT.Default; ao.blendIntensity = 0.85;
   ao.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1.4, thickness: 1.2, scale: 1.0, samples: 12 }); ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
   // transparent FX (god rays, mist sprites) must not write into the AO depth/normal prepass
