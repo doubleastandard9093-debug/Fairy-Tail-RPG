@@ -185,9 +185,9 @@ export function buildWorld(scene) {
   sky.renderOrder = -1; scene.add(sky); W.sky = sky;
   if (GFX.real) { // physically based sky (Rayleigh/Mie) instead of the gradient dome; also drives the image-based lighting
     sky.visible = false; const rs = new Sky(); rs.scale.setScalar(850); const u = rs.material.uniforms;
-    u.turbidity.value = 4.5; u.rayleigh.value = 1.6; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.82;
+    u.turbidity.value = 8; u.rayleigh.value = 1.0; u.mieCoefficient.value = 0.008;   // overcast PNW sky (Tier S) u.mieDirectionalG.value = 0.82;
     W.sunDir = new THREE.Vector3(30, 60, 20).normalize(); u.sunPosition.value.copy(W.sunDir); rs.material.fog = false;
-    rs.material.fragmentShader = rs.material.fragmentShader.replace('gl_FragColor = vec4( texColor, 1.0 );', 'gl_FragColor = vec4( texColor * 0.3, 1.0 );'); scene.add(rs); W.realSky = rs;
+    rs.material.fragmentShader = rs.material.fragmentShader.replace('gl_FragColor = vec4( texColor, 1.0 );', 'gl_FragColor = vec4( texColor * 0.22, 1.0 );'); scene.add(rs); W.realSky = rs;
   }
   const FOGC = GFX.real ? '#c4d0d8' : '#cfe4f4'; scene.fog = new THREE.Fog(FOGC, GFX.real ? 80 : GFX.high ? 110 : 70, GFX.real ? 520 : GFX.high ? 330 : 205);
   W.fogBase = { near: scene.fog.near, far: scene.fog.far, color: new THREE.Color(FOGC), snow: new THREE.Color('#e4ecf4') };
@@ -743,7 +743,7 @@ export function buildWorld(scene) {
   buildRegions({ W, scene, zoneGroup, station, sign, yAt, R, addBox, building, decks: DECKS, textTexture, roofR, roofB, roofG, roofP });
   const TOWNFLAT = FLAT.filter((f) => !f.rect && f.r >= 26 && f.r <= 45).map((f) => ({ x: f.x, z: f.z, r: f.r * 0.95 }));
   if (GFX.high) { let near = [];
-    W.grass = new Grass(scene, { height: groundAt, count: GFX.real ? 22000 : 9000, radius: GFX.real ? 46 : 34,
+    W.grass = new Grass(scene, { height: groundAt, count: GFX.real ? (matchMedia('(pointer: coarse)').matches ? 22000 : 30000) : 9000, radius: GFX.real ? 46 : 34,
       prepare: (cx, cz, r) => { const pad = 1.2; near = [...W.boxes, ...(W.noGrass || []), ...DECKS.filter((d) => !d.dir)].filter((b) => b.maxX > cx - r - pad && b.minX < cx + r + pad && b.maxZ > cz - r - pad && b.minZ < cz + r + pad)
         .concat(W.circles.filter((c) => c.r > 0.9 && Math.abs(c.x - cx) < r + c.r && Math.abs(c.z - cz) < r + c.r).map((c) => ({ minX: c.x - c.r * 0.8, maxX: c.x + c.r * 0.8, minZ: c.z - c.r * 0.8, maxZ: c.z + c.r * 0.8 }))); },
       accept: (x, z) => { const b = biomeAt(x, z); if (b !== 1 && b !== 2) return 0; { const rn = riverNear(x, z); if (rn && rn[0] < rn[1] + 0.8) return 0; } const h = height(x, z); if (h < WATER_Y + 0.5 || h > 16) return 0; if (inTownPad(x, z, -2)) return 0; if (Math.hypot(x - PLACE.domusflau.pos[0], z - PLACE.domusflau.pos[1]) < 17.5) return 0; for (const A of ARENA_LIST) if (Math.abs(x - A.x) < A.r + 1 && Math.abs(z - A.z) < A.r + 1 && Math.hypot(x - A.x, z - A.z) < A.r - 0.5) return 0; { const rn = riverNear(x, z); if (rn && rn[0] < rn[1] + 0.8) return 0; } for (const f of TOWNFLAT) if (Math.hypot(x - f.x, z - f.z) < f.r) return 0; if (distToLines(ROADS_W, x, z) < 2.2 || distToLines(RAILS_W, x, z) < 2) return 0;

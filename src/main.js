@@ -50,7 +50,7 @@ async function boot() {
   }
   const canvas = document.createElement('canvas'); canvas.id = 'game'; document.body.prepend(canvas);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: GFX.high, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, GFX.real ? 1.5 : GFX.high ? 2.5 : 1.5));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, GFX.real ? (matchMedia('(pointer: coarse)').matches ? 1.5 : 2.0) : GFX.high ? 2.5 : 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
   if (GFX.shadows) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = GFX.real ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; }
   const ui = new UI(); ui.audio = audio;

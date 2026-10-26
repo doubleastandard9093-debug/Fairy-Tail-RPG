@@ -7,7 +7,7 @@ const hash = (i, j, k) => { let h = (i * 374761393 + j * 668265263 + k * 1442695
 
 function bladeGeo() {
   // three crossed, slightly bent blades per instance; vertex colour from dark root to sunlit tip
-  const pos = [], col = [], idx = []; const root = new THREE.Color('#2e4a1c'), tip = new THREE.Color('#a8c860');
+  const pos = [], col = [], idx = []; const root = new THREE.Color(GFX.real ? '#2f4a2c' : '#2e4a1c'), tip = new THREE.Color(GFX.real ? '#7e9a4c' : '#a8c860');
   for (let b = 0; b < 3; b++) {
     const a = b / 3 * Math.PI + (b * 0.37), ca = Math.cos(a), sa = Math.sin(a); const ox = (b - 1) * 0.06, oz = ((b * 7) % 3 - 1) * 0.05; const base = pos.length / 3;
     const segs = 4; for (let s = 0; s <= segs; s++) { const t = s / segs; const w = 0.045 * (1 - t * 0.92); const bend = t * t * 0.18; const y = t * 0.46;

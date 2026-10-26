@@ -117,7 +117,7 @@ function defines(pool) {
 }
 function baseUniforms(sunDir) {
   return { uT: { value: 0 }, uSun: { value: sunDir.clone() }, uSunCol: { value: new THREE.Color('#fff2d8') }, uDeep: { value: new THREE.Color(GFX.real ? '#0f2e3c' : GFX.high ? '#0b3a58' : '#0d3f6e') }, uShallow: { value: new THREE.Color(GFX.real ? '#2e6470' : GFX.high ? '#3fa6b8' : '#2b93b4') },
-    uSkyH: { value: new THREE.Color('#b8d8f0') }, uSkyZ: { value: new THREE.Color(GFX.real ? '#6a8aa8' : '#4a86c8') }, uDepth: { value: null }, uO: { value: new THREE.Vector4(0, 0, 1, 1) }, uSwell: { value: 1 },
+    uSkyH: { value: new THREE.Color(GFX.real ? '#c4d0d8' : '#b8d8f0') }, uSkyZ: { value: new THREE.Color(GFX.real ? '#6a8aa8' : '#4a86c8') }, uDepth: { value: null }, uO: { value: new THREE.Vector4(0, 0, 1, 1) }, uSwell: { value: 1 },
     tDiffuse: { value: null }, color: { value: new THREE.Color('#ffffff') }, textureMatrix: { value: new THREE.Matrix4() }, uPoolD: { value: 0.5 }, uPool: { value: new THREE.Vector4() }, uRip: { value: new THREE.Vector4() }, uAlpha: { value: 1 }, uFresMax: { value: GFX.real ? 1.0 : GFX.high ? 0.8 : 0.5 } };
 }
 function shader(pool, sunDir) {
