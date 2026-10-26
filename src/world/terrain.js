@@ -68,6 +68,7 @@ export class Terrain {
     // Tier L #5: PNW conifer silhouettes. Douglas fir = 4 stacked drooping tiers; western red cedar = 5 narrower tiers with a flared, drooping skirt
     const tiers = (n, base, top, h0, h1, seg) => { const g = []; for (let i = 0; i < n; i++) { const t = i / (n - 1), r = base + (top - base) * t, h = (h1 - h0) / n * 1.9;
       const c = new THREE.ConeGeometry(r, h, seg, 1, true); const pa = c.attributes.position; for (let k = 0; k < pa.count; k++) { const y = pa.getY(k); if (y < -h * 0.45) pa.setY(k, y - r * 0.22); }   // droop the bough tips
+      const rs = Math.sin(n * 91.7 + i * 12.9898) * 43758.5453, rr = rs - Math.floor(rs); c.rotateY(rr * 6.283); c.rotateX((rr - 0.5) * 0.22); c.rotateZ((Math.sin(i * 7.3 + n) * 0.5) * 0.2);   // twist + tilt each tier so boughs droop unevenly
       c.translate(0, h0 + (h1 - h0) * t + h * 0.5, 0); g.push(c.toNonIndexed()); } const m = mergeGeometries(g, false); m.computeVertexNormals(); return m; };
     const pine = tiers(4, 1.7, 0.55, 2.0, 6.2, 8);
     const cedar = tiers(5, 1.45, 0.45, 1.6, 7.0, 9);
@@ -80,7 +81,7 @@ export class Terrain {
     const fern = fernGeo(); const shroom = shroomGeo();
     const cliff = new THREE.DodecahedronGeometry(1, 1); { const pa = cliff.attributes.position; for (let k = 0; k < pa.count; k++) { const x = pa.getX(k), y = pa.getY(k), z = pa.getZ(k); const f = 1 + 0.18 * Math.sin(x * 5.1 + y * 3.3) * Math.cos(z * 4.7) + (y > 0.6 ? -0.25 : 0); pa.setXYZ(k, x * f, Math.max(-0.6, y) * f, z * f); } cliff.computeVertexNormals(); }
     this.geo = { trunk, crown, pine, cedar, rock, grass, flower, pebble, twig, leaf, fern, shroom, cliff };
-    this.mats = { trunk: toon('#6a4a2a'), leaf: GFX.high ? addWind(toon('#ffffff').clone(), 0.0045) : toon('#ffffff'), rock: toon('#ffffff'), grass: GFX.high ? addWind(toon('#ffffff').clone(), 0.35) : toon('#ffffff') };
+    this.mats = { trunk: toon('#7A3E26'), leaf: GFX.high ? addWind(toon('#ffffff').clone(), 0.0045) : toon('#ffffff'), rock: toon('#ffffff'), grass: GFX.high ? addWind(toon('#ffffff').clone(), 0.35) : toon('#ffffff') };
     if (GFX.real) { this.mats.rock = toon('#ffffff', { rough: 0.9 }); this.mats.leaf.roughness = 0.7; this.mats.grass.roughness = 0.85; this.mats.grass.side = THREE.DoubleSide; }
     this.mats.clut = toon('#ffffff', GFX.real ? { rough: 0.85 } : {}).clone(); this.mats.fern = GFX.high ? addWind(toon('#ffffff', GFX.real ? { rough: 0.8 } : {}).clone(), 0.12) : toon('#ffffff').clone(); this.mats.fern.side = THREE.DoubleSide; this.mats.fern.vertexColors = true; this.mats.shroom = toon('#ffffff').clone(); this.mats.shroom.vertexColors = true;
     this.mats.leafL = toon('#ffffff', GFX.real ? { rough: 0.9 } : {}).clone(); this.mats.leafL.side = THREE.DoubleSide;
@@ -179,7 +180,8 @@ export class Terrain {
       if ((roads.length && segDist(roads, x, z) < 4) || (rails.length && segDist(rails, x, z) < 4)) continue;
       const f = forestAt(x, z) + (this.o.forestBoost ? this.o.forestBoost(x, z) : 0);
       const pTree = y > 30 ? 0 : y > 12 ? 0.18 : 0.06 + f * 0.85;
-      if (r2 < pTree) (y > 9 || this.o.pineAt?.(x, z) || (f > 0.3 && hash(i * 64 + a, j * 64 + b, 4) < 0.7) ? pines : trees).push([x, y, z, r0, r1]);
+      if (r2 < pTree) { const conifer = y > 9 || this.o.pineAt?.(x, z) || (f > 0.3 && hash(i * 64 + a, j * 64 + b, 4) < 0.7);
+        if (conifer) pines.push([x, y, z, r0, r1]); else if (!(f > 0.12 && hash(i * 64 + a, j * 64 + b, 5) < 0.6)) trees.push([x, y, z, r0, r1]); }   // thin round broadleaf crowns at forest edges
       else if (r2 > 0.965 || (y > 10 && r2 > 0.85)) rocks.push([x, y, z, r0, r1]);
     }
     const inst = (geo, mat, list, fn) => { if (!list.length) return null; const im = new THREE.InstancedMesh(geo, mat, list.length); list.forEach((t, k) => { fn(t, k, im); }); im.castShadow = GFX.shadows; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.computeBoundingSphere(); out.push(im); return im; };
@@ -187,8 +189,8 @@ export class Terrain {
     inst(this.geo.trunk, this.mats.trunk, [...trees, ...pines], (t, k, im) => { place(t, 0.8 + t[4] * 0.7, 1); im.setMatrixAt(k, m); });
     inst(this.geo.crown, this.mats.leaf, trees, (t, k, im) => { place(t, 0.8 + t[4] * 0.7, 1); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.25 + t[3] * 0.08, 0.5, 0.3 + t[4] * 0.12)); });
     const cedars = pines.filter((t) => t[1] <= 16 && t[4] > 0.55); const firs = pines.filter((t) => !(t[1] <= 16 && t[4] > 0.55));
-    inst(this.geo.cedar, this.mats.leaf, cedars, (t, k, im) => { place(t, 0.75 + t[4] * 0.6, 1.15); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.30 + t[3] * 0.04, 0.32, 0.2 + t[4] * 0.06)); });
-    inst(this.geo.pine, this.mats.leaf, firs, (t, k, im) => { place(t, 0.8 + t[4] * 0.7, 1.1); im.setMatrixAt(k, m); const snowy = t[1] > 16; im.setColorAt(k, snowy ? col.set('#dfe8e4') : col.setHSL(0.36 + t[3] * 0.05, 0.42, 0.24 + t[4] * 0.08)); });
+    inst(this.geo.cedar, this.mats.leaf, cedars, (t, k, im) => { place(t, 0.75 + t[4] * 0.6, 1.15); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.38 + t[3] * 0.02, 0.30, 0.14 + t[4] * 0.06)); });
+    inst(this.geo.pine, this.mats.leaf, firs, (t, k, im) => { place(t, 0.8 + t[4] * 0.7, 1.1); im.setMatrixAt(k, m); const snowy = t[1] > 16; im.setColorAt(k, snowy ? col.set('#dfe8e4') : col.setHSL(0.38 + t[3] * 0.02, 0.30, 0.14 + t[4] * 0.06)); });
     inst(this.geo.rock, this.mats.rock, rocks, (t, k, im) => { place(t, 0.6 + t[4] * 1.4, 0.7); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.08, 0.06, 0.45 + t[3] * 0.15)); });
     // ground cover (flowers always; grass on High)
     const nf = GFX.real ? 420 : GFX.high ? 260 : 70; const fl = []; const fc = GFX.real ? ['#8a7ab8', '#8a7ab8', '#e8d27a', '#f0ece0', '#7a8ab8', '#c86a4a'] : ['#ff7ab0', '#ffe060', '#ffffff', '#8ab0ff', '#ff8a5a'];
