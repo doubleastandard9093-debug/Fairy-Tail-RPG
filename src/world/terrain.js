@@ -214,6 +214,11 @@ export class Terrain {
       else if (y > 8 || bio === 4) { if (r < 0.35) pb.push(t); }
       else if (r < 0.12) pb.push(t); else if (r < 0.15 && GFX.high) tw.push(t);
     }
+    // M2 (Realistic): extra ferns + low moss cushions on the forest floor; 240 samples per prop chunk (5x5 prop ring -> <= 6,000)
+    const ms = [];
+    if (GFX.real) for (let k = 0; k < 240; k++) { const x = x0 + hash(i, j, 12000 + k) * CH, z = z0 + hash(j, i, 12500 + k) * CH; const f = forestAt(x, z); if (f < 0.2) continue;
+      const y = H(x, z); if (y < WATER_Y + 0.5 || y > 16 || this.o.keepOut(x, z, 0.3)) continue; if (roads.length && segDist(roads, x, z) < 1.6) continue;
+      const r = hash(i, j, 12900 + k), t = [x, y, z, r, hash(j, i, 12950 + k)]; if (r < 0.55) fe.push(t); else ms.push(t); }
     // cliffs: sample a coarse grid, put rock formations on steep ground
     for (let b = 0; b < 8; b++) for (let a = 0; a < 8; a++) { const x = x0 + (a + hash(i * 8 + a, j * 8 + b, 41)) * 8, z = z0 + (b + hash(i * 8 + a, j * 8 + b, 42)) * 8; const y = H(x, z); if (y < WATER_Y + 1) continue;
       const gx = H(x + 1.5, z) - H(x - 1.5, z), gz = H(x, z + 1.5) - H(x, z - 1.5); const sl = Math.hypot(gx, gz) / 3; if (sl < 0.62 || hash(i * 8 + a, j * 8 + b, 44) > (GFX.high ? 0.55 : 0.3) || this.o.keepOut(x, z, 2)) continue;
@@ -225,6 +230,7 @@ export class Terrain {
     clut(inst(this.geo.twig, this.mats.clut, tw, (t, k, im) => { lay(t, 0.6 + t[4] * 0.8, 1, 0.2); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.07, 0.35, 0.22 + t[4] * 0.1)); }));
     clut(inst(this.geo.leaf, this.mats.leafL, lv, (t, k, im) => { lay(t, 0.7 + t[4] * 0.8, 1, 0.5); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.03 + t[3] * 0.1, 0.55 + t[4] * 0.2, 0.3 + t[4] * 0.12)); }));
     inst(this.geo.fern, this.mats.fern, fe, (t, k, im) => { lay(t, 0.8 + t[4] * 0.9, 0.9 + t[3] * 0.4); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.27 + t[3] * 0.05, 0.4, 0.5 + t[4] * 0.2)); });
+    clut(inst(this.geo.rock, this.mats.clut, ms, (t, k, im) => { lay(t, 0.35 + t[4] * 0.5, 0.16, 0.2); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.24 + t[3] * 0.05, 0.38, 0.2 + t[4] * 0.08)); }));   // moss cushions
     clut(inst(this.geo.shroom, this.mats.shroom, sh, (t, k, im) => { lay(t, 0.8 + t[4] * 1.2, 1, 0.15); im.setMatrixAt(k, m); im.setColorAt(k, t[3] > 0.5 ? col.set('#c8442e') : col.set('#c8a070')); }));
     inst(this.geo.cliff, this.mats.rock, cl, (t, k, im) => { const sc = 1.3 + t[3] * 1.5; p.set(t[0], t[1] - 0.5, t[2]); q.setFromEuler(new THREE.Euler((t[3] - 0.5) * 0.3, t[4], 0)); s.set(sc * 1.3, sc * (0.8 + t[5] * 0.6), sc); m.compose(p, q, s); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.07 + t[3] * 0.03, 0.08, 0.26 + t[3] * 0.1)); });
     for (const o of out) { o.matrixAutoUpdate = false; o.updateMatrix(); }
