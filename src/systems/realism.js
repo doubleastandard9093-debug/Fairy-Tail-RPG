@@ -9,7 +9,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 /** Realistic graphics: sky image-based lighting, ground-truth AO, tuned bloom and tone mapping via a composer. */
 export function setupRealism(renderer, scene, camera, world) {
   const qs = new URLSearchParams(location.search); const off = (k) => qs.get('rx') && qs.get('rx').includes(k);
-  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.9;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.85;
   // IBL from the physical sky (sky only, so the env map is cheap and has no scene objects in it)
   if (world.realSky && !off('e')) {
     const pm = new THREE.PMREMGenerator(renderer); const tmp = new THREE.Scene(); const sk = world.sky.clone(); sk.visible = true; sk.position.set(0, 0, 0); sk.scale.setScalar(0.1); tmp.add(sk);
