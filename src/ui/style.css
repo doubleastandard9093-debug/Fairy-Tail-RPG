@@ -123,10 +123,10 @@ body.touch.portrait #orbs { left: calc(10px + var(--sal)); top: calc(66px + var(
 body.touch.portrait #mapwrap { width: 120px; } body.touch.portrait #minimap { width: 120px; height: 120px; }
 body.touch.portrait #abar { right: calc(10px + var(--sar)); bottom: calc(16px + var(--sab)); grid-template-columns: repeat(4, 52px); }
 body.touch.portrait #menu { left: 50%; transform: translateX(-50%); bottom: calc(150px + var(--sab)); }
-body.touch.portrait #chat { left: calc(8px + var(--sal)); width: calc(100vw - 16px); top: calc(160px + var(--sat)); max-height: 62px; font-size: 11px; }
+body.touch.portrait #chat { left: calc(8px + var(--sal)); width: calc(100vw - 16px); top: calc(166px + var(--sat)); max-height: 86px; font-size: 11px; }   /* clear the HP/MP orbs and fit 5 lines so the first one is not cut */
 body.touch.portrait #interact { bottom: calc(206px + var(--sab)); } body.touch.portrait #gather { bottom: calc(256px + var(--sab)); }
 body.touch.portrait #buffs { left: calc(172px + var(--sal)); top: calc(78px + var(--sat)); flex-wrap: wrap; width: 64px; }
-body.touch.portrait #target { top: calc(230px + var(--sat)); } body.touch.portrait #boss { top: calc(230px + var(--sat)); width: 92vw; }
+body.touch.portrait #target { top: calc(260px + var(--sat)); } body.touch.portrait #boss { top: calc(260px + var(--sat)); width: 92vw; }
 
 body.touch.landscape #plate .sub .jwrap { display: none; }
 body.touch.landscape #orbs { left: calc(10px + var(--sal)); top: calc(60px + var(--sat)); gap: 6px; }

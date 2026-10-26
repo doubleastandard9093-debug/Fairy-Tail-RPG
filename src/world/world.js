@@ -185,7 +185,7 @@ export function buildWorld(scene) {
   sky.renderOrder = -1; scene.add(sky); W.sky = sky;
   if (GFX.real) { // physically based sky (Rayleigh/Mie) instead of the gradient dome; also drives the image-based lighting
     sky.visible = false; const rs = new Sky(); rs.scale.setScalar(850); const u = rs.material.uniforms;
-    u.turbidity.value = 8; u.rayleigh.value = 1.0; u.mieCoefficient.value = 0.008;   // overcast PNW sky (Tier S) u.mieDirectionalG.value = 0.82;
+    u.turbidity.value = 10; u.rayleigh.value = 0.8; u.mieCoefficient.value = 0.008;   // overcast PNW sky (Tier S) u.mieDirectionalG.value = 0.82;
     W.sunDir = new THREE.Vector3(30, 60, 20).normalize(); u.sunPosition.value.copy(W.sunDir); rs.material.fog = false;
     rs.material.fragmentShader = rs.material.fragmentShader.replace('gl_FragColor = vec4( texColor, 1.0 );', 'gl_FragColor = vec4( texColor * 0.22, 1.0 );'); scene.add(rs); W.realSky = rs;
   }
