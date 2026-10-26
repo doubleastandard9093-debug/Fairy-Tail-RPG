@@ -67,7 +67,7 @@ export class Terrain {
     const crown = new THREE.IcosahedronGeometry(1.6, 1); crown.translate(0, 3.5, 0);
     // Tier L #5: PNW conifer silhouettes. Douglas fir = 4 stacked drooping tiers; western red cedar = 5 narrower tiers with a flared, drooping skirt
     const tiers = (n, base, top, h0, h1, seg) => { const g = []; for (let i = 0; i < n; i++) { const t = i / (n - 1), r = base + (top - base) * t, h = (h1 - h0) / n * 1.9;
-      const c = new THREE.ConeGeometry(r, h, seg, 1, true); const pa = c.attributes.position; for (let k = 0; k < pa.count; k++) { const y = pa.getY(k); if (y < -h * 0.45) pa.setY(k, y - r * 0.22); }   // droop the bough tips
+      const c = new THREE.ConeGeometry(r, h, seg, 3, true); const pa = c.attributes.position; for (let k = 0; k < pa.count; k++) { const y = pa.getY(k), s = (h * 0.5 - y) / h, an = Math.atan2(pa.getZ(k), pa.getX(k)); pa.setY(k, y - r * 0.35 * s * s * (0.75 + 0.5 * Math.sin(an * 3 + i * 1.7))); }   // curved, uneven bough droop toward the rim
       const rs = Math.sin(n * 91.7 + i * 12.9898) * 43758.5453, rr = rs - Math.floor(rs); c.rotateY(rr * 6.283); c.rotateX((rr - 0.5) * 0.22); c.rotateZ((Math.sin(i * 7.3 + n) * 0.5) * 0.2);   // twist + tilt each tier so boughs droop unevenly
       c.translate(0, h0 + (h1 - h0) * t + h * 0.5, 0); g.push(c.toNonIndexed()); } const m = mergeGeometries(g, false); m.computeVertexNormals(); return m; };
     const pine = tiers(4, 1.7, 0.55, 2.0, 6.2, 8);
@@ -189,8 +189,8 @@ export class Terrain {
     inst(this.geo.trunk, this.mats.trunk, [...trees, ...pines], (t, k, im) => { place(t, 0.8 + t[4] * 0.7, 1); im.setMatrixAt(k, m); });
     inst(this.geo.crown, this.mats.leaf, trees, (t, k, im) => { place(t, 0.8 + t[4] * 0.7, 1); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.25 + t[3] * 0.08, 0.5, 0.3 + t[4] * 0.12)); });
     const cedars = pines.filter((t) => t[1] <= 16 && t[4] > 0.55); const firs = pines.filter((t) => !(t[1] <= 16 && t[4] > 0.55));
-    inst(this.geo.cedar, this.mats.leaf, cedars, (t, k, im) => { place(t, 0.75 + t[4] * 0.6, 1.15); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.38 + t[3] * 0.02, 0.30, 0.14 + t[4] * 0.06)); });
-    inst(this.geo.pine, this.mats.leaf, firs, (t, k, im) => { place(t, 0.8 + t[4] * 0.7, 1.1); im.setMatrixAt(k, m); const snowy = t[1] > 16; im.setColorAt(k, snowy ? col.set('#dfe8e4') : col.setHSL(0.38 + t[3] * 0.02, 0.30, 0.14 + t[4] * 0.06)); });
+    inst(this.geo.cedar, this.mats.leaf, cedars, (t, k, im) => { place(t, 0.75 + t[4] * 0.6, 1.15); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.33 + t[3] * 0.02, 0.30, 0.14 + t[4] * 0.06)); });
+    inst(this.geo.pine, this.mats.leaf, firs, (t, k, im) => { place(t, 0.8 + t[4] * 0.7, 1.1); im.setMatrixAt(k, m); const snowy = t[1] > 16; im.setColorAt(k, snowy ? col.set('#dfe8e4') : col.setHSL(0.33 + t[3] * 0.02, 0.30, 0.14 + t[4] * 0.06)); });
     inst(this.geo.rock, this.mats.rock, rocks, (t, k, im) => { place(t, 0.6 + t[4] * 1.4, 0.7); im.setMatrixAt(k, m); im.setColorAt(k, col.setHSL(0.08, 0.06, 0.45 + t[3] * 0.15)); });
     // ground cover (flowers always; grass on High)
     const nf = GFX.real ? 420 : GFX.high ? 260 : 70; const fl = []; const fc = GFX.real ? ['#8a7ab8', '#8a7ab8', '#e8d27a', '#f0ece0', '#7a8ab8', '#c86a4a'] : ['#ff7ab0', '#ffe060', '#ffffff', '#8ab0ff', '#ff8a5a'];
