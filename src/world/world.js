@@ -195,7 +195,7 @@ export function buildWorld(scene) {
           float h00 = fract(sin(dot(ip, vec2(127.1, 311.7))) * 43758.5453), h10 = fract(sin(dot(ip + vec2(1, 0), vec2(127.1, 311.7))) * 43758.5453);
           float h01 = fract(sin(dot(ip + vec2(0, 1), vec2(127.1, 311.7))) * 43758.5453), h11 = fract(sin(dot(ip + vec2(1, 1), vec2(127.1, 311.7))) * 43758.5453);
           f += a * mix(mix(h00, h10, fp.x), mix(h01, h11, fp.x), fp.y); cp = cp * 2.03 + 17.0; a *= 0.5; }
-        float cov = smoothstep(0.42, 0.72, f) * smoothstep(0.0, 0.18, cd.y);
+        float cov = smoothstep(0.30, 0.66, f) * smoothstep(0.0, 0.18, cd.y);
         vec3 cc = mix(vec3(0.56, 0.60, 0.64), vec3(0.86, 0.89, 0.91), smoothstep(0.45, 0.85, f));   // grey bellies to #DCE3E8 tops
         texColor = mix(texColor, cc / 0.22, cov * 0.85); } }
       gl_FragColor = vec4( texColor * 0.22, 1.0 );`); scene.add(rs); W.realSky = rs;
