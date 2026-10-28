@@ -1,7 +1,9 @@
 import * as THREE from 'three';
+import { pad } from './gamepad.js';
 
 /** Keyboard, mouse and touch input. Writes movement into game.input and drives the camera. */
 export function setupInput(game, ui, canvas) {
+  pad.ctx = { game, ui };
   const keys = new Set(); const cam = game.cam; const joy = { x: 0, y: 0, id: null };
   const typing = (e) => e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
   addEventListener('keydown', (e) => {
@@ -66,6 +68,7 @@ export function setupInput(game, ui, canvas) {
     if (keys.has('w') || keys.has('arrowup')) f += 1; if (keys.has('s') || keys.has('arrowdown')) f -= 1;
     if (keys.has('d') || keys.has('arrowright')) s += 1; if (keys.has('a') || keys.has('arrowleft')) s -= 1;
     if (keys.has('q')) cam.yaw += 0.03; if (keys.has('r')) cam.yaw -= 0.03;
+    if (joy.id === null && (pad.x || pad.y)) { f = -pad.y; s = pad.x; }
     if (joy.id !== null) { f = -joy.y; s = joy.x; const l = Math.hypot(f, s); if (l < 0.15) { f = s = 0; } }
     const fx = Math.sin(cam.yaw), fz = Math.cos(cam.yaw); const rx = -Math.cos(cam.yaw), rz = Math.sin(cam.yaw);
     let ix = fx * f + rx * s, iz = fz * f + rz * s; const l = Math.hypot(ix, iz); if (l > 1) { ix /= l; iz /= l; }

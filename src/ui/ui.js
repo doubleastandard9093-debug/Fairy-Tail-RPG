@@ -1,3 +1,4 @@
+import { pad, savePad, PAD_LEGEND } from './gamepad.js';
 import * as T from '../data/skilltree.js';
 import { SKILL_DEFS, SKILL_CATS, STATIONS as CRAFT_STATIONS, SYNERGIES, SETS, skillLinks, skillBonus, globalSkillFx, setTier } from '../data/skills.js';
 import * as THREE from 'three';
@@ -562,6 +563,13 @@ export class UI {
       <div class="row"><div class="grow"><div class="nm">Auto-attack</div><div class="ds">Uses ability 1 automatically on your target when in range.</div></div><div class="seg"><button data-act="auto" data-arg="1" class="${g.autoAttack ? 'on' : ''}">On</button><button data-act="auto" data-arg="0" class="${!g.autoAttack ? 'on' : ''}">Off</button></div></div>
       <div class="row"><div class="grow"><div class="nm">Screen shake</div></div><div class="seg"><button data-act="shake" data-arg="1" class="${S.shake !== false ? 'on' : ''}">On</button><button data-act="shake" data-arg="0" class="${S.shake === false ? 'on' : ''}">Off</button></div></div>
       <div class="row"><div class="grow"><div class="nm">Controls</div><div class="ds">Auto picks touch or keyboard for your device.</div></div><div class="seg">${['auto', 'on', 'off'].map((v) => `<button data-act="touch" data-arg="${v}" class="${S.touch === v ? 'on' : ''}">${{ auto: 'Auto', on: 'Touch', off: 'Keys' }[v]}</button>`).join('')}</div></div>
+      <div class="sec">Controller (Xbox)</div>
+      <div class="muted">${pad.connected ? '🎮 Connected: ' + esc(pad.id) : 'Pair an Xbox controller over Bluetooth (iPhone: Settings › Bluetooth), then press any button.'}</div>
+      <div class="row"><div class="grow"><div class="nm">Camera stick speed</div></div><div class="seg">${[0.5, 1, 1.5, 2].map((v) => `<button data-act="padsens" data-arg="${v}" class="${pad.sens === v ? 'on' : ''}">${v}x</button>`).join('')}</div></div>
+      <div class="row"><div class="grow"><div class="nm">Stick deadzone</div></div><div class="seg">${[0.1, 0.18, 0.25].map((v) => `<button data-act="paddz" data-arg="${v}" class="${pad.dz === v ? 'on' : ''}">${Math.round(v * 100)}%</button>`).join('')}</div></div>
+      <div class="row"><div class="grow"><div class="nm">Invert camera Y</div></div><div class="seg"><button data-act="padinv" data-arg="1" class="${pad.invertY ? 'on' : ''}">On</button><button data-act="padinv" data-arg="0" class="${!pad.invertY ? 'on' : ''}">Off</button></div></div>
+      <div class="row"><div class="grow"><div class="nm">Rumble</div></div><div class="seg"><button data-act="padrum" data-arg="1" class="${pad.rumbleOn ? 'on' : ''}">On</button><button data-act="padrum" data-arg="0" class="${!pad.rumbleOn ? 'on' : ''}">Off</button></div></div>
+      <div class="muted">${PAD_LEGEND}</div>
       <div class="sec">Save</div>
       <div class="muted">The game autosaves to this device every 15 seconds and when you close a panel. Played ${Math.floor(G.playTime / 60)} min.</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0"><button class="btn gold" data-act="save">💾 Save now</button><button class="btn" data-act="export">⬇️ Export save</button><button class="btn" data-act="importFile">⬆️ Import file</button><button class="btn" data-act="importText">📋 Import from text</button></div>
@@ -620,6 +628,10 @@ export class UI {
       case 'mute': g.S.mute = arg === '1'; saveSettings(g.S); this.audio?.unlock(); this.audio?.applyVolume(); break;
       case 'auto': g.autoAttack = arg === '1'; g.S.autoAttack = g.autoAttack; saveSettings(g.S); break;
       case 'shake': g.S.shake = arg === '1'; saveSettings(g.S); break;
+      case 'padsens': pad.sens = +arg; savePad(); break;
+      case 'paddz': pad.dz = +arg; savePad(); break;
+      case 'padinv': pad.invertY = arg === '1'; savePad(); break;
+      case 'padrum': pad.rumbleOn = arg === '1'; savePad(); break;
       case 'touch': g.S.touch = arg; saveSettings(g.S); window.dispatchEvent(new Event('resize')); break;
       case 'save': saveGame(G); this.toast('💾 Saved!'); break;
       case 'export': {

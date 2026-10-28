@@ -37,6 +37,8 @@ addEventListener('click', (e) => { if (e.target.closest && e.target.closest('but
 audio.play('hall');
 const loading = document.createElement('div'); loading.id = 'loading'; loading.textContent = 'Opening the guild doors…'; document.body.appendChild(loading);
 
+import { initGamepad } from './ui/gamepad.js';
+initGamepad();
 async function boot() {
   await loadFiore();
   let G = loadGame();

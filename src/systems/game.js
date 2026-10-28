@@ -1,3 +1,4 @@
+import { rumble as padRumble } from '../ui/gamepad.js';
 import { setupRealism } from './realism.js';
 import * as THREE from 'three';
 import { ITEMS, WEAPON_TYPES } from '../data/items.js';
@@ -428,7 +429,7 @@ export class Game {
       dmg = Math.round(dmg); pl.combatT = 6;
       if (dmg <= 0) { this.ui.floatText(pl.pos, 2.2, 'Blocked', 'heal'); return; }
       if (pfx.thorns && src && src.kind === 'mob' && !src.dead) { const th = Math.max(1, Math.round(dmg * pfx.thorns)); src.hp -= th; this.ui.floatText(src.pos, 2, '↩' + th, 'dmg'); if (src.hp <= 0) this.killMob(src); }
-      G.hp -= dmg; pl.hitT = this.t; this.ui.sfx('hurt'); this.ui.floatText(pl.pos, 2.2, '-' + dmg, 'hurt'); this.ui.hurtFlash();
+      G.hp -= dmg; pl.hitT = this.t; this.ui.sfx('hurt'); this.ui.floatText(pl.pos, 2.2, '-' + dmg, 'hurt'); this.ui.hurtFlash(); padRumble(0.6, 0.4, 130);
       G.adr = Math.min(100, G.adr + 2);
       if (G.hp <= 0) this.playerDie(srcName);
     } else {
