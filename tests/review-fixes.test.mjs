@@ -15,6 +15,8 @@ const unit = skull.material.userData.micro.microS.value / KINDS.skin[5];
 assert.deepEqual(micro(skull.material), [KINDS.skin[4], +(KINDS.skin[5] * unit).toFixed(3)], 'skull tuned as skin, not cloth');
 const iris = c.parts.eyes[0].children[1]; assert.equal(kindOf(iris.material, iris, 'cloth'), 'eye', 'iris is eye');
 assert.equal(iris.material.roughness, KINDS.eye[0], 'eye tuned glossy');
+assert.ok(iris.material.isMeshPhysicalMaterial && iris.material.clearcoat > 0.9, 'eye clearcoat after physical conversion');
+assert.equal(skull.material.userData.surface, 'skin', 'metadata survives toPhysical');
 const vul = buildMob('vulcan', {}); let furOK = false; vul.group.traverse((o) => { if (o.isMesh && o.material.userData.surface === 'fur' && kindOf(o.material, o, 'cloth') === 'fur') furOK = true; });
 assert.ok(furOK, 'creature cmat fur metadata survives realify');
 const gol = buildMob('golem', {}); let stone = 0; gol.group.traverse((o) => { if (o.isMesh && kindOf(o.material, o, 'fur') === 'stone') stone++; }); assert.ok(stone > 0, 'golem cmat stone metadata');

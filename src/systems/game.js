@@ -12,7 +12,7 @@ import { buildCharacter, buildMob, animateCharacter, animateMob, equipVisual } f
 import { dressElite } from '../world/creatures.js';
 import { animateMobState } from '../world/detail.js';
 import { buildWorld, groundAt, HALL, zoneAt, placeAt, blockedAt, rng } from '../world/world.js';
-import { PLACE, trainCost, FERRY_COST } from '../world/fiore.js';
+import { PLACE, trainCost, FERRY_COST, forestAt, biomeAt, distToLines, ROADS_W, RAILS_W, WATER_Y } from '../world/fiore.js';
 import { Transit, railPath, seaPath as seaPathFor } from './transit.js';
 import { glow, GFX } from '../world/toon.js';
 import * as P from './progress.js';
@@ -34,6 +34,12 @@ export class Game {
     this.cam = { yaw: Math.PI, pitch: 0.55, dist: 11, tx: 0, ty: 0, tz: 0 };
     this.world = buildWorld(this.scene);
     if (GFX.real) this.post = setupRealism(renderer, this.scene, this.camera, this.world);
+    if (GFX.real && !/[?&]scenery=0/.test(location.search)) {   // Aerondel CC0 wilderness models, Realistic only
+      const sr = rng(0x5ce7e);
+      import('../world/scenery.js').then((m) => m.addScenery(this.scene, { rand: sr, groundAt, blockedAt, placeAt, forestAt, biomeAt, waterY: WATER_Y, center: [0, 0],
+        roadDist: (x, z) => Math.min(distToLines(ROADS_W, x, z), distToLines(RAILS_W, x, z)) }, import.meta.env.BASE_URL))
+        .then((r) => { window.__scenery = { planned: r.planned, placed: r.placed, files: r.files }; }).catch((e) => console.warn('[scenery]', e));
+    }
     this.transit = new Transit(this); this.magic = new MagicFX(this);
     this.t = 0; this.entities = []; this.projectiles = []; this.teles = []; this.traps = []; this.fx = [];
     this.input = { x: 0, z: 0 }; this.autoAttack = S.autoAttack !== false;
