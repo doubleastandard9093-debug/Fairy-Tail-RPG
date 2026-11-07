@@ -27,16 +27,25 @@ export function refineAnatomy(parts, opts = {}) {
     if (th && !opts.noMuscle) th.scale.set(th.scale.x * 1.03, th.scale.y, th.scale.z * 0.95);
     if (sh && !opts.noMuscle) sh.scale.set(sh.scale.x, sh.scale.y, sh.scale.z * 1.07);
   }
-  parts.anat = { swaps, near: true }; REG.add(parts);
+  parts.anat = { swaps, near: true, released: false };
+  const root = parts.body.parent || parts.body;   // buildCharacter root group: lifecycle follows it
+  parts.anat.root = root;
+  root.addEventListener('added', () => { if (!parts.anat.released) REG.add(parts); });
+  root.addEventListener('removed', () => dropChar(parts));
+  if (root.parent) REG.add(parts);
   return swaps.length;
 }
+function topOf(o) { while (o.parent) o = o.parent; return o; }
+function dropChar(p) { REG.delete(p); setNear(p, true); }
+/** Explicit disposal (e.g. preview teardown): never re-registers even if the model is re-added. */
+export function releaseCharacter(p) { if (!p || !p.anat) return; p.anat.released = true; dropChar(p); }
 export function setNear(p, on) { if (on === p.anat.near) return; p.anat.near = on; for (const s of p.anat.swaps) { s.fine.visible = on; s.coarse.visible = !on; } }
 const _v = new THREE.Vector3();
 /** Distance LOD, once per frame. Returns how many characters are at full detail. */
-export function tickAnatomy(camera) {
+export function tickAnatomy(camera, scene = null) {
   if (!REG.size) return 0; let near = 0;
   for (const p of REG) {
-    if (!p.body.parent) { REG.delete(p); continue; }
+    const top = topOf(p.anat.root); if (scene ? top !== scene : !top.isScene) { dropChar(p); continue; }
     const on = p.body.getWorldPosition(_v).distanceTo(camera.position) < LOD_FAR; if (on) near++; setNear(p, on);
   }
   return near;
@@ -100,14 +109,19 @@ export function refineCreatureLOD(group, parts = {}) {
     if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); o.getWorldScale(s);
     sph.copy(o.geometry.boundingSphere); if (sph.radius * Math.max(s.x, s.y, s.z) < DETAIL_FRAC * H) fine.push(o);
   });
-  group.userData.clod = { fine, near: true, far: LOD_FAR * Math.max(1, H / 2), H }; CREG.add(group);
+  group.userData.clod = { fine, near: true, far: LOD_FAR * Math.max(1, H / 2), H, released: false };
+  group.addEventListener('added', () => { if (!group.userData.clod.released) CREG.add(group); });
+  group.addEventListener('removed', () => dropCreature(group));
+  if (group.parent) CREG.add(group);
   return fine.length;
 }
+function dropCreature(g) { CREG.delete(g); setCreatureNear(g, true); }
+export function releaseCreature(g) { if (!g || !g.userData.clod) return; g.userData.clod.released = true; dropCreature(g); }
 export function setCreatureNear(g, on) { const c = g.userData.clod; if (!c || c.near === on) return; c.near = on; for (const o of c.fine) o.visible = on; }
-export function tickCreatures(camera) {
+export function tickCreatures(camera, scene = null) {
   let near = 0;
   for (const g of CREG) {
-    if (!g.parent) { CREG.delete(g); continue; }
+    const top = topOf(g); if (scene ? top !== scene : !top.isScene) { dropCreature(g); continue; }
     const on = g.getWorldPosition(_v).distanceTo(camera.position) < g.userData.clod.far; if (on) near++; setCreatureNear(g, on);
   }
   return near;

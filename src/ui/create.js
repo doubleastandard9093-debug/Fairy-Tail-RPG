@@ -1,3 +1,4 @@
+import { releaseCharacter } from '../world/anatomy.js';
 import * as THREE from 'three';
 import { buildCharacter, animateCharacter, equipVisual, HAIR_STYLES, HAIR_COLORS, SKIN_TONES, OUTFITS, OUTFIT_COLORS, FRAMES, ACCESSORIES } from '../world/models.js';
 const EYE_COLORS = ['#3a2a1a', '#2a6ad0', '#2a9a5a', '#c03030', '#9a50ff', '#d0a020', '#606070'];
@@ -98,7 +99,7 @@ export function characterCreation() {
     loop();
     root.querySelector('#cc-go').onclick = () => {
       const name = root.querySelector('#cc-name').value.trim() || 'Rookie';
-      alive = false; renderer.dispose(); renderer.forceContextLoss && renderer.forceContextLoss(); root.remove();
+      alive = false; if (char) { releaseCharacter(char.parts); scene.remove(char.group); } renderer.dispose(); renderer.forceContextLoss && renderer.forceContextLoss(); root.remove();
       resolve({ name, look: { ...L, mark: { ...L.mark } }, school });
     };
   });

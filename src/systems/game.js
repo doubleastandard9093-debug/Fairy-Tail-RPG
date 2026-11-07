@@ -961,5 +961,5 @@ export class Game {
     this.camera.position.set(cx + shake, cy + shake, cz);
     this.camera.lookAt(c.tx, c.ty, c.tz);
   }
-  render() { if (GFX.real) { tickAnatomy(this.camera); tickCreatures(this.camera); } if (this.post) this.post.render(); else this.renderer.render(this.scene, this.camera); }
+  render() { if (GFX.real) { tickAnatomy(this.camera, this.scene); tickCreatures(this.camera, this.scene); } if (this.post) this.post.render(); else this.renderer.render(this.scene, this.camera); }
 }
