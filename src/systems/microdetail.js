@@ -62,9 +62,12 @@ const MICRO_GLSL = (space, near, far) => `#include <normal_fragment_maps>
 }`;
 
 // Chain a micro-normal patch onto a material, keeping any existing onBeforeCompile (toon detail, wind, sheen...).
-export function addMicro(mat, strength, scale, world = false) {
-  if (!mat || mat.userData.micro || !strength || !mat.isMeshStandardMaterial) return false;
-  const U = { tMicro: { value: microNoise() }, microK: { value: strength }, microS: { value: scale } };
+// mottle: Aerondel paints fur/hide/scale/stone patterns into vertex colours; here the same breakup is an object-space
+// albedo modulation (no geometry change, so creature silhouettes, incl. faceted golem rock, are untouched).
+export const MOTTLE = { fur: 0.16, hide: 0.2, stone: 0.24, horn: 0.08, skin: 0.04, leather: 0.1, bark: 0.18, wood: 0.12 };
+export function addMicro(mat, strength, scale, world = false, mottle = 0) {
+  if (!mat || mat.userData.micro || !(strength || mottle) || !mat.isMeshStandardMaterial) return false;
+  const U = { tMicro: { value: microNoise() }, microK: { value: strength }, microS: { value: scale }, mottleK: { value: world ? 0 : mottle } };
   mat.userData.micro = U;
   const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : () => '';
   mat.onBeforeCompile = (sh, r) => {
@@ -76,7 +79,8 @@ export function addMicro(mat, strength, scale, world = false) {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMicroP = position;')
       .replace('#include <project_vertex>', '#include <project_vertex>\n{ vec4 mwp = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n mwp = instanceMatrix * mwp;\n#endif\n vMicroW = (modelMatrix * mwp).xyz; }');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vMicroP; varying vec3 vMicroW; uniform sampler2D tMicro; uniform float microK; uniform float microS;')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vMicroP; varying vec3 vMicroW; uniform sampler2D tMicro; uniform float microK; uniform float microS; uniform float mottleK;')
+      .replace('#include <map_fragment>', '#include <map_fragment>\nif (mottleK > 0.0) { vec3 mp = vMicroP * microS * 0.08; float mv = texture2D(tMicro, mp.xy + mp.z * 0.37).r * 0.6 + texture2D(tMicro, mp.zy * 2.3).r * 0.4; diffuseColor.rgb *= 1.0 + (mv - 0.5) * 2.0 * mottleK; }')
       .replace('#include <normal_fragment_maps>', world ? MICRO_GLSL('vMicroW', 18, 45) : MICRO_GLSL('vMicroP', 10, 28));
   };
   mat.customProgramCacheKey = () => prevKey() + (world ? '|wmicro' : '|micro');
@@ -139,7 +143,7 @@ function tune(mat, kind) {
 }
 
 // Characters, NPCs, monsters, creatures (object-space detail, scaled to the object's real height).
-export function realifyActor(obj, hint = 'cloth', height = 1.75) {
+export function realifyActor(obj, hint = 'cloth', height = 1.75, opts = {}) {
   if (!GFX.real || !obj) return 0;
   const bb = new THREE.Box3().setFromObject(obj), ext = Math.max(1e-3, bb.max.y - bb.min.y);
   const unit = height > 0 ? 1 : 1 / ext; let n = 0;
@@ -147,10 +151,10 @@ export function realifyActor(obj, hint = 'cloth', height = 1.75) {
     if (!o.isMesh || o.userData.noMicro || o.isInstancedMesh) return;
     const first = [].concat(o.material)[0]; if (!first || first.transparent) return;
     const kind0 = kindOf(first, o, hint);
-    if (CREASE[kind0] && o.geometry && !o.isSkinnedMesh && !o.geometry.userData.smoothed && !o.userData.faceted) o.geometry = smoothGeometry(o.geometry, CREASE[kind0]);
+    if (!opts.noSmooth && CREASE[kind0] && o.geometry && !o.isSkinnedMesh && !o.geometry.userData.smoothed && !o.userData.faceted) o.geometry = smoothGeometry(o.geometry, CREASE[kind0]);
     const up = (m) => {
       const kind = kindOf(m, o, hint), p = toPhysical(m, kind); tune(p, kind);
-      const [, , , , k, s] = KINDS[kind]; if (addMicro(p, k, s * unit)) n++; return p;
+      const [, , , , k, s] = KINDS[kind]; if (addMicro(p, k, s * unit, false, MOTTLE[kind] || 0)) n++; return p;
     };
     o.material = Array.isArray(o.material) ? o.material.map(up) : up(o.material);
   });

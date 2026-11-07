@@ -4,6 +4,7 @@ import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
 import { CREATURES, buildCreature, animateCreature, dressLizard, animateLizardExtra } from './creatures.js';
 import { C2, buildC2, animateC2, dressLullaby, animateLullabyExtra, dressMage, animateMageExtra, dressWizard, animateWizardExtra, dressBossAura, animateBossAura } from './creatures2.js';
 import { realifyActor } from '../systems/microdetail.js';
+import { refineAnatomy, fullBody, refineCreatureLOD } from './anatomy.js';
 import { refineCharacter, animateDetail, refineMob, FRAMES, ACCESSORIES, EXTRA_OUTFITS } from './detail.js';
 export { FRAMES, ACCESSORIES };
 
@@ -125,6 +126,7 @@ export function buildCharacter(look = {}) {
   const parts = { body, head, torso, armL, armR, legL, legR, gem, weapon: null, bowHand: null, eyes, mouth, grin, mark: markMesh, markYaw, pose: L.preset || null, seed: Math.random() * 10 };
   if (L.preset || L.build) dressPreset(L, parts, { skin, cloth, cloth2, hair: hairM });
   if (!L.lowDetail) refineCharacter(parts, L, { skin, cloth, cloth2, hair: hairM });
+  if (!L.lowDetail) refineAnatomy(parts);
   root.scale.setScalar(L.scale * (L.height || 1));
   addOutlines(root); shadowAll(root, true, false); realifyActor(root, 'cloth');
   return { group: root, parts };
@@ -260,12 +262,13 @@ export function animateCharacter(char, st) {
   p.head.rotation.x = st.emote === 'salute' ? -0.15 : 0;
   if (st.dead) { p.body.rotation.x = -1.4; p.body.position.y = 0.2; } else p.body.rotation.x = mv * (0.08 + run * 0.12) + (st.cast > 0 ? -0.05 : 0);
   if (p.spring) animateDetail(p, st, mv, sw);
+  if (p.anat) fullBody(p, st);
 }
 
 // ------------------------------- Mobs -----------------------------------
 export function buildMob(model, opt = {}) {
-  if (CREATURES.has(model)) { const c = buildCreature(model, opt); if (opt.bossAura) dressBossAura(c.group, c.parts, opt.bossAura); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, model === 'golem' ? 'stone' : model === 'dragon' ? 'hide' : 'fur'); return c; }
-  if (C2.has(model)) { const c = buildC2(model, opt, buildCharacter); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, 'hide'); return c; }
+  if (CREATURES.has(model)) { const c = buildCreature(model, opt); if (opt.bossAura) dressBossAura(c.group, c.parts, opt.bossAura); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, model === 'golem' ? 'stone' : model === 'dragon' ? 'hide' : 'fur', 1.75, { noSmooth: model === 'golem' }); refineCreatureLOD(c.group, c.parts); return c; }
+  if (C2.has(model)) { const c = buildC2(model, opt, buildCharacter); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, 'hide'); refineCreatureLOD(c.group, c.parts); return c; }
   const g = new THREE.Group(); const parts = {};
   const eyes = (parent, y, z, sx = 0.1, r = 0.05) => {
     for (const s of [-1, 1]) {
@@ -598,7 +601,7 @@ export function buildMob(model, opt = {}) {
   else if (model === 'lullaby') dressLullaby(g, parts);
   else if (model === 'mage') dressMage(g, parts, opt.robe || '#2a2236');
   else if (model === 'wizard') dressWizard(g, parts, opt);
-  addOutlines(g); shadowAll(g, true, false); realifyActor(g, 'hide');
+  addOutlines(g); shadowAll(g, true, false); realifyActor(g, model === 'lullaby' ? 'wood' : 'hide', 1.75, { noSmooth: model === 'lullaby' }); refineCreatureLOD(g, parts);
   return { group: g, parts };
 }
 

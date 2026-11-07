@@ -11,6 +11,8 @@ import { derived, countItem, addItem, skillLevel, classRank, canAdd, saveGame } 
 import { buildCharacter, buildMob, animateCharacter, animateMob, equipVisual } from '../world/models.js';
 import { dressElite } from '../world/creatures.js';
 import { animateMobState } from '../world/detail.js';
+import { tickAnatomy, tickCreatures } from '../world/anatomy.js';
+import { applySeason, pickSeason } from '../world/seasons.js';
 import { buildWorld, groundAt, HALL, zoneAt, placeAt, blockedAt, rng } from '../world/world.js';
 import { PLACE, trainCost, FERRY_COST, forestAt, biomeAt, distToLines, ROADS_W, RAILS_W, WATER_Y } from '../world/fiore.js';
 import { Transit, railPath, seaPath as seaPathFor } from './transit.js';
@@ -34,9 +36,10 @@ export class Game {
     this.cam = { yaw: Math.PI, pitch: 0.55, dist: 11, tx: 0, ty: 0, tz: 0 };
     this.world = buildWorld(this.scene);
     if (GFX.real) this.post = setupRealism(renderer, this.scene, this.camera, this.world);
+    if (GFX.real) window.__season = applySeason(pickSeason(location.search), { base: import.meta.env.BASE_URL });   // Aerondel seasons (look only)
     if (GFX.real && !/[?&]scenery=0/.test(location.search)) {   // Aerondel CC0 wilderness models, Realistic only
       const sr = rng(0x5ce7e);
-      import('../world/scenery.js').then((m) => m.addScenery(this.scene, { rand: sr, groundAt, blockedAt, placeAt, forestAt, biomeAt, waterY: WATER_Y, center: [0, 0],
+      import('../world/scenery.js').then((m) => m.addScenery(this.scene, { rand: sr, season: new URLSearchParams(location.search).get('season') || ['winter','winter','spring','spring','spring','summer','summer','summer','autumn','autumn','autumn','winter'][new Date().getMonth()], groundAt, blockedAt, placeAt, forestAt, biomeAt, waterY: WATER_Y, center: [0, 0],
         roadDist: (x, z) => Math.min(distToLines(ROADS_W, x, z), distToLines(RAILS_W, x, z)) }, import.meta.env.BASE_URL))
         .then((r) => { window.__scenery = { planned: r.planned, placed: r.placed, files: r.files }; }).catch((e) => console.warn('[scenery]', e));
     }
@@ -958,5 +961,5 @@ export class Game {
     this.camera.position.set(cx + shake, cy + shake, cz);
     this.camera.lookAt(c.tx, c.ty, c.tz);
   }
-  render() { if (this.post) this.post.render(); else this.renderer.render(this.scene, this.camera); }
+  render() { if (GFX.real) { tickAnatomy(this.camera, this.scene); tickCreatures(this.camera, this.scene); } if (this.post) this.post.render(); else this.renderer.render(this.scene, this.camera); }
 }

@@ -6,12 +6,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { smoothGeometry, realifyWorld } from '../systems/microdetail.js';
+import { registerLeaf } from './seasons.js';
 
 export const MAX = 360;
 export const KINDS = {
   broadleaf: { v: ['nature/broadleaf_a', 'nature/broadleaf_b', 'nature/broadleaf_c', 'nature/broadleaf_d'], h: [5.5, 8.5], crease: 80 },
   pine: { v: ['nature/pine_a', 'nature/pine_b', 'nature/pine_c', 'nature/pine_d'], h: [6, 10], crease: 55 },
   bush: { v: ['nature/bush_a', 'nature/bush_b', 'nature/bush_c'], h: [0.8, 1.4], crease: 80 },
+  autumn: { v: ['nature/autumn_a', 'nature/autumn_b', 'nature/autumn_c'], h: [5.5, 8], crease: 80 },
   rock: { v: ['nature/rock_a', 'nature/rock_b', 'nature/rock_c', 'nature/rock_d'], h: [0.8, 2.4], crease: 0 },
 };
 const ALL_FILES = Object.values(KINDS).flatMap((k) => k.v);
@@ -27,7 +29,7 @@ export function planScenery(env, max = MAX) {
     if (out.some((o) => Math.abs(o.x - x) < 3 && Math.abs(o.z - z) < 3)) continue;
     const f = env.forestAt(x, z), b = env.biomeAt(x, z), hi = b === 3 || b === 4;
     const roll = rand();
-    const kind = roll < f * 0.8 ? (hi || rand() < 0.35 ? 'pine' : 'broadleaf') : roll < 0.55 ? 'bush' : hi || roll < 0.8 ? 'rock' : null;
+    const kind = roll < f * 0.8 ? (hi || rand() < 0.35 ? 'pine' : env.season === 'autumn' && rand() < 0.5 ? 'autumn' : 'broadleaf') : roll < 0.55 ? 'bush' : hi || roll < 0.8 ? 'rock' : null;
     if (!kind) continue;
     const K = KINDS[kind]; out.push({ kind, file: K.v[Math.floor(rand() * K.v.length)], x, y, z, h: K.h[0] + rand() * (K.h[1] - K.h[0]), rot: rand() * Math.PI * 2 });
   }
@@ -53,7 +55,7 @@ function prep(obj, file) {
   obj.traverse((o) => {
     if (!o.isMesh) return; o.castShadow = kind !== 'bush'; o.receiveShadow = kind !== 'bush';
     if (crease && o.geometry) o.geometry = smoothGeometry(o.geometry, crease);
-    for (const m of [].concat(o.material)) { if (/leaf|leafs/i.test(m.name || '')) m.name = 'leaf'; else if (/wood|bark|trunk/i.test(m.name || '')) m.name = 'bark ' + m.name; else if (kind === 'rock') m.name = 'stone ' + (m.name || ''); }
+    for (const m of [].concat(o.material)) { if (/leaf|leafs/i.test(m.name || '')) { m.name = 'leaf'; registerLeaf(m); } else if (/wood|bark|trunk/i.test(m.name || '')) m.name = 'bark ' + m.name; else if (kind === 'rock') m.name = 'stone ' + (m.name || ''); }
   });
   const bb = new THREE.Box3().setFromObject(obj); return { obj, h: Math.max(0.1, bb.max.y - bb.min.y) };
 }
