@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import { supportUrl, supportLinkHTML } from '../src/ui/support.js';
+const ok = { VITE_SUPPORT_URL: 'https://ko-fi.com/example', VITE_SUPPORT_RIGHTS_OK: 'yes' };
+assert.equal(supportUrl({}), null); assert.equal(supportLinkHTML({}), '');
+assert.equal(supportUrl({ VITE_SUPPORT_URL: ok.VITE_SUPPORT_URL }), null, 'needs rights confirmation');
+assert.equal(supportUrl(ok), 'https://ko-fi.com/example');
+assert.equal(supportUrl({ ...ok, VITE_SUPPORT_URL: 'http://ko-fi.com/x' }), null);
+assert.equal(supportUrl({ ...ok, VITE_SUPPORT_URL: 'https://evil.example/x' }), null);
+assert.equal(supportUrl({ ...ok, VITE_SUPPORT_URL: 'javascript:alert(1)' }), null);
+const h = supportLinkHTML(ok); assert.match(h, /rel="noopener noreferrer"/); assert.match(h, /stays free/);
+console.log('support tests: ok');
