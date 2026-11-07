@@ -39,7 +39,7 @@ function buildHand(fore, skinM, side, glove) {
 /** Upgrade a freshly built character. M = { skin, cloth, cloth2, hair }; L = look. */
 export function refineCharacter(P, L, M) {
   const { body, head, torso, armL, armR, legL, legR } = P;
-  const skinM = M.skin; const dark = toon('#2a2230'); const leather = toon('#5a3a22'), leather2 = toon('#3a2616'), metal = toon('#b8bcc8'), gold = toon('#e8c060');
+  const skinM = M.skin; const dark = toon('#2a2230'); const leather = toon('#5a3a22', { kind: 'leather' }), leather2 = toon('#3a2616', { kind: 'leather' }), metal = toon('#b8bcc8', { kind: 'metal' }), gold = toon('#e8c060', { kind: 'metal' });
   const frame = L.frame || 'average'; const fw = { slim: 0.92, average: 1, broad: 1.12 }[frame] || 1;
   // ---- anatomy: shoulders, clavicles, chest, elbows, knees ----
   for (const a of [armL, armR]) {
@@ -69,8 +69,8 @@ export function refineCharacter(P, L, M) {
   // ---- face: sclera, pupils, nose, lips, lids, cheeks, chin ----
   if (P.eyes) for (const eg of P.eyes) {
     const iris = eg.children[1]; if (!iris) continue; const x = iris.position.x;
-    const scl = add(eg, sph(0.058, 12, 10), toon('#fbf8f4'), x, -0.008, 0.262); scl.scale.set(0.85, 1.12, 0.34); scl.userData.noOutline = true;
-    const pup = add(eg, sph(0.022, 8, 6), toon('#120c14'), x, -0.016, 0.285); pup.scale.set(0.8, 1.2, 0.3); pup.userData.noOutline = true;
+    const scl = add(eg, sph(0.058, 12, 10), toon('#fbf8f4', { kind: 'eye' }), x, -0.008, 0.262); scl.scale.set(0.85, 1.12, 0.34); scl.userData.noOutline = true;
+    const pup = add(eg, sph(0.022, 8, 6), toon('#120c14', { kind: 'eye' }), x, -0.016, 0.285); pup.scale.set(0.8, 1.2, 0.3); pup.userData.noOutline = true;
     const lid = add(eg, sph(0.062, 12, 6, ), toon(shade(L.skin || '#f2d0b0', 0.92)), x, 0.022, 0.258); lid.scale.set(0.95, 0.45, 0.38); lid.userData.noOutline = true; eg.userData.lid = lid;
   }
   const nose = add(head, cone(0.026, 0.07, 6), toon(shade(L.skin || '#f2d0b0', 0.96)), 0, -0.07, 0.285); nose.rotation.x = Math.PI / 2 + 0.35; nose.userData.noOutline = true;

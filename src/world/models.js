@@ -35,8 +35,8 @@ export function buildCharacter(look = {}) {
   // Torso + hips
   const torso = mesh(G.cap(0.24, 0.32), cloth, 0, 1.16, 0); torso.scale.set(1, 1, 0.78); body.add(torso);
   const hips = mesh(G.cap(0.22, 0.08), pants, 0, 0.9, 0); hips.scale.set(1.05, 1, 0.8); body.add(hips);
-  const belt = mesh(G.cyl(0.235, 0.235, 0.07, 14), toon('#5a3a22'), 0, 0.98, 0); belt.scale.z = 0.8; body.add(belt);
-  const buckle = mesh(G.box(0.08, 0.06, 0.03), toon('#e8c060'), 0, 0.98, 0.19); body.add(buckle);
+  const belt = mesh(G.cyl(0.235, 0.235, 0.07, 14), toon('#5a3a22', { kind: 'leather' }), 0, 0.98, 0); belt.scale.z = 0.8; body.add(belt);
+  const buckle = mesh(G.box(0.08, 0.06, 0.03), toon('#e8c060', { kind: 'metal' }), 0, 0.98, 0.19); body.add(buckle);
   const neck = mesh(G.cyl(0.07, 0.08, 0.12), skin, 0, 1.43, 0); body.add(neck);
 
   // Outfit details
@@ -62,8 +62,8 @@ export function buildCharacter(look = {}) {
   const eyes = [];
   for (const s of [-1, 1]) {
     const eyeG = new THREE.Group(); eyeG.position.set(0, -0.01, 0); head.add(eyeG); eyes.push(eyeG);
-    const eye = mesh(G.sph(0.065, 12, 10), dark, s * 0.11, -0.01, 0.255); eye.scale.set(0.8, 1.25, 0.4); eye.position.y = 0; eyeG.add(eye);
-    const iris = mesh(G.sph(0.045, 10, 8), toon(L.eyeColor || shade(L.hairColor, 0.8)), s * 0.11, -0.015, 0.272); iris.scale.set(0.8, 1.1, 0.3); eyeG.add(iris);
+    const eye = mesh(G.sph(0.065, 12, 10), toon('#2a2230', { kind: 'eye' }), s * 0.11, -0.01, 0.255); eye.scale.set(0.8, 1.25, 0.4); eye.position.y = 0; eyeG.add(eye);
+    const iris = mesh(G.sph(0.045, 10, 8), toon(L.eyeColor || shade(L.hairColor, 0.8), { kind: 'eye' }), s * 0.11, -0.015, 0.272); iris.scale.set(0.8, 1.1, 0.3); eyeG.add(iris);
     const hl = mesh(G.sph(0.018, 6, 6), white, s * 0.11 + 0.015, 0.03, 0.285); eyeG.add(hl);
     const hl2 = mesh(G.sph(0.009, 5, 4), white, s * 0.11 - 0.014, -0.035, 0.285); eyeG.add(hl2);
     const lash = mesh(G.box(0.1, 0.016, 0.02), dark, s * 0.11, 0.07, 0.268); lash.rotation.z = -s * 0.12; eyeG.add(lash);
@@ -267,7 +267,7 @@ export function animateCharacter(char, st) {
 
 // ------------------------------- Mobs -----------------------------------
 export function buildMob(model, opt = {}) {
-  if (CREATURES.has(model)) { const c = buildCreature(model, opt); if (opt.bossAura) dressBossAura(c.group, c.parts, opt.bossAura); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, model === 'golem' ? 'stone' : model === 'dragon' ? 'hide' : 'fur'); refineCreatureLOD(c.group, c.parts); return c; }
+  if (CREATURES.has(model)) { const c = buildCreature(model, opt); if (opt.bossAura) dressBossAura(c.group, c.parts, opt.bossAura); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, model === 'golem' ? 'stone' : model === 'dragon' ? 'hide' : 'fur', 1.75, { noSmooth: model === 'golem' }); refineCreatureLOD(c.group, c.parts); return c; }
   if (C2.has(model)) { const c = buildC2(model, opt, buildCharacter); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, 'hide'); refineCreatureLOD(c.group, c.parts); return c; }
   const g = new THREE.Group(); const parts = {};
   const eyes = (parent, y, z, sx = 0.1, r = 0.05) => {
@@ -601,7 +601,7 @@ export function buildMob(model, opt = {}) {
   else if (model === 'lullaby') dressLullaby(g, parts);
   else if (model === 'mage') dressMage(g, parts, opt.robe || '#2a2236');
   else if (model === 'wizard') dressWizard(g, parts, opt);
-  addOutlines(g); shadowAll(g, true, false); realifyActor(g, model === 'lullaby' ? 'wood' : 'hide'); refineCreatureLOD(g, parts);
+  addOutlines(g); shadowAll(g, true, false); realifyActor(g, model === 'lullaby' ? 'wood' : 'hide', 1.75, { noSmooth: model === 'lullaby' }); refineCreatureLOD(g, parts);
   return { group: g, parts };
 }
 

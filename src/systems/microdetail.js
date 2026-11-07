@@ -43,6 +43,10 @@ export function surfaceKind(name = '', hint = 'cloth') {
   return hint;
 }
 
+// Explicit surface metadata (toon({kind}), cmat(kind)) wins; names are only a fallback (FT builders leave names empty).
+const META = { skin: 'skin', hair: 'hair', cloth: 'cloth', fur: 'fur', eye: 'eye', metal: 'metal', leather: 'leather', horn: 'horn', bone: 'horn', scale: 'hide', hide: 'hide', stone: 'stone', moss: 'stone', wood: 'wood', bark: 'bark', wet: 'wet' };
+export function kindOf(m, o, hint = 'cloth') { const k = m && m.userData && META[m.userData.surface]; return k || surfaceKind((m && m.name) || (o && o.name) || '', hint); }
+
 const MICRO_GLSL = (space, near, far) => `#include <normal_fragment_maps>
 {
   float md = length(cameraPosition - vMicroW);
@@ -73,7 +77,7 @@ export function addMicro(mat, strength, scale, world = false, mottle = 0) {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vMicroP; varying vec3 vMicroW;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMicroP = position;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\nvMicroW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      .replace('#include <project_vertex>', '#include <project_vertex>\n{ vec4 mwp = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n mwp = instanceMatrix * mwp;\n#endif\n vMicroW = (modelMatrix * mwp).xyz; }');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vMicroP; varying vec3 vMicroW; uniform sampler2D tMicro; uniform float microK; uniform float microS; uniform float mottleK;')
       .replace('#include <map_fragment>', '#include <map_fragment>\nif (mottleK > 0.0) { vec3 mp = vMicroP * microS * 0.08; float mv = texture2D(tMicro, mp.xy + mp.z * 0.37).r * 0.6 + texture2D(tMicro, mp.zy * 2.3).r * 0.4; diffuseColor.rgb *= 1.0 + (mv - 0.5) * 2.0 * mottleK; }')
@@ -139,17 +143,17 @@ function tune(mat, kind) {
 }
 
 // Characters, NPCs, monsters, creatures (object-space detail, scaled to the object's real height).
-export function realifyActor(obj, hint = 'cloth', height = 1.75) {
+export function realifyActor(obj, hint = 'cloth', height = 1.75, opts = {}) {
   if (!GFX.real || !obj) return 0;
   const bb = new THREE.Box3().setFromObject(obj), ext = Math.max(1e-3, bb.max.y - bb.min.y);
   const unit = height > 0 ? 1 : 1 / ext; let n = 0;
   obj.traverse((o) => {
     if (!o.isMesh || o.userData.noMicro || o.isInstancedMesh) return;
     const first = [].concat(o.material)[0]; if (!first || first.transparent) return;
-    const kind0 = surfaceKind(first.name || o.name, hint);
-    if (CREASE[kind0] && o.geometry && !o.isSkinnedMesh && !o.geometry.userData.smoothed && !o.userData.faceted) o.geometry = smoothGeometry(o.geometry, CREASE[kind0]);
+    const kind0 = kindOf(first, o, hint);
+    if (!opts.noSmooth && CREASE[kind0] && o.geometry && !o.isSkinnedMesh && !o.geometry.userData.smoothed && !o.userData.faceted) o.geometry = smoothGeometry(o.geometry, CREASE[kind0]);
     const up = (m) => {
-      const kind = surfaceKind(m.name || o.name, hint), p = toPhysical(m, kind); tune(p, kind);
+      const kind = kindOf(m, o, hint), p = toPhysical(m, kind); tune(p, kind);
       const [, , , , k, s] = KINDS[kind]; if (addMicro(p, k, s * unit, false, MOTTLE[kind] || 0)) n++; return p;
     };
     o.material = Array.isArray(o.material) ? o.material.map(up) : up(o.material);
@@ -164,7 +168,7 @@ export function realifyWorld(root) {
     if (!o.isMesh || o.userData.dyn || o.isInstancedMesh && o.count > 4000) return;
     for (const m of [].concat(o.material)) {
       if (!m || m.transparent || m.userData.micro || m.userData.noMicro) continue;
-      const kind = surfaceKind(m.name || o.name, 'other'); if (!['stone', 'bark', 'wood', 'other', 'metal'].includes(kind)) continue;
+      const kind = kindOf(m, o, 'other'); if (!['stone', 'bark', 'wood', 'other', 'metal'].includes(kind)) continue;
       tune(m, kind); const [, , , , k, s] = KINDS[kind];
       if (addMicro(m, k * 0.8, s, true)) n++;
     }

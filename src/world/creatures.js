@@ -65,6 +65,7 @@ export function cmat(color, kind = 'fur', o = {}) {
   const k = kind === 'moss' ? 'stone' : kind; const sc = o.scale || (k === 'stone' ? 1.0 : 2.2);
   const m = GFX.real ? new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0, envMapIntensity: 0.9, emissive: o.emissive || '#000000' })
     : new THREE.MeshToonMaterial({ color, emissive: o.emissive || '#000000', gradientMap: toon('#ffffff').gradientMap });
+  m.userData.surface = k;
   const bump = (o.bump ?? (k === 'fur' ? (GFX.real ? 0.45 : 0.8) : k === 'scale' ? 1.3 : k === 'stone' ? 1.6 : 0.6)) * (GFX.real ? 1 : 0.6);
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vCP;').replace('#include <begin_vertex>', `#include <begin_vertex>\nvCP = position;`);
