@@ -264,7 +264,7 @@ export function animateCharacter(char, st) {
 
 // ------------------------------- Mobs -----------------------------------
 export function buildMob(model, opt = {}) {
-  if (CREATURES.has(model)) { const c = buildCreature(model, opt); if (opt.bossAura) dressBossAura(c.group, c.parts, opt.bossAura); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, 'fur'); return c; }
+  if (CREATURES.has(model)) { const c = buildCreature(model, opt); if (opt.bossAura) dressBossAura(c.group, c.parts, opt.bossAura); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, model === 'golem' ? 'stone' : model === 'dragon' ? 'hide' : 'fur'); return c; }
   if (C2.has(model)) { const c = buildC2(model, opt, buildCharacter); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, 'hide'); return c; }
   const g = new THREE.Group(); const parts = {};
   const eyes = (parent, y, z, sx = 0.1, r = 0.05) => {
