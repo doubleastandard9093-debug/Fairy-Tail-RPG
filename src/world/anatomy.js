@@ -77,3 +77,39 @@ export function fullBody(p, st) {
   if (st.cast > 0) { const c = Math.min(1, st.cast); p.body.position.y += track(TRACKS.castSink, c); for (const l of [p.legL, p.legR]) { l.rotation.x -= 0.25 * c; l.userData.shin.rotation.x += 0.45 * c; } p.head.rotation.x -= 0.08 * c; }
   return true;
 }
+
+// ---------------- creature detail LOD (Aerondel: detailed rig near, cheap body far) ----------------
+// Non-humanoids keep their own anatomy (FT's builders already sculpt vulcan pecs/shoulder mass, boar hump, golem rock
+// plates, dragon wings, Lullaby's flute body). Far away we only hide *small* decorative meshes (tufts, moss, hooves,
+// teeth, laces) whose size is < DETAIL_FRAC of the creature's height; silhouette, eyes (emissive/glow) and every
+// animated group stay. Range scales with size so big bosses keep detail farther out.
+export const DETAIL_FRAC = 0.045;
+// parts keys whose objects the animators show/hide at runtime (creatures.js, creatures2.js)
+export const TOGGLED = ['wisps', 'orbs', 'bolts', 'tendrils', 'tail', 'legs', 'legL', 'legR', 'aura', 'elite', 'orbit', 'halo'];
+const CREG = new Set();
+export function refineCreatureLOD(group, parts = {}) {
+  if (!GFX.real || !group || group.userData.clod) return 0;
+  group.updateMatrixWorld(true);
+  // anything the animators address through parts (wisps, orbs, bolts, tails, legs...) may toggle its own visibility: never LOD it
+  const owned = new Set(); for (const v of TOGGLED.map((k) => (parts || {})[k])) for (const x of [].concat(v)) if (x && x.isObject3D && x !== group && x !== parts.body) owned.add(x);
+  const isOwned = (o) => { for (let a = o; a && a !== group; a = a.parent) if (owned.has(a)) return true; return false; };
+  const bb = new THREE.Box3().setFromObject(group), H = Math.max(0.2, bb.max.y - bb.min.y), fine = [], s = new THREE.Vector3(), sph = new THREE.Sphere();
+  group.traverse((o) => {
+    if (!o.isMesh || !o.geometry || !o.visible) return; const m = [].concat(o.material)[0];
+    if (!m || m.transparent || m.isMeshBasicMaterial || (m.emissive && m.emissive.getHex() !== 0) || o.userData.noOutline || isOwned(o)) return;   // eyes/glows/decals/animator-owned parts stay
+    if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); o.getWorldScale(s);
+    sph.copy(o.geometry.boundingSphere); if (sph.radius * Math.max(s.x, s.y, s.z) < DETAIL_FRAC * H) fine.push(o);
+  });
+  group.userData.clod = { fine, near: true, far: LOD_FAR * Math.max(1, H / 2), H }; CREG.add(group);
+  return fine.length;
+}
+export function setCreatureNear(g, on) { const c = g.userData.clod; if (!c || c.near === on) return; c.near = on; for (const o of c.fine) o.visible = on; }
+export function tickCreatures(camera) {
+  let near = 0;
+  for (const g of CREG) {
+    if (!g.parent) { CREG.delete(g); continue; }
+    const on = g.getWorldPosition(_v).distanceTo(camera.position) < g.userData.clod.far; if (on) near++; setCreatureNear(g, on);
+  }
+  return near;
+}
+export const _creg = CREG;

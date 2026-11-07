@@ -11,7 +11,7 @@ import { derived, countItem, addItem, skillLevel, classRank, canAdd, saveGame } 
 import { buildCharacter, buildMob, animateCharacter, animateMob, equipVisual } from '../world/models.js';
 import { dressElite } from '../world/creatures.js';
 import { animateMobState } from '../world/detail.js';
-import { tickAnatomy } from '../world/anatomy.js';
+import { tickAnatomy, tickCreatures } from '../world/anatomy.js';
 import { applySeason, pickSeason } from '../world/seasons.js';
 import { buildWorld, groundAt, HALL, zoneAt, placeAt, blockedAt, rng } from '../world/world.js';
 import { PLACE, trainCost, FERRY_COST, forestAt, biomeAt, distToLines, ROADS_W, RAILS_W, WATER_Y } from '../world/fiore.js';
@@ -961,5 +961,5 @@ export class Game {
     this.camera.position.set(cx + shake, cy + shake, cz);
     this.camera.lookAt(c.tx, c.ty, c.tz);
   }
-  render() { if (GFX.real) tickAnatomy(this.camera); if (this.post) this.post.render(); else this.renderer.render(this.scene, this.camera); }
+  render() { if (GFX.real) { tickAnatomy(this.camera); tickCreatures(this.camera); } if (this.post) this.post.render(); else this.renderer.render(this.scene, this.camera); }
 }
