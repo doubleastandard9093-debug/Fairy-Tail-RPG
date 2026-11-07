@@ -83,6 +83,7 @@ export function toon(color, opts = {}) {
   if (cache.has(key)) return cache.get(key);
   grad3 ||= gradient(3); grad4 ||= gradient(4);
   const m = GFX.real ? realMat(color, opts) : new THREE.MeshToonMaterial({ color, gradientMap: opts.soft ? grad4 : grad3, ...stripOpts(opts) });
+  if (opts.kind) m.userData.surface = opts.kind;   // explicit surface metadata for Realistic micro detail
   cache.set(key, m);
   return m;
 }
