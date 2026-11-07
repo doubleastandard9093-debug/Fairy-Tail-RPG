@@ -1,3 +1,4 @@
+import { registerLeaf } from './seasons.js';
 import * as THREE from 'three';
 import { toon, GFX, addWind } from './toon.js';
 import { groundMaterial } from './ground.js';
@@ -82,7 +83,7 @@ export class Terrain {
     const cliff = new THREE.DodecahedronGeometry(1, 1); { const pa = cliff.attributes.position; for (let k = 0; k < pa.count; k++) { const x = pa.getX(k), y = pa.getY(k), z = pa.getZ(k); const f = 1 + 0.18 * Math.sin(x * 5.1 + y * 3.3) * Math.cos(z * 4.7) + (y > 0.6 ? -0.25 : 0); pa.setXYZ(k, x * f, Math.max(-0.6, y) * f, z * f); } cliff.computeVertexNormals(); }
     this.geo = { trunk, crown, pine, cedar, rock, grass, flower, pebble, twig, leaf, fern, shroom, cliff };
     this.mats = { trunk: toon('#7A3E26'), leaf: GFX.high ? addWind(toon('#ffffff').clone(), 0.0045) : toon('#ffffff'), rock: toon('#ffffff'), grass: GFX.high ? addWind(toon('#ffffff').clone(), 0.35) : toon('#ffffff') };
-    if (GFX.real) { this.mats.rock = toon('#ffffff', { rough: 0.9 }); this.mats.leaf.roughness = 0.7; this.mats.grass.roughness = 0.85; this.mats.grass.side = THREE.DoubleSide; }
+    if (GFX.real) { registerLeaf(this.mats.leaf); this.mats.rock = toon('#ffffff', { rough: 0.9 }); this.mats.leaf.roughness = 0.7; this.mats.grass.roughness = 0.85; this.mats.grass.side = THREE.DoubleSide; }
     this.mats.clut = toon('#ffffff', GFX.real ? { rough: 0.85 } : {}).clone(); this.mats.fern = GFX.high ? addWind(toon('#ffffff', GFX.real ? { rough: 0.8 } : {}).clone(), 0.12) : toon('#ffffff').clone(); this.mats.fern.side = THREE.DoubleSide; this.mats.fern.vertexColors = true; this.mats.shroom = toon('#ffffff').clone(); this.mats.shroom.vertexColors = true;
     this.mats.leafL = toon('#ffffff', GFX.real ? { rough: 0.9 } : {}).clone(); this.mats.leafL.side = THREE.DoubleSide;
     this.cx = null; this.cz = null;

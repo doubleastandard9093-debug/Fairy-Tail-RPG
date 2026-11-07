@@ -3,6 +3,7 @@
 // normals from the blended height field, a light parallax offset (Realistic), wet darkening near water,
 // and sun-facing snow sparkle. Low keeps a plain vertex-colour toon material (splat is baked into colour).
 import * as THREE from 'three';
+import { SEASON_U } from './seasons.js';
 import { GFX, NOISE_GLSL, toon } from './toon.js';
 
 const GLSL = /* glsl */`
@@ -43,10 +44,13 @@ const BLEND = /* glsl */`
   { // CC0 photo detail (textures/CREDITS.md), zero-mean luminance only, so the palette still sets the colour
     float dk = 1.0 - smoothstep(45.0, 90.0, length(cameraPosition - vGP)) * 0.7;
     vec3 tw = pow(abs(gn), vec3(4.0)); tw /= tw.x + tw.y + tw.z + 1e-4;
-    float dG = texture2D(tDetail, gp.xz * 0.22).r - 0.5, dD = texture2D(tDetail, gp.xz * 0.4 + 0.31).g - 0.5, dC = texture2D(tDetail, gp.xz * 0.3).b - 0.5;
+    float dG = mix(texture2D(tDetail, gp.xz * 0.22).r, texture2D(tSeason, gp.xz * 0.22).r, seasonOn) - 0.5, dD = texture2D(tDetail, gp.xz * 0.4 + 0.31).g - 0.5, dC = texture2D(tDetail, gp.xz * 0.3).b - 0.5;
     float dR = texture2D(tDetail, gp.zy * 0.18).a * tw.x + texture2D(tDetail, gp.xz * 0.18).a * tw.y + texture2D(tDetail, gp.xy * 0.18).a * tw.z - 0.5;
     G.rgb *= 1.0 + dG * 0.8 * dk; D.rgb *= 1.0 + dD * 0.9 * dk; C.rgb *= 1.0 + dC * 0.7 * dk; R.rgb *= 1.0 + dR * 0.9 * dk;
-    G.a += dG * 0.4 * dk; D.a += dD * 0.5 * dk; R.a += dR * 0.5 * dk; }
+    G.a += dG * 0.4 * dk; D.a += dD * 0.5 * dk; R.a += dR * 0.5 * dk;
+    G.rgb *= seasonGrass; // Aerondel seasons
+    float sSnow = seasonSnow * smoothstep(0.55, 0.9, gn.y) * smoothstep(0.3, 0.6, texture2D(tDetail, gp.xz * 0.05).r + 0.15);
+    G.rgb = mix(G.rgb, vec3(0.86, 0.9, 0.95), sSnow); D.rgb = mix(D.rgb, vec3(0.8, 0.84, 0.9), sSnow * 0.7); }
   #endif
   float hb = 0.25; float mG = wG + G.a * hb, mD = wD + D.a * hb, mR = wR + R.a * hb, mS = wS + S.a * hb, mN = wN + N.a * hb, mC = wC + C.a * hb;
   float mx = max(max(max(mG, mD), max(mR, mS)), max(mN, mC)) - 0.18;
@@ -74,10 +78,10 @@ export function groundMaterial() {
   const mat = GFX.real ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, envMapIntensity: 0.6 })
     : new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toon('#fff').gradientMap });
   mat.onBeforeCompile = (sh) => {
-    if (GFX.real) { const d = detailTex(); sh.uniforms.tDetail = { value: d.c }; sh.uniforms.tDN0 = { value: d.n0 }; sh.uniforms.tDN1 = { value: d.n1 }; sh.uniforms.tDR = { value: d.r }; }
+    if (GFX.real) { const d = detailTex(); sh.uniforms.tDetail = { value: d.c }; sh.uniforms.tDN0 = { value: d.n0 }; sh.uniforms.tDN1 = { value: d.n1 }; sh.uniforms.tDR = { value: d.r }; Object.assign(sh.uniforms, SEASON_U); }
     sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\nattribute vec4 aS0; attribute vec4 aS1; varying vec3 vGP; varying vec4 vS0; varying vec4 vS1; varying vec3 vGN;`)
       .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>\n vGP = (modelMatrix * vec4(transformed, 1.0)).xyz; vS0 = aS0; vS1 = aS1; vGN = normalize(mat3(modelMatrix) * objectNormal);`);
-    let f = sh.fragmentShader.replace('#include <common>', `#include <common>\n${GFX.real ? 'uniform sampler2D tDetail, tDN0, tDN1, tDR;' : ''}\n${GLSL}`)
+    let f = sh.fragmentShader.replace('#include <common>', `#include <common>\n${GFX.real ? 'uniform sampler2D tDetail, tDN0, tDN1, tDR, tSeason; uniform vec3 seasonGrass; uniform float seasonSnow, seasonOn;' : ''}\n${GLSL}`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${BLEND}\n diffuseColor.rgb *= gAlb; diffuseColor.rgb *= mix(1.0, 0.55, gWet);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
   { // bump from the blended height field (screen-space derivatives)

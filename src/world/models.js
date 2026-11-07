@@ -4,6 +4,7 @@ import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
 import { CREATURES, buildCreature, animateCreature, dressLizard, animateLizardExtra } from './creatures.js';
 import { C2, buildC2, animateC2, dressLullaby, animateLullabyExtra, dressMage, animateMageExtra, dressWizard, animateWizardExtra, dressBossAura, animateBossAura } from './creatures2.js';
 import { realifyActor } from '../systems/microdetail.js';
+import { refineAnatomy, fullBody } from './anatomy.js';
 import { refineCharacter, animateDetail, refineMob, FRAMES, ACCESSORIES, EXTRA_OUTFITS } from './detail.js';
 export { FRAMES, ACCESSORIES };
 
@@ -125,6 +126,7 @@ export function buildCharacter(look = {}) {
   const parts = { body, head, torso, armL, armR, legL, legR, gem, weapon: null, bowHand: null, eyes, mouth, grin, mark: markMesh, markYaw, pose: L.preset || null, seed: Math.random() * 10 };
   if (L.preset || L.build) dressPreset(L, parts, { skin, cloth, cloth2, hair: hairM });
   if (!L.lowDetail) refineCharacter(parts, L, { skin, cloth, cloth2, hair: hairM });
+  if (!L.lowDetail) refineAnatomy(parts);
   root.scale.setScalar(L.scale * (L.height || 1));
   addOutlines(root); shadowAll(root, true, false); realifyActor(root, 'cloth');
   return { group: root, parts };
@@ -260,6 +262,7 @@ export function animateCharacter(char, st) {
   p.head.rotation.x = st.emote === 'salute' ? -0.15 : 0;
   if (st.dead) { p.body.rotation.x = -1.4; p.body.position.y = 0.2; } else p.body.rotation.x = mv * (0.08 + run * 0.12) + (st.cast > 0 ? -0.05 : 0);
   if (p.spring) animateDetail(p, st, mv, sw);
+  if (p.anat) fullBody(p, st);
 }
 
 // ------------------------------- Mobs -----------------------------------
