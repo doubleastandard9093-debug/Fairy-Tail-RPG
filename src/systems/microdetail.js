@@ -43,6 +43,10 @@ export function surfaceKind(name = '', hint = 'cloth') {
   return hint;
 }
 
+// Explicit surface metadata (toon({kind}), cmat(kind)) wins; names are only a fallback (FT builders leave names empty).
+const META = { skin: 'skin', hair: 'hair', cloth: 'cloth', fur: 'fur', eye: 'eye', metal: 'metal', leather: 'leather', horn: 'horn', bone: 'horn', scale: 'hide', hide: 'hide', stone: 'stone', moss: 'stone', wood: 'wood', bark: 'bark', wet: 'wet' };
+export function kindOf(m, o, hint = 'cloth') { const k = m && m.userData && META[m.userData.surface]; return k || surfaceKind((m && m.name) || (o && o.name) || '', hint); }
+
 const MICRO_GLSL = (space, near, far) => `#include <normal_fragment_maps>
 {
   float md = length(cameraPosition - vMicroW);
@@ -70,7 +74,7 @@ export function addMicro(mat, strength, scale, world = false) {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vMicroP; varying vec3 vMicroW;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMicroP = position;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\nvMicroW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      .replace('#include <project_vertex>', '#include <project_vertex>\n{ vec4 mwp = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\n mwp = instanceMatrix * mwp;\n#endif\n vMicroW = (modelMatrix * mwp).xyz; }');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vMicroP; varying vec3 vMicroW; uniform sampler2D tMicro; uniform float microK; uniform float microS;')
       .replace('#include <normal_fragment_maps>', world ? MICRO_GLSL('vMicroW', 18, 45) : MICRO_GLSL('vMicroP', 10, 28));
@@ -142,10 +146,10 @@ export function realifyActor(obj, hint = 'cloth', height = 1.75) {
   obj.traverse((o) => {
     if (!o.isMesh || o.userData.noMicro || o.isInstancedMesh) return;
     const first = [].concat(o.material)[0]; if (!first || first.transparent) return;
-    const kind0 = surfaceKind(first.name || o.name, hint);
+    const kind0 = kindOf(first, o, hint);
     if (CREASE[kind0] && o.geometry && !o.isSkinnedMesh && !o.geometry.userData.smoothed && !o.userData.faceted) o.geometry = smoothGeometry(o.geometry, CREASE[kind0]);
     const up = (m) => {
-      const kind = surfaceKind(m.name || o.name, hint), p = toPhysical(m, kind); tune(p, kind);
+      const kind = kindOf(m, o, hint), p = toPhysical(m, kind); tune(p, kind);
       const [, , , , k, s] = KINDS[kind]; if (addMicro(p, k, s * unit)) n++; return p;
     };
     o.material = Array.isArray(o.material) ? o.material.map(up) : up(o.material);
@@ -160,7 +164,7 @@ export function realifyWorld(root) {
     if (!o.isMesh || o.userData.dyn || o.isInstancedMesh && o.count > 4000) return;
     for (const m of [].concat(o.material)) {
       if (!m || m.transparent || m.userData.micro || m.userData.noMicro) continue;
-      const kind = surfaceKind(m.name || o.name, 'other'); if (!['stone', 'bark', 'wood', 'other', 'metal'].includes(kind)) continue;
+      const kind = kindOf(m, o, 'other'); if (!['stone', 'bark', 'wood', 'other', 'metal'].includes(kind)) continue;
       tune(m, kind); const [, , , , k, s] = KINDS[kind];
       if (addMicro(m, k * 0.8, s, true)) n++;
     }
