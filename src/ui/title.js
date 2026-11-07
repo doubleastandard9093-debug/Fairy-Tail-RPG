@@ -1,5 +1,6 @@
 import { guildMarkDataURL } from '../world/mark.js';
 
+import { supportLinkHTML } from './support.js';
 export const DISCLAIMER = 'Fan-made concept demo, not affiliated with or endorsed by Hiro Mashima, Kodansha or the Fairy Tail rights holders.';
 
 /** Title screen. Resolves 'new' or 'continue'. */
@@ -17,6 +18,7 @@ export function titleScreen(hasSave) {
           <button class="btn ${hasSave ? '' : 'gold'}" id="t-new">${hasSave ? 'New recruit' : 'Join Fairy Tail ▸'}</button>
         </div>
         <div class="pillars"><span>Toram-style builds</span><span>Albion-style gear</span><span>RS3-style skills</span><span>AQ3D-style charm</span></div>
+        ${supportLinkHTML()}
       </div>
       <div class="disc">${DISCLAIMER}</div>`;
     document.body.appendChild(root);

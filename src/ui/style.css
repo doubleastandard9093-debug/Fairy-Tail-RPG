@@ -364,3 +364,7 @@ body.cine #dialog { z-index: 41; }
 
 body.pad #joy { display: none; }
 body.pad button:focus, body.pad .opt:focus { outline: 3px solid #ffd76a; outline-offset: 1px; }
+.support-link{display:inline-block;margin-top:14px;min-height:44px;line-height:44px;padding:0 18px;border-radius:22px;border:1px solid #e8b860;color:#ffe2a8;text-decoration:none;font-size:15px}
+.support-link:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.support-note{font-size:12px;opacity:.75;margin-top:6px}
+.support-link .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
