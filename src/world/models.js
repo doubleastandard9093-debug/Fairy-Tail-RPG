@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { toon, glow, mesh, addOutlines, shadowAll, GFX } from './toon.js';
 import { CREATURES, buildCreature, animateCreature, dressLizard, animateLizardExtra } from './creatures.js';
 import { C2, buildC2, animateC2, dressLullaby, animateLullabyExtra, dressMage, animateMageExtra, dressWizard, animateWizardExtra, dressBossAura, animateBossAura } from './creatures2.js';
+import { realifyActor } from '../systems/microdetail.js';
 import { refineCharacter, animateDetail, refineMob, FRAMES, ACCESSORIES, EXTRA_OUTFITS } from './detail.js';
 export { FRAMES, ACCESSORIES };
 
@@ -125,7 +126,7 @@ export function buildCharacter(look = {}) {
   if (L.preset || L.build) dressPreset(L, parts, { skin, cloth, cloth2, hair: hairM });
   if (!L.lowDetail) refineCharacter(parts, L, { skin, cloth, cloth2, hair: hairM });
   root.scale.setScalar(L.scale * (L.height || 1));
-  addOutlines(root); shadowAll(root, true, false);
+  addOutlines(root); shadowAll(root, true, false); realifyActor(root, 'cloth');
   return { group: root, parts };
 }
 
@@ -263,8 +264,8 @@ export function animateCharacter(char, st) {
 
 // ------------------------------- Mobs -----------------------------------
 export function buildMob(model, opt = {}) {
-  if (CREATURES.has(model)) { const c = buildCreature(model, opt); if (opt.bossAura) dressBossAura(c.group, c.parts, opt.bossAura); addOutlines(c.group); shadowAll(c.group, true, false); return c; }
-  if (C2.has(model)) { const c = buildC2(model, opt, buildCharacter); addOutlines(c.group); shadowAll(c.group, true, false); return c; }
+  if (CREATURES.has(model)) { const c = buildCreature(model, opt); if (opt.bossAura) dressBossAura(c.group, c.parts, opt.bossAura); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, 'fur'); return c; }
+  if (C2.has(model)) { const c = buildC2(model, opt, buildCharacter); addOutlines(c.group); shadowAll(c.group, true, false); realifyActor(c.group, 'hide'); return c; }
   const g = new THREE.Group(); const parts = {};
   const eyes = (parent, y, z, sx = 0.1, r = 0.05) => {
     for (const s of [-1, 1]) {
@@ -597,7 +598,7 @@ export function buildMob(model, opt = {}) {
   else if (model === 'lullaby') dressLullaby(g, parts);
   else if (model === 'mage') dressMage(g, parts, opt.robe || '#2a2236');
   else if (model === 'wizard') dressWizard(g, parts, opt);
-  addOutlines(g); shadowAll(g, true, false);
+  addOutlines(g); shadowAll(g, true, false); realifyActor(g, 'hide');
   return { group: g, parts };
 }
 

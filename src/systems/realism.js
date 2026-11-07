@@ -7,6 +7,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Pass, FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 import { CopyShader } from 'three/examples/jsm/shaders/CopyShader.js';
+import { realifyWorld } from './microdetail.js';
 import { REFR } from '../world/water.js';
 
 // Scene pass with water refraction: draw everything but the sea (layer 5), copy that to a half-res texture the sea
@@ -41,6 +42,7 @@ export function setupRealism(renderer, scene, camera, world) {
     const pm = new THREE.PMREMGenerator(renderer); const tmp = new THREE.Scene(); const sk = world.sky.clone(); sk.visible = true; sk.position.set(0, 0, 0); sk.scale.setScalar(0.1); tmp.add(sk);
     const rt = pm.fromScene(tmp, 0.02, 0.1, 200); scene.environment = rt.texture; scene.environmentIntensity = 0.85; pm.dispose();
   }
+  if (!off('m')) realifyWorld(scene); // Aerondel micro-normal detail on static props (Realistic only)
   const size = renderer.getDrawingBufferSize(new THREE.Vector2());
   const comp = new EffectComposer(renderer, new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 }));
   if (world.refrWater) { const rp = new RefractRenderPass(scene, camera, world.refrWater); rp.setSize(size.x, size.y); comp.addPass(rp); } else comp.addPass(new RenderPass(scene, camera));
